@@ -1,0 +1,137 @@
+# Receipts
+
+Receipts is a public, source-backed database of falsifiable predictions. It preserves the original statement, freezes a clear interpretation and resolution criteria, records the deadline, and later resolves the prediction against cited evidence. The product is intentionally strict: when evidence or attribution is weak, the item stays out of public scoring.
+
+This repository is a from-scratch MVP implementation of the supplied product and technical brief. It does **not** include fabricated public-figure predictions. Without credentials, the app shows the real expert roster, public Polymarket context, and honest empty states. Verified Receipts appear only after the ingestion and review pipeline has real source data.
+
+## Architecture
+
+- Next.js 16 App Router, React 19, strict TypeScript, Tailwind CSS 4, and shadcn/ui
+- Supabase Postgres, Auth, Row Level Security, and admin-only service-role writes
+- Official X API ingestion; no scraping or unofficial mirrors
+- OpenAI Responses API with Zod structured outputs for extraction, independent verification, market matching, and resolution proposals
+- Public Polymarket Gamma API ingestion with hourly snapshots
+- Wilson lower-bound leaderboard ranking, accuracy, Brier score, and calibration data
+- Vitest unit/contract tests and Playwright desktop/mobile browser tests
+
+The public read path is in `lib/data/public.ts`. Privileged reads and writes are separated into `lib/data/admin.ts`, `lib/auth/admin.ts`, server actions, and authenticated route handlers. Published prediction fields are frozen by a database trigger; later source and resolution events are captured separately in the audit log.
+
+## Run locally
+
+Prerequisites: Node.js 22+, pnpm 11+, and Docker if you want the local Supabase stack.
+
+```bash
+pnpm install
+cp .env.example .env
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). With no configured services, the public app still runs: the expert roster is local and market cards are loaded from Polymarket when its public API is reachable.
+
+## Configure Supabase
+
+For a local database:
+
+```bash
+pnpm dlx supabase start
+pnpm dlx supabase db reset
+```
+
+Copy the local API URL, anon key, service-role key, and database connection string into `.env`. `db reset` applies both files under `supabase/migrations/`, including the schema, indexes, RLS policies, triggers, scorecard view, search function, and category seed.
+
+For a hosted Supabase project:
+
+```bash
+pnpm dlx supabase login
+pnpm dlx supabase link --project-ref YOUR_PROJECT_REF
+pnpm dlx supabase db push
+```
+
+In Supabase Auth, add `http://localhost:3000/auth/callback` locally and the deployed `/auth/callback` URL in production. Never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser.
+
+## Environment
+
+Start with `.env.example`. The important groups are:
+
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`: database, auth, server-only mutation access, and CLI ingestion.
+- `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_VERIFIER_MODEL`: structured extraction and the independent second pass. Keep extractor and verifier logically independent even if they use the same model family.
+- `X_BEARER_TOKEN`, `X_FULL_ARCHIVE_ENABLED`: official X API access. Full-archive search requires an eligible X API plan.
+- `ADMIN_EMAILS`: comma-separated allowlist for magic-link admin access. The first successful allowlisted login is recorded in `app_admins`.
+- `CRON_SECRET`: bearer secret for `POST /api/cron/polymarket`.
+- `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`: optional, privacy-conscious product analytics. The app is a no-op when absent.
+- `SUBMISSION_HASH_SALT`: production-only random value used to hash IPs for abuse throttling.
+
+Do not enable `ENABLE_SYNTHETIC_FIXTURES` outside automated tests. Playwright injects it only into its own development server so the atomic Receipt page can be exercised without publishing fake data.
+
+## Seed real data
+
+Apply migrations first, then seed in stages:
+
+```bash
+pnpm seed:experts
+pnpm seed:polymarket
+pnpm seed:x -- --recent --all
+pnpm tsx scripts/process-sources.ts
+pnpm seed:resolve
+pnpm readiness
+```
+
+`seed:experts` adds the PRD roster but keeps X identities unverified until the official API resolves each handle. `seed:polymarket` imports active and recently closed public markets, normalizes topics, and stores snapshots. `seed:x` stores exact official-source text with content hashes and provenance. `process-sources` applies the cheap deterministic filter, structured extraction, literal-quote validation, independent verification, duplicate detection, and conservative auto-publication thresholds.
+
+To run the complete orchestration and receive a final ingestion summary:
+
+```bash
+pnpm seed
+```
+
+Use `X_FULL_ARCHIVE_ENABLED=true` only when your X API access supports it. Otherwise the seed uses recent search and leaves unavailable history unfilled rather than substituting scraped data. Bound cost and runtime with `SEED_MAX_POSTS_PER_EXPERT`, `SEED_MAX_OPENAI_ITEMS`, and `SEED_CONCURRENCY`.
+
+## Admin and operations
+
+Visit `/admin/login` with an email listed in `ADMIN_EMAILS`. The admin area contains:
+
+- a launch and ingestion dashboard;
+- side-by-side candidate/source moderation with required audit reasons;
+- resolution proposal review with explicit confirmation for scoring changes;
+- expert identity state and ingestion-run inspection;
+- manual Polymarket refresh.
+
+Production schedulers should call:
+
+```text
+POST /api/cron/polymarket
+Authorization: Bearer <CRON_SECRET>
+```
+
+Suggested cadence: Polymarket hourly, recent X sync every few hours, source availability refresh daily, and due-prediction resolution daily. The CLI commands `pnpm sync:polymarket`, `pnpm sync:x`, `pnpm refresh:x`, and `pnpm seed:resolve` are suitable scheduler entry points when run in a trusted environment.
+
+## Quality gates
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+`pnpm readiness` checks the launch volume targets and fails on key integrity violations such as scoring resolutions without evidence. Volume shortfalls are warnings because the system must never weaken verification rules merely to hit a target.
+
+## Deploy
+
+The app can be deployed on Vercel or any Node.js platform that supports Next.js 16. Configure the production environment, set `NEXT_PUBLIC_SITE_ORIGIN`, push the database migrations, add the production auth callback, and schedule the authenticated refresh jobs. Run all quality gates and `pnpm readiness` before public launch.
+
+There is no GitHub remote or deployment created by this build. The repository is ready for the owner to choose a host, initialize the desired remote, and add secrets in that provider rather than committing them.
+
+## Content and scoring rules
+
+- Only direct statements from an attributable original source qualify.
+- A source quote must remain an exact contiguous substring of the stored source text.
+- Predictions require falsifiable criteria and a deadline or clearly bounded event.
+- Published normalization, deadline, and criteria are immutable; corrections create audited state rather than silently rewriting history.
+- Deleted or unverifiable sources are not shown from stale text and are removed from public scoring until alternate verification is approved.
+- Ambiguous and void outcomes do not count as binary wins or losses.
+- Leaderboard eligibility requires the configured minimum sample; provisional records remain visibly labeled.
+
+See `/methodology` in the running app for the reader-facing explanation.

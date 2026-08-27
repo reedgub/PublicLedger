@@ -1,0 +1,93 @@
+import type { CategorySlug } from "@/lib/constants";
+import type { Expert } from "@/types/domain";
+
+export type ExpertSeed = Pick<
+  Expert,
+  "slug" | "displayName" | "xHandle" | "headline" | "primaryCategorySlug" | "categorySlugs"
+>;
+
+const expert = (
+  slug: string,
+  displayName: string,
+  xHandle: string | null,
+  primaryCategorySlug: CategorySlug,
+  headline: string,
+  categorySlugs: CategorySlug[] = [primaryCategorySlug],
+): ExpertSeed => ({ slug, displayName, xHandle, primaryCategorySlug, headline, categorySlugs });
+
+export const EXPERT_ROSTER: ExpertSeed[] = [
+  expert("sam-altman", "Sam Altman", "sama", "ai-tech", "Technology executive", ["ai-tech", "business-startups"]),
+  expert("elon-musk", "Elon Musk", "elonmusk", "ai-tech", "Technology executive", ["ai-tech", "business-startups", "science-space"]),
+  expert("demis-hassabis", "Demis Hassabis", "demishassabis", "ai-tech", "AI researcher and executive"),
+  expert("yann-lecun", "Yann LeCun", "ylecun", "ai-tech", "AI scientist"),
+  expert("andrej-karpathy", "Andrej Karpathy", "karpathy", "ai-tech", "AI researcher and educator"),
+  expert("gary-marcus", "Gary Marcus", "GaryMarcus", "ai-tech", "AI researcher and author"),
+  expert("ethan-mollick", "Ethan Mollick", "emollick", "ai-tech", "Technology and management professor"),
+  expert("andrew-ng", "Andrew Ng", "AndrewYNg", "ai-tech", "AI educator and entrepreneur"),
+  expert("satya-nadella", "Satya Nadella", "satyanadella", "ai-tech", "Technology executive", ["ai-tech", "business-startups"]),
+  expert("bill-gates", "Bill Gates", "BillGates", "ai-tech", "Technologist and philanthropist", ["ai-tech", "energy-climate", "science-space"]),
+  expert("marc-andreessen", "Marc Andreessen", "pmarca", "business-startups", "Technology investor", ["business-startups", "ai-tech", "markets-investing"]),
+  expert("benedict-evans", "Benedict Evans", "benedictevans", "ai-tech", "Technology analyst"),
+  expert("naval-ravikant", "Naval Ravikant", "naval", "business-startups", "Technology investor and founder"),
+  expert("sriram-krishnan", "Sriram Krishnan", "sriramk", "ai-tech", "Technology investor and policy adviser"),
+  expert("francois-chollet", "François Chollet", "fchollet", "ai-tech", "AI researcher and engineer"),
+  expert("ray-dalio", "Ray Dalio", "RayDalio", "markets-investing", "Investor", ["markets-investing", "economy-rates"]),
+  expert("bill-ackman", "Bill Ackman", "BillAckman", "markets-investing", "Investor", ["markets-investing", "economy-rates"]),
+  expert("cathie-wood", "Cathie Wood", "CathieDWood", "markets-investing", "Investor", ["markets-investing", "ai-tech", "crypto"]),
+  expert("larry-summers", "Larry Summers", "LHSummers", "economy-rates", "Economist and former U.S. Treasury secretary"),
+  expert("jason-furman", "Jason Furman", "jasonfurman", "economy-rates", "Economist"),
+  expert("mohamed-el-erian", "Mohamed El-Erian", "elerianm", "economy-rates", "Economist and investor", ["economy-rates", "markets-investing"]),
+  expert("nouriel-roubini", "Nouriel Roubini", "Nouriel", "economy-rates", "Economist"),
+  expert("claudia-sahm", "Claudia Sahm", "Claudia_Sahm", "economy-rates", "Economist"),
+  expert("paul-krugman", "Paul Krugman", "paulkrugman", "economy-rates", "Economist and columnist"),
+  expert("noah-smith", "Noah Smith", "Noahpinion", "economy-rates", "Economics writer"),
+  expert("joseph-politano", "Joseph Politano", "JosephPolitano", "economy-rates", "Economics writer"),
+  expert("michael-saylor", "Michael Saylor", "saylor", "crypto", "Technology executive and investor", ["crypto", "markets-investing"]),
+  expert("vitalik-buterin", "Vitalik Buterin", "VitalikButerin", "crypto", "Ethereum co-founder", ["crypto", "ai-tech"]),
+  expert("balaji-srinivasan", "Balaji Srinivasan", "balajis", "crypto", "Technology founder and investor", ["crypto", "ai-tech", "business-startups"]),
+  expert("anthony-pompliano", "Anthony Pompliano", "APompliano", "crypto", "Investor and media host", ["crypto", "markets-investing"]),
+  expert("raoul-pal", "Raoul Pal", "RaoulGMI", "crypto", "Investor", ["crypto", "markets-investing"]),
+  expert("arthur-hayes", "Arthur Hayes", "Arthur_0x", "crypto", "Crypto market commentator"),
+  expert("brian-armstrong", "Brian Armstrong", "brian_armstrong", "crypto", "Technology executive", ["crypto", "business-startups"]),
+  expert("changpeng-zhao", "Changpeng Zhao", "cz_binance", "crypto", "Technology founder"),
+  expert("erik-voorhees", "Erik Voorhees", "ErikVoorhees", "crypto", "Crypto entrepreneur"),
+  expert("mike-novogratz", "Mike Novogratz", "novogratz", "crypto", "Investor", ["crypto", "markets-investing"]),
+  expert("nate-silver", "Nate Silver", "NateSilver538", "politics-elections", "Statistician and forecaster", ["politics-elections", "sports"]),
+  expert("g-elliott-morris", "G. Elliott Morris", "gelliottmorris", "politics-elections", "Political forecaster"),
+  expert("nate-cohn", "Nate Cohn", "Nate_Cohn", "politics-elections", "Political data journalist"),
+  expert("david-shor", "David Shor", "DavidShor", "politics-elections", "Political data scientist"),
+  expert("larry-sabato", "Larry Sabato", "LarrySabato", "politics-elections", "Political analyst"),
+  expert("ian-bremmer", "Ian Bremmer", "ianbremmer", "geopolitics-conflict", "Political scientist"),
+  expert("richard-haass", "Richard Haass", "RichardHaass", "geopolitics-conflict", "Foreign-policy analyst"),
+  expert("fareed-zakaria", "Fareed Zakaria", "FareedZakaria", "geopolitics-conflict", "Journalist and foreign-policy analyst"),
+  expert("jiang-xueqin", "Jiang Xueqin", null, "geopolitics-conflict", "Writer and educator"),
+  expert("paul-graham", "Paul Graham", "paulg", "business-startups", "Founder and investor"),
+  expert("jason-calacanis", "Jason Calacanis", "jason", "business-startups", "Technology investor"),
+  expert("chamath-palihapitiya", "Chamath Palihapitiya", "chamath", "business-startups", "Investor", ["business-startups", "markets-investing"]),
+  expert("garry-tan", "Garry Tan", "garrytan", "business-startups", "Technology investor and founder"),
+  expert("david-sacks", "David Sacks", "DavidSacks", "business-startups", "Technology investor and founder"),
+  expert("aaron-levie", "Aaron Levie", "levie", "business-startups", "Technology executive"),
+  expert("david-heinemeier-hansson", "David Heinemeier Hansson", "dhh", "business-startups", "Software developer and entrepreneur"),
+  expert("keith-rabois", "Keith Rabois", "rabois", "business-startups", "Technology investor"),
+  expert("fred-wilson", "Fred Wilson", "fredwilson", "business-startups", "Technology investor"),
+  expert("scott-galloway", "Scott Galloway", "profgalloway", "business-startups", "Business professor and author"),
+  expert("tyler-cowen", "Tyler Cowen", "tylercowen", "economy-rates", "Economist and author", ["economy-rates", "business-startups"]),
+  expert("jesse-jenkins", "Jesse Jenkins", "JesseJenkins", "energy-climate", "Energy systems researcher"),
+  expert("david-roberts", "David Roberts", "drvolts", "energy-climate", "Energy and climate writer"),
+  expert("ramez-naam", "Ramez Naam", "ramez", "energy-climate", "Climate technology investor and author", ["energy-climate", "science-space"]),
+  expert("peter-diamandis", "Peter Diamandis", "PeterDiamandis", "science-space", "Technology entrepreneur and author", ["science-space", "ai-tech"]),
+  expert("neil-degrasse-tyson", "Neil deGrasse Tyson", "neiltyson", "science-space", "Astrophysicist and science communicator"),
+  expert("haralabos-voulgaris", "Haralabos Voulgaris", "haralabob", "sports", "Basketball analyst"),
+  expert("bill-simmons", "Bill Simmons", "BillSimmons", "sports", "Sports media host"),
+  expert("kevin-pelton", "Kevin Pelton", "kpelton", "sports", "Basketball analyst"),
+  expert("daryl-morey", "Daryl Morey", "dmorey", "sports", "Basketball executive"),
+];
+
+export function rosterAsExperts(): Expert[] {
+  return EXPERT_ROSTER.map((item) => ({
+    id: `roster-${item.slug}`,
+    ...item,
+    avatarUrl: null,
+    sourceStatus: item.xHandle ? "unverified" : "unresolved",
+  }));
+}
