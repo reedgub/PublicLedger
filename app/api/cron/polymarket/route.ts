@@ -8,7 +8,7 @@ function authorized(request: Request): boolean {
   return bearer === `Bearer ${env.CRON_SECRET}` || request.headers.get("x-cron-secret") === env.CRON_SECRET;
 }
 
-export async function POST(request: Request) {
+async function handle(request: Request) {
   if (!authorized(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!integrations.supabaseAdmin) return Response.json({ error: "Supabase admin is not configured" }, { status: 503 });
   const admin = createAdminSupabaseClient();
@@ -40,3 +40,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Polymarket refresh failed" }, { status: 500 });
   }
 }
+
+// Vercel Cron sends GET; manual invocations may use POST. Both are gated on CRON_SECRET.
+export const GET = handle;
+export const POST = handle;
+export const maxDuration = 60;
