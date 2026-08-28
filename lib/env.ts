@@ -26,28 +26,34 @@ const envSchema = z.object({
   SUBMISSION_HASH_SALT: z.string().default("local-development-only"),
 });
 
+// Vercel materializes unset env vars as empty strings, which defeats Zod's
+// .default() (defaults only apply when the input is undefined). Normalize
+// empty strings to undefined so defaults and .optional() behave the same way
+// locally and in production.
+const raw = (value: string | undefined) => (value && value.trim() !== "" ? value : undefined);
+
 export const env = envSchema.parse({
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  DATABASE_URL: process.env.DATABASE_URL,
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  OPENAI_MODEL: process.env.OPENAI_MODEL,
-  OPENAI_VERIFIER_MODEL: process.env.OPENAI_VERIFIER_MODEL,
-  X_BEARER_TOKEN: process.env.X_BEARER_TOKEN,
-  X_FULL_ARCHIVE_ENABLED: process.env.X_FULL_ARCHIVE_ENABLED,
-  ADMIN_EMAILS: process.env.ADMIN_EMAILS,
-  CRON_SECRET: process.env.CRON_SECRET,
-  NEXT_PUBLIC_SITE_ORIGIN: process.env.NEXT_PUBLIC_SITE_ORIGIN,
-  NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-  NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-  SEED_MAX_POSTS_PER_EXPERT: process.env.SEED_MAX_POSTS_PER_EXPERT,
-  SEED_MAX_OPENAI_ITEMS: process.env.SEED_MAX_OPENAI_ITEMS,
-  SEED_CONCURRENCY: process.env.SEED_CONCURRENCY,
-  SEED_START_DATE: process.env.SEED_START_DATE,
-  SEED_END_DATE: process.env.SEED_END_DATE,
-  HISTORICAL_MARKET_MAX_DISTANCE_HOURS: process.env.HISTORICAL_MARKET_MAX_DISTANCE_HOURS,
-  SUBMISSION_HASH_SALT: process.env.SUBMISSION_HASH_SALT,
+  NEXT_PUBLIC_SUPABASE_URL: raw(process.env.NEXT_PUBLIC_SUPABASE_URL),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: raw(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+  SUPABASE_SERVICE_ROLE_KEY: raw(process.env.SUPABASE_SERVICE_ROLE_KEY),
+  DATABASE_URL: raw(process.env.DATABASE_URL),
+  OPENAI_API_KEY: raw(process.env.OPENAI_API_KEY),
+  OPENAI_MODEL: raw(process.env.OPENAI_MODEL),
+  OPENAI_VERIFIER_MODEL: raw(process.env.OPENAI_VERIFIER_MODEL),
+  X_BEARER_TOKEN: raw(process.env.X_BEARER_TOKEN),
+  X_FULL_ARCHIVE_ENABLED: raw(process.env.X_FULL_ARCHIVE_ENABLED),
+  ADMIN_EMAILS: raw(process.env.ADMIN_EMAILS),
+  CRON_SECRET: raw(process.env.CRON_SECRET),
+  NEXT_PUBLIC_SITE_ORIGIN: raw(process.env.NEXT_PUBLIC_SITE_ORIGIN),
+  NEXT_PUBLIC_POSTHOG_KEY: raw(process.env.NEXT_PUBLIC_POSTHOG_KEY),
+  NEXT_PUBLIC_POSTHOG_HOST: raw(process.env.NEXT_PUBLIC_POSTHOG_HOST),
+  SEED_MAX_POSTS_PER_EXPERT: raw(process.env.SEED_MAX_POSTS_PER_EXPERT),
+  SEED_MAX_OPENAI_ITEMS: raw(process.env.SEED_MAX_OPENAI_ITEMS),
+  SEED_CONCURRENCY: raw(process.env.SEED_CONCURRENCY),
+  SEED_START_DATE: raw(process.env.SEED_START_DATE),
+  SEED_END_DATE: raw(process.env.SEED_END_DATE),
+  HISTORICAL_MARKET_MAX_DISTANCE_HOURS: raw(process.env.HISTORICAL_MARKET_MAX_DISTANCE_HOURS),
+  SUBMISSION_HASH_SALT: raw(process.env.SUBMISSION_HASH_SALT),
 });
 
 export const integrations = {
