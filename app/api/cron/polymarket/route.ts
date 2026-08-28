@@ -34,17 +34,27 @@ async function handle(request: Request) {
       const { error: snapshotError } = await admin.from("market_snapshots").upsert(snapshots, { onConflict: "market_id,observed_at" });
       if (snapshotError) throw snapshotError;
     }
-    // Normalize each active market into a topic and link the market to it. Idempotent
-    // via upsert on topic slug; only active markets contribute to Receipts topics.
+    // Normalize each active market into a topic and link the market to it.
+    // Also sweep in any pre-existing active markets that never got a topic
+    // (from earlier runs whose Polymarket response has since drifted), and
+    // update stale category_slug on already-existing topics whose normalizer
+    // now maps to a better category.
+    const { data: orphanRows } = await admin
+      .from("markets")
+      .select("id, question")
+      .eq("active", true)
+      .is("topic_id", null)
+      .limit(500);
     const topicsBySlug = new Map<string, { title: string; category: string; description: string; marketIds: string[] }>();
-    for (const market of stored ?? []) {
-      if (!market.active) continue;
-      const topic = normalizeMarketTopic(market.question);
-      if (!topic.isUsefulTopic) continue;
+    const addToTopic = (marketId: string, question: string) => {
+      const topic = normalizeMarketTopic(question);
+      if (!topic.isUsefulTopic) return;
       const entry = topicsBySlug.get(topic.topicSlug) ?? { title: topic.topicTitle, category: topic.category, description: topic.description, marketIds: [] };
-      entry.marketIds.push(market.id);
+      entry.marketIds.push(marketId);
       topicsBySlug.set(topic.topicSlug, entry);
-    }
+    };
+    for (const market of stored ?? []) if (market.active) addToTopic(market.id, market.question);
+    for (const orphan of orphanRows ?? []) addToTopic(orphan.id, orphan.question);
     let topicsCreated = 0;
     for (const [slug, info] of topicsBySlug) {
       const { data: topic, error: topicError } = await admin
@@ -57,8 +67,8 @@ async function handle(request: Request) {
       const { error: linkError } = await admin.from("markets").update({ topic_id: topic.id }).in("id", info.marketIds);
       if (linkError) console.error("failed to link markets to topic", slug, linkError.message);
     }
-    if (run) await admin.from("ingestion_runs").update({ status: "succeeded", finished_at: new Date().toISOString(), items_requested: 250, items_fetched: active.length, items_created: stored?.length ?? 0, metadata: { topics_created: topicsCreated } }).eq("id", run.id);
-    return Response.json({ ok: true, markets: active.length, snapshots: snapshots.length, topics: topicsCreated });
+    if (run) await admin.from("ingestion_runs").update({ status: "succeeded", finished_at: new Date().toISOString(), items_requested: 250, items_fetched: active.length, items_created: stored?.length ?? 0, metadata: { topics_created: topicsCreated, orphan_markets_swept: orphanRows?.length ?? 0 } }).eq("id", run.id);
+    return Response.json({ ok: true, markets: active.length, snapshots: snapshots.length, topics: topicsCreated, orphansSwept: orphanRows?.length ?? 0 });
   } catch (error) {
     if (run) await admin.from("ingestion_runs").update({ status: "failed", finished_at: new Date().toISOString(), errors: 1, metadata: { error: error instanceof Error ? error.message : "unknown" } }).eq("id", run.id);
     return Response.json({ error: "Polymarket refresh failed" }, { status: 500 });

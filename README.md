@@ -47,7 +47,11 @@ pnpm dlx supabase link --project-ref YOUR_PROJECT_REF
 pnpm dlx supabase db push
 ```
 
+Or, if you don't have the Supabase CLI installed and just want a one-shot bootstrap, paste `supabase/setup.sql` into the Supabase Dashboard SQL Editor. That file combines every migration, the categories seed, the 65-expert roster, and their category links into a single idempotent script — safe to re-run against any state.
+
 In Supabase Auth, add `http://localhost:3000/auth/callback` locally and the deployed `/auth/callback` URL in production. Never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser.
+
+**API keys.** Newer Supabase projects issue two key pairs: a legacy JWT anon/service-role pair and a modern `sb_publishable_...` / `sb_secret_...` pair. The app accepts either. Some Vercel plans flag `sb_publishable_` values as suspected secrets under `NEXT_PUBLIC_*` names — bulk-import via `.env` in the Vercel dashboard bypasses that check.
 
 ## Environment
 
@@ -122,7 +126,11 @@ pnpm test:e2e
 
 The app can be deployed on Vercel or any Node.js platform that supports Next.js 16. Configure the production environment, set `NEXT_PUBLIC_SITE_ORIGIN`, push the database migrations, add the production auth callback, and schedule the authenticated refresh jobs. Run all quality gates and `pnpm readiness` before public launch.
 
-There is no GitHub remote or deployment created by this build. The repository is ready for the owner to choose a host, initialize the desired remote, and add secrets in that provider rather than committing them.
+Vercel-specific notes:
+
+- **Hobby plan** allows one cron per day at most. `vercel.json` is set to `0 12 * * *` (daily at 12:00 UTC). On Pro or above, change it to `0 * * * *` for hourly refresh.
+- The cron endpoint `/api/cron/polymarket` accepts both `GET` (Vercel Cron) and `POST` (manual invocations), and requires `Authorization: Bearer $CRON_SECRET`.
+- `instrumentation.ts` runs on server startup and patches `Headers.prototype.set/append` + wraps `globalThis.fetch` to strip any character with code point > 255 from outgoing HTTP header values. This is a defensive shim against Node 22's stricter `undici` validation; observed to matter for at least one request-scoped supabase-js code path in production.
 
 ## Content and scoring rules
 
