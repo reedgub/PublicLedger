@@ -1,7 +1,6 @@
 -- ============================================================================
--- Receipts one-shot setup.
--- Paste this into Supabase Dashboard -> SQL Editor -> New Query -> Run.
--- Safe to re-run: uses idempotent DDL / on-conflict clauses.
+-- Receipts one-shot setup (IDEMPOTENT — safe to re-run against any state).
+-- Paste into Supabase Dashboard -> SQL Editor -> New Query -> Run.
 -- Contains:
 --   1. Schema (all tables, indexes, RLS, is_admin(), triggers, views, RPC).
 --   2. Category seed (12 rows).
@@ -14,14 +13,14 @@ begin;
 create extension if not exists pgcrypto;
 create extension if not exists pg_trgm;
 
-create table public.categories (
+create table if not exists public.categories (
   slug text primary key,
   name text not null,
   sort_order integer not null,
   created_at timestamptz not null default now()
 );
 
-create table public.experts (
+create table if not exists public.experts (
   id uuid primary key default gen_random_uuid(),
   slug text unique not null,
   display_name text not null,
@@ -38,13 +37,13 @@ create table public.experts (
   updated_at timestamptz not null default now()
 );
 
-create table public.expert_categories (
+create table if not exists public.expert_categories (
   expert_id uuid not null references public.experts(id) on delete cascade,
   category_slug text not null references public.categories(slug),
   primary key (expert_id, category_slug)
 );
 
-create table public.topics (
+create table if not exists public.topics (
   id uuid primary key default gen_random_uuid(),
   slug text unique not null,
   title text not null,
@@ -56,7 +55,7 @@ create table public.topics (
   updated_at timestamptz not null default now()
 );
 
-create table public.markets (
+create table if not exists public.markets (
   id uuid primary key default gen_random_uuid(),
   provider text not null,
   provider_event_id text,
@@ -80,7 +79,7 @@ create table public.markets (
   unique(provider, provider_market_id)
 );
 
-create table public.market_snapshots (
+create table if not exists public.market_snapshots (
   id uuid primary key default gen_random_uuid(),
   market_id uuid not null references public.markets(id) on delete cascade,
   observed_at timestamptz not null,
@@ -91,7 +90,7 @@ create table public.market_snapshots (
   unique(market_id, observed_at)
 );
 
-create table public.sources (
+create table if not exists public.sources (
   id uuid primary key default gen_random_uuid(),
   source_type text not null,
   external_id text,
@@ -108,10 +107,10 @@ create table public.sources (
   created_at timestamptz not null default now()
 );
 
-create unique index sources_external_id_unique
+create unique index if not exists sources_external_id_unique
   on public.sources(source_type, external_id) where external_id is not null;
 
-create table public.prediction_candidates (
+create table if not exists public.prediction_candidates (
   id uuid primary key default gen_random_uuid(),
   source_id uuid not null references public.sources(id),
   expert_id uuid not null references public.experts(id),
@@ -136,7 +135,7 @@ create table public.prediction_candidates (
   updated_at timestamptz not null default now()
 );
 
-create table public.predictions (
+create table if not exists public.predictions (
   id uuid primary key default gen_random_uuid(),
   expert_id uuid not null references public.experts(id),
   source_id uuid not null references public.sources(id),
@@ -159,14 +158,14 @@ create table public.predictions (
   updated_at timestamptz not null default now()
 );
 
-create table public.prediction_topics (
+create table if not exists public.prediction_topics (
   prediction_id uuid not null references public.predictions(id) on delete cascade,
   topic_id uuid not null references public.topics(id) on delete cascade,
   relevance_score numeric check (relevance_score between 0 and 1),
   primary key (prediction_id, topic_id)
 );
 
-create table public.prediction_markets (
+create table if not exists public.prediction_markets (
   prediction_id uuid not null references public.predictions(id) on delete cascade,
   market_id uuid not null references public.markets(id) on delete cascade,
   semantic_match_score numeric check (semantic_match_score between 0 and 1),
@@ -175,7 +174,7 @@ create table public.prediction_markets (
   primary key (prediction_id, market_id)
 );
 
-create table public.resolutions (
+create table if not exists public.resolutions (
   id uuid primary key default gen_random_uuid(),
   prediction_id uuid unique not null references public.predictions(id),
   outcome text not null check (outcome in ('correct', 'incorrect', 'partial', 'ambiguous', 'void')),
@@ -189,7 +188,7 @@ create table public.resolutions (
   check (not scoring_eligible or outcome in ('correct', 'incorrect'))
 );
 
-create table public.resolution_evidence (
+create table if not exists public.resolution_evidence (
   id uuid primary key default gen_random_uuid(),
   resolution_id uuid not null references public.resolutions(id) on delete cascade,
   source_type text not null,
@@ -202,7 +201,7 @@ create table public.resolution_evidence (
   created_at timestamptz not null default now()
 );
 
-create table public.submissions (
+create table if not exists public.submissions (
   id uuid primary key default gen_random_uuid(),
   source_path text not null,
   suggested_expert text,
@@ -219,7 +218,7 @@ create table public.submissions (
   created_at timestamptz not null default now()
 );
 
-create table public.ingestion_runs (
+create table if not exists public.ingestion_runs (
   id uuid primary key default gen_random_uuid(),
   source_type text not null,
   job_type text not null,
@@ -234,7 +233,7 @@ create table public.ingestion_runs (
   metadata jsonb not null default '{}'::jsonb
 );
 
-create table public.audit_log (
+create table if not exists public.audit_log (
   id uuid primary key default gen_random_uuid(),
   entity_type text not null,
   entity_id uuid not null,
@@ -247,29 +246,29 @@ create table public.audit_log (
   created_at timestamptz not null default now()
 );
 
-create table public.app_admins (
+create table if not exists public.app_admins (
   user_id uuid primary key references auth.users(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
-create index experts_x_handle_idx on public.experts(x_handle);
-create index predictions_expert_date_idx on public.predictions(expert_id, prediction_date desc);
-create index predictions_status_idx on public.predictions(status);
-create index predictions_category_idx on public.predictions(category_slug);
-create index predictions_resolution_date_idx on public.predictions(resolution_date);
-create index predictions_published_at_idx on public.predictions(published_at);
-create index topics_category_idx on public.topics(category_slug);
-create index markets_topic_idx on public.markets(topic_id);
-create index markets_active_volume_idx on public.markets(active, volume desc);
-create index candidates_status_idx on public.prediction_candidates(status);
-create index candidates_expert_idx on public.prediction_candidates(expert_id);
-create index resolutions_outcome_idx on public.resolutions(outcome);
-create index submissions_ip_created_idx on public.submissions(ip_hash, created_at desc);
-create index experts_name_trgm_idx on public.experts using gin(display_name gin_trgm_ops);
-create index experts_handle_trgm_idx on public.experts using gin(x_handle gin_trgm_ops);
-create index predictions_claim_trgm_idx on public.predictions using gin(normalized_claim gin_trgm_ops);
-create index topics_title_trgm_idx on public.topics using gin(title gin_trgm_ops);
-create index markets_question_trgm_idx on public.markets using gin(question gin_trgm_ops);
+create index if not exists experts_x_handle_idx on public.experts(x_handle);
+create index if not exists predictions_expert_date_idx on public.predictions(expert_id, prediction_date desc);
+create index if not exists predictions_status_idx on public.predictions(status);
+create index if not exists predictions_category_idx on public.predictions(category_slug);
+create index if not exists predictions_resolution_date_idx on public.predictions(resolution_date);
+create index if not exists predictions_published_at_idx on public.predictions(published_at);
+create index if not exists topics_category_idx on public.topics(category_slug);
+create index if not exists markets_topic_idx on public.markets(topic_id);
+create index if not exists markets_active_volume_idx on public.markets(active, volume desc);
+create index if not exists candidates_status_idx on public.prediction_candidates(status);
+create index if not exists candidates_expert_idx on public.prediction_candidates(expert_id);
+create index if not exists resolutions_outcome_idx on public.resolutions(outcome);
+create index if not exists submissions_ip_created_idx on public.submissions(ip_hash, created_at desc);
+create index if not exists experts_name_trgm_idx on public.experts using gin(display_name gin_trgm_ops);
+create index if not exists experts_handle_trgm_idx on public.experts using gin(x_handle gin_trgm_ops);
+create index if not exists predictions_claim_trgm_idx on public.predictions using gin(normalized_claim gin_trgm_ops);
+create index if not exists topics_title_trgm_idx on public.topics using gin(title gin_trgm_ops);
+create index if not exists markets_question_trgm_idx on public.markets using gin(question gin_trgm_ops);
 
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
@@ -279,12 +278,16 @@ begin
 end;
 $$;
 
+drop trigger if exists experts_updated_at on public.experts;
 create trigger experts_updated_at before update on public.experts
 for each row execute function public.set_updated_at();
+drop trigger if exists topics_updated_at on public.topics;
 create trigger topics_updated_at before update on public.topics
 for each row execute function public.set_updated_at();
+drop trigger if exists candidates_updated_at on public.prediction_candidates;
 create trigger candidates_updated_at before update on public.prediction_candidates
 for each row execute function public.set_updated_at();
+drop trigger if exists predictions_updated_at on public.predictions;
 create trigger predictions_updated_at before update on public.predictions
 for each row execute function public.set_updated_at();
 
@@ -310,6 +313,7 @@ begin
 end;
 $$;
 
+drop trigger if exists guard_published_prediction on public.predictions;
 create trigger guard_published_prediction before update on public.predictions
 for each row execute function public.guard_published_prediction();
 
@@ -432,45 +436,73 @@ alter table public.ingestion_runs enable row level security;
 alter table public.audit_log enable row level security;
 alter table public.app_admins enable row level security;
 
+drop policy if exists categories_public_read on public.categories;
 create policy categories_public_read on public.categories for select using (true);
+drop policy if exists experts_public_read on public.experts;
 create policy experts_public_read on public.experts for select using (is_active);
+drop policy if exists expert_categories_public_read on public.expert_categories;
 create policy expert_categories_public_read on public.expert_categories for select
   using (exists(select 1 from public.experts e where e.id = expert_id and e.is_active));
+drop policy if exists topics_public_read on public.topics;
 create policy topics_public_read on public.topics for select using (true);
+drop policy if exists markets_public_read on public.markets;
 create policy markets_public_read on public.markets for select using (true);
+drop policy if exists market_snapshots_public_read on public.market_snapshots;
 create policy market_snapshots_public_read on public.market_snapshots for select using (true);
+drop policy if exists sources_public_read on public.sources;
 create policy sources_public_read on public.sources for select using (
   deleted_at is null and exists(select 1 from public.predictions p where p.source_id = sources.id and p.published_at is not null)
 );
+drop policy if exists predictions_public_read on public.predictions;
 create policy predictions_public_read on public.predictions for select using (
   published_at is not null and status <> 'source_unavailable'
 );
+drop policy if exists prediction_topics_public_read on public.prediction_topics;
 create policy prediction_topics_public_read on public.prediction_topics for select using (
   exists(select 1 from public.predictions p where p.id = prediction_id and p.published_at is not null and p.status <> 'source_unavailable')
 );
+drop policy if exists prediction_markets_public_read on public.prediction_markets;
 create policy prediction_markets_public_read on public.prediction_markets for select using (
   exists(select 1 from public.predictions p where p.id = prediction_id and p.published_at is not null and p.status <> 'source_unavailable')
 );
+drop policy if exists resolutions_public_read on public.resolutions;
 create policy resolutions_public_read on public.resolutions for select using (approved_at is not null);
+drop policy if exists resolution_evidence_public_read on public.resolution_evidence;
 create policy resolution_evidence_public_read on public.resolution_evidence for select using (
   exists(select 1 from public.resolutions r where r.id = resolution_id and r.approved_at is not null)
 );
 
+drop policy if exists admin_all_experts on public.experts;
 create policy admin_all_experts on public.experts for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_expert_categories on public.expert_categories;
 create policy admin_all_expert_categories on public.expert_categories for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_topics on public.topics;
 create policy admin_all_topics on public.topics for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_markets on public.markets;
 create policy admin_all_markets on public.markets for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_market_snapshots on public.market_snapshots;
 create policy admin_all_market_snapshots on public.market_snapshots for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_sources on public.sources;
 create policy admin_all_sources on public.sources for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_candidates on public.prediction_candidates;
 create policy admin_all_candidates on public.prediction_candidates for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_predictions on public.predictions;
 create policy admin_all_predictions on public.predictions for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_prediction_topics on public.prediction_topics;
 create policy admin_all_prediction_topics on public.prediction_topics for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_prediction_markets on public.prediction_markets;
 create policy admin_all_prediction_markets on public.prediction_markets for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_resolutions on public.resolutions;
 create policy admin_all_resolutions on public.resolutions for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_evidence on public.resolution_evidence;
 create policy admin_all_evidence on public.resolution_evidence for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_submissions on public.submissions;
 create policy admin_all_submissions on public.submissions for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_ingestion_runs on public.ingestion_runs;
 create policy admin_all_ingestion_runs on public.ingestion_runs for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_all_audit_log on public.audit_log;
 create policy admin_all_audit_log on public.audit_log for all to authenticated using (public.is_admin()) with check (public.is_admin());
+drop policy if exists admin_read_admins on public.app_admins;
 create policy admin_read_admins on public.app_admins for select to authenticated using (public.is_admin());
 
 grant select on public.expert_scorecards to anon, authenticated;
