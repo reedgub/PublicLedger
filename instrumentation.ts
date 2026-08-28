@@ -13,36 +13,45 @@
 // them is safe. Header names, method, url, and body are untouched.
 
 export function register() {
+  const asciiSafe = (value: unknown): string => String(value ?? "").replace(/[^\x00-\xFF]/g, "");
+
+  // Patch Headers.prototype.set / .append so ANY code path that builds a
+  // Headers object silently strips characters undici would otherwise reject.
+  // Covers cases where supabase-js / postgrest-js / Next.js internals build
+  // the Headers before our fetch wrapper ever sees them.
+  if (typeof globalThis.Headers === "function") {
+    const proto = globalThis.Headers.prototype;
+    const originalSet = proto.set;
+    const originalAppend = proto.append;
+    if (!(proto as { __receiptsPatched?: boolean }).__receiptsPatched) {
+      proto.set = function (name: string, value: string) {
+        return originalSet.call(this, name, asciiSafe(value));
+      };
+      proto.append = function (name: string, value: string) {
+        return originalAppend.call(this, name, asciiSafe(value));
+      };
+      (proto as { __receiptsPatched?: boolean }).__receiptsPatched = true;
+    }
+  }
+
+  // Belt-and-braces: also sanitize the init that reaches globalThis.fetch,
+  // in case a header is passed via an object literal instead of a Headers.
   if (typeof globalThis.fetch !== "function") return;
-  const asciiSafe = (value: string): string => value.replace(/[^\x00-\xFF]/g, "");
   const sanitize = (init: HeadersInit | undefined): HeadersInit | undefined => {
     if (!init) return init;
-    if (init instanceof Headers) {
-      const out = new Headers();
-      init.forEach((value, key) => out.set(key, asciiSafe(value)));
-      return out;
-    }
+    if (init instanceof Headers) return init; // already patched via prototype
     if (Array.isArray(init)) {
-      return init.map(([k, v]) => [k, asciiSafe(String(v))] as [string, string]);
+      return init.map(([k, v]) => [k, asciiSafe(v)] as [string, string]);
     }
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(init as Record<string, string>)) {
-      out[k] = asciiSafe(String(v));
+      out[k] = asciiSafe(v);
     }
     return out;
   };
-
   const original = globalThis.fetch.bind(globalThis) as typeof fetch;
   globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
-    if (input instanceof Request) {
-      // Rebuild the Request with sanitized headers.
-      const clonedHeaders = new Headers();
-      input.headers.forEach((value, key) => clonedHeaders.set(key, asciiSafe(value)));
-      const merged = init ? { ...init, headers: sanitize(init.headers) ?? clonedHeaders } : { headers: clonedHeaders };
-      const rebuilt = new Request(input, merged);
-      return original(rebuilt);
-    }
     const nextInit = init ? { ...init, headers: sanitize(init.headers) } : undefined;
-    return original(input, nextInit);
+    return original(input as string | URL | Request, nextInit);
   }) as typeof fetch;
 }
