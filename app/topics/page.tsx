@@ -18,7 +18,17 @@ export default async function TopicsPage() {
           return <Link key={topic.id} href={`/topics/${topic.slug}`} className="group flex min-h-56 flex-col bg-card p-5 hover:bg-muted"><div className="flex justify-between"><span className="eyebrow">{CATEGORIES.find((item) => item.slug === topic.categorySlug)?.name}</span><ArrowUpRight className="size-4 opacity-40 group-hover:opacity-100" /></div><h2 className="editorial mt-5 text-3xl font-semibold leading-tight">{topic.title}</h2><div className="mt-auto flex items-end justify-between border-t pt-4"><span className="eyebrow">Current implied Yes</span><span className="metric text-3xl">{market?.yesProbability == null ? "—" : `${Math.round(market.yesProbability * 100)}%`}</span></div></Link>;
         })}
       </div>
-      {!topics.length && <p className="mt-10 border border-dashed py-16 text-center text-sm text-muted-foreground">No active topics are available.</p>}
+      {!topics.length && (
+        <div className="mt-10 border border-dashed border-border bg-card/60 px-6 py-16 text-center">
+          <p className="editorial text-2xl font-semibold">No active topics yet</p>
+          <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
+            Topics are normalized from live Polymarket events. They will appear here once{" "}
+            <code className="metric">pnpm seed:polymarket</code> runs against a network that can
+            reach <span className="metric">gamma-api.polymarket.com</span>, or once the hourly cron
+            at <span className="metric">/api/cron/polymarket</span> refreshes the store.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

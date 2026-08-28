@@ -3,6 +3,7 @@ import { ArrowRight, Database, ShieldCheck } from "lucide-react";
 import { GlobalSearch } from "@/components/global-search";
 import { MarketCard } from "@/components/market-card";
 import { PredictionList } from "@/components/prediction-list";
+import { RosterPreview } from "@/components/roster-preview";
 import { SectionHeading } from "@/components/section-heading";
 import { EmptyState } from "@/components/empty-state";
 import { getHomepageData } from "@/lib/data/public";
@@ -53,7 +54,14 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
-        ) : <div className="mt-6"><EmptyState title="No ranked track records yet" description="An expert needs at least five verified binary resolutions before appearing here. Receipts never fabricates records to fill a leaderboard." /></div>}
+        ) : (
+          <RosterPreview
+            experts={data.rosterPreview.map((scorecard) => scorecard.expert)}
+            eyebrow={`Roster / ${data.rosterPreview.length} of the discovery pool`}
+            title="Awaiting first ranked track records"
+            description="An expert needs at least five verified binary resolutions before appearing on the leaderboard. Until then, this is the roster the extraction pipeline draws from — real handles, real profiles, zero fabricated numbers."
+          />
+        )}
       </section>
 
       <section className="container-receipts mt-20 grid gap-16 sm:mt-28 lg:grid-cols-2">

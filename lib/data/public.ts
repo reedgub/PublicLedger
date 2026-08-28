@@ -266,31 +266,34 @@ export const getLatestPredictions = cache(async (options: { limit?: number; reso
   return (data ?? []).map((row) => mapPrediction(object(row)));
 });
 
-export const getTopics = cache(async (): Promise<Topic[]> => {
-  if (!integrations.supabase) {
-    const markets = await fallbackMarkets(24);
-    const bySlug = new Map<string, Topic>();
-    for (const market of markets) {
-      const normalized = normalizeMarketTopic(market.question);
-      if (!normalized.isUsefulTopic) continue;
-      const existing = bySlug.get(normalized.topicSlug);
-      if (existing) existing.markets?.push(market);
-      else bySlug.set(normalized.topicSlug, {
-        id: `live-${normalized.topicSlug}`,
-        slug: normalized.topicSlug,
-        title: normalized.topicTitle,
-        categorySlug: normalized.category,
-        description: normalized.description,
-        status: "active",
-        markets: [market],
-      });
-    }
-    return [...bySlug.values()];
+async function liveTopicsFromPolymarket(): Promise<Topic[]> {
+  const markets = await fallbackMarkets(24);
+  const bySlug = new Map<string, Topic>();
+  for (const market of markets) {
+    const normalized = normalizeMarketTopic(market.question);
+    if (!normalized.isUsefulTopic) continue;
+    const existing = bySlug.get(normalized.topicSlug);
+    if (existing) existing.markets?.push(market);
+    else bySlug.set(normalized.topicSlug, {
+      id: `live-${normalized.topicSlug}`,
+      slug: normalized.topicSlug,
+      title: normalized.topicTitle,
+      categorySlug: normalized.category,
+      description: normalized.description,
+      status: "active",
+      markets: [market],
+    });
   }
+  return [...bySlug.values()];
+}
+
+export const getTopics = cache(async (): Promise<Topic[]> => {
+  if (!integrations.supabase) return liveTopicsFromPolymarket();
   const client = await createServerSupabaseClient();
   const { data, error } = await client!.from("topics").select("*, markets(*)").eq("status", "active").order("title");
   if (error) throw error;
-  return (data ?? []).map((row) => mapTopic(object(row)));
+  const stored = (data ?? []).map((row) => mapTopic(object(row)));
+  return stored.length ? stored : liveTopicsFromPolymarket();
 });
 
 export const getTopicBySlug = cache(async (slug: string): Promise<{ topic: Topic; predictions: Prediction[] } | null> => {
@@ -322,15 +325,18 @@ export const getHomepageData = cache(async () => {
     getLatestPredictions({ limit: 4, open: true }),
     getTopics(),
   ]);
-  const markets = integrations.supabase
-    ? selectDiverseMarkets(topics.flatMap((topic) => topic.markets ?? []).filter((market) => market.active), 6)
-    : (await fallbackMarkets(6));
+  const storedMarkets = selectDiverseMarkets(
+    topics.flatMap((topic) => topic.markets ?? []).filter((market) => market.active),
+    6,
+  );
+  const markets = storedMarkets.length ? storedMarkets : await fallbackMarkets(6);
   return {
     markets,
     scorecards: scorecards.filter((scorecard) => scorecard.leaderboardEligible).slice(0, 10),
     latest,
     resolved,
     open,
+    rosterPreview: scorecards.slice(0, 12),
   };
 });
 
