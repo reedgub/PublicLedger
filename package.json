@@ -23,6 +23,8 @@
     "seed:resolve": "tsx scripts/resolve-due.ts",
     "sync:x": "tsx scripts/seed-x.ts --recent",
     "sync:polymarket": "tsx scripts/seed-polymarket.ts",
+    "ingest:x:weekly": "tsx scripts/ingest-x-weekly.ts",
+    "ingest:x:backfill": "tsx scripts/backfill-x-predictions.ts",
     "refresh:x": "tsx scripts/refresh-x-sources.ts",
     "readiness": "tsx scripts/launch-readiness.ts"
   },
@@ -31,6 +33,7 @@
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "@tanstack/react-table": "^9.1.2",
+    "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",

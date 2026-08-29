@@ -1,0 +1,61 @@
+name: Ingest X (weekly)
+
+on:
+  # Every Monday 12:00 UTC. Manual trigger available for backfills or reruns.
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+    inputs:
+      backfill_days:
+        description: "Backfill window in days (default: use per-expert checkpoint)"
+        required: false
+        default: ""
+      expert:
+        description: "Only run for one expert slug or handle"
+        required: false
+        default: ""
+      dry_run:
+        description: "Skip DB writes (true/false)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: ingest-x
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      XAI_MODEL: ${{ secrets.XAI_MODEL }}
+      XAI_DISCOVERY_PROMPT_VERSION: ${{ secrets.XAI_DISCOVERY_PROMPT_VERSION }}
+      X_INGESTION_WEEKLY_SOFT_BUDGET_USD: ${{ secrets.X_INGESTION_WEEKLY_SOFT_BUDGET_USD }}
+      X_INGESTION_WEEKLY_HARD_BUDGET_USD: ${{ secrets.X_INGESTION_WEEKLY_HARD_BUDGET_USD }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+      OPENAI_VERIFIER_MODEL: ${{ secrets.OPENAI_VERIFIER_MODEL }}
+      SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run weekly X ingestion
+        run: |
+          args=""
+          if [ -n "${{ inputs.expert }}" ]; then args="$args --expert ${{ inputs.expert }}"; fi
+          if [ -n "${{ inputs.backfill_days }}" ]; then args="$args --backfill-days ${{ inputs.backfill_days }}"; fi
+          if [ "${{ inputs.dry_run }}" = "true" ]; then args="$args --dry-run"; fi
+          echo "Running: pnpm ingest:x:weekly $args"
+          pnpm ingest:x:weekly $args

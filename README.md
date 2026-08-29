@@ -90,6 +90,25 @@ pnpm seed
 
 Use `X_FULL_ARCHIVE_ENABLED=true` only when your X API access supports it. Otherwise the seed uses recent search and leaves unavailable history unfilled rather than substituting scraped data. Bound cost and runtime with `SEED_MAX_POSTS_PER_EXPERT`, `SEED_MAX_OPENAI_ITEMS`, and `SEED_CONCURRENCY`.
 
+### X discovery via xAI (no X Bearer Token)
+
+When `XAI_API_KEY` is set, weekly X discovery runs through xAI's server-side `x_search` tool instead of the paid X API. Each candidate URL is then verified via `publish.x.com/oembed` (free, unauthenticated), and its `source_quote` must be an exact substring of the oEmbed body before it enters the extraction pipeline. Nothing is ever scraped.
+
+```bash
+# Rolling weekly window (respects per-expert checkpoints, 2-day overlap)
+pnpm ingest:x:weekly
+
+# 90-day backfill for a single expert (skipping extraction until you review)
+pnpm ingest:x:backfill --expert nate_silver --days 90 --skip-extraction
+
+# Dry-run to inspect candidate counts and cost without inserting sources
+pnpm ingest:x:weekly --dry-run
+```
+
+Cost is enforced against `X_INGESTION_WEEKLY_SOFT_BUDGET_USD` (warn, keep going) and `X_INGESTION_WEEKLY_HARD_BUDGET_USD` (stop). Every request is recorded in `x_discovery_runs` with model, tokens, `x_search` tool calls, and dollar cost; each expert's `ingestion_checkpoints` row advances only on success. Saturated windows (xAI returns the max number of results and reports the window may still hold more) are automatically split in half and re-queried, bounded so a pathological account cannot burn the budget.
+
+The GitHub Actions workflow `.github/workflows/ingest-x-weekly.yml` runs `pnpm ingest:x:weekly` every Monday at 12:00 UTC. It requires the following repo secrets: `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `XAI_API_KEY`, `OPENAI_API_KEY`, `SUBMISSION_HASH_SALT`, and optional overrides for model IDs and budget caps.
+
 ## Admin and operations
 
 Visit `/admin/login` with an email listed in `ADMIN_EMAILS`. The admin area contains:

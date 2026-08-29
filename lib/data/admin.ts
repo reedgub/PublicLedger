@@ -81,6 +81,26 @@ export const getAdminIngestion = cache(async () => {
   return (data ?? []).map((raw) => object(raw));
 });
 
+export const getAdminXIngestionStatus = cache(async () => {
+  await assertAdmin();
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.from("expert_x_ingestion_status").select("*").order("last_success_at", { ascending: true, nullsFirst: true });
+  if (error) throw error;
+  return (data ?? []).map((raw) => object(raw));
+});
+
+export const getAdminXDiscoveryRuns = cache(async () => {
+  await assertAdmin();
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
+    .from("x_discovery_runs")
+    .select("id, expert_id, from_date, to_date, model, prompt_version, status, candidate_count, x_search_tool_calls, input_tokens, output_tokens, reasoning_tokens, cost_usd, started_at, completed_at")
+    .order("started_at", { ascending: false })
+    .limit(40);
+  if (error) throw error;
+  return (data ?? []).map((raw) => object(raw));
+});
+
 export const getAdminExperts = cache(async () => {
   await assertAdmin();
   const admin = createAdminSupabaseClient();

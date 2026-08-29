@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DatabaseZap, FileCheck2, Gauge, LogOut, UserRoundCheck, WandSparkles } from "lucide-react";
+import { DatabaseZap, FileCheck2, Gauge, LogOut, MessageSquareText, UserRoundCheck, WandSparkles } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/admin";
 import { signOutAction } from "@/app/admin/actions";
 
@@ -7,6 +7,7 @@ const links = [
   ["Overview", "/admin", Gauge], ["Candidates", "/admin/candidates", WandSparkles],
   ["Resolutions", "/admin/resolutions", FileCheck2], ["Experts", "/admin/experts", UserRoundCheck],
   ["Ingestion", "/admin/ingestion", DatabaseZap],
+  ["X discovery", "/admin/ingestion/x", MessageSquareText],
 ] as const;
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
