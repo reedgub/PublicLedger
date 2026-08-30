@@ -345,6 +345,16 @@ async function runOneExpert(
       if (discovery.saturationLikely) queue.reportSaturated(window);
     } catch (error) {
       lastError = error instanceof Error ? error.message : "unknown xai error";
+      console.log(
+        JSON.stringify({
+          stage: "xai_discovery_failed",
+          run_id: ingestionRunId,
+          expert_handle: expert.x_handle,
+          window,
+          error: lastError,
+          detail: error instanceof Error && "body" in error ? (error as { body?: string }).body : undefined,
+        }),
+      );
       await insertDiscoveryRun(sql, {
         ingestionRunId,
         expertId: expert.id,
