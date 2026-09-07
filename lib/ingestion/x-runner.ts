@@ -371,7 +371,9 @@ async function runOneExpert(
   }
 
   const successAt = lastError === null && !hardBudgetHit ? new Date().toISOString() : null;
-  await upsertCheckpoint(sql, {
+  // Dry-runs never advance the checkpoint. Otherwise a preview would silently
+  // fast-forward the next real run's window to just the overlap slice.
+  if (!options.dryRun) await upsertCheckpoint(sql, {
     expertId: expert.id,
     startedAt,
     successAt,
