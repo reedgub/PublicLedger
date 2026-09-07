@@ -45,7 +45,7 @@ create index if not exists x_discovery_runs_started_idx on public.x_discovery_ru
 
 -- X-specific source metadata. Extends the existing sources table.
 alter table public.sources add column if not exists oembed_verified_at timestamptz;
-alter table public.sources add column if not exists oembed_cache_age integer;
+alter table public.sources add column if not exists oembed_cache_age bigint;
 alter table public.sources add column if not exists source_verification_level text
   check (source_verification_level in ('xai_discovery', 'xai_oembed', 'x_api'));
 alter table public.sources add column if not exists source_available boolean not null default true;
