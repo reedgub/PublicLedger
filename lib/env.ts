@@ -14,7 +14,7 @@ const envSchema = z.object({
   X_FULL_ARCHIVE_ENABLED: z.enum(["true", "false"]).default("false"),
   XAI_API_KEY: z.string().optional(),
   XAI_BASE_URL: z.string().url().default("https://api.x.ai/v1"),
-  XAI_MODEL: z.string().default("grok-4-fast"),
+  XAI_MODEL: z.string().default("grok-4-fast-non-reasoning"),
   XAI_DISCOVERY_PROMPT_VERSION: z.string().default("v1"),
   XAI_MAX_SEARCH_RESULTS: z.coerce.number().int().min(1).max(50).default(20),
   XAI_MAX_CANDIDATES_PER_WINDOW: z.coerce.number().int().min(1).max(50).default(10),

@@ -221,9 +221,9 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
       {
         type: "x_search",
         allowed_x_handles: [handle],
-        from_date: input.fromDate.slice(0, 10),
-        to_date: input.toDate.slice(0, 10),
-        max_results: maxSearchResults,
+        fromDate: input.fromDate.slice(0, 10),
+        toDate: input.toDate.slice(0, 10),
+        maxResults: maxSearchResults,
         enable_image_understanding: false,
         enable_video_understanding: false,
       },
@@ -232,10 +232,11 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
   } as const;
 
   const startedAt = Date.now();
+  const timeoutMs = 300_000;
   const payload = await withRetry(
     async () => {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 120_000);
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
         const response = await fetch(url, {
           method: "POST",
@@ -257,9 +258,11 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
       }
     },
     {
-      attempts: 3,
+      attempts: 2,
+      // Retry on 429/5xx only. Timeouts and network errors are not retried:
+      // retrying a genuinely slow agent-tool call wastes minutes for nothing.
       retryable: (error) =>
-        error instanceof HttpError ? error.status === 429 || error.status >= 500 : true,
+        error instanceof HttpError && (error.status === 429 || error.status >= 500),
     },
   );
 
