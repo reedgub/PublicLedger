@@ -1,9 +1,12 @@
-// xAI Live Search discovery adapter.
+// xAI Agent Tools discovery adapter.
 //
-// Uses grok-*'s server-side x_search source to enumerate candidate predictions
-// from a specific expert's X posts in a bounded date window. Returns a
-// structured list the ingestion pipeline can hand to oEmbed verification and
-// then to the existing extraction/verification stages.
+// Uses the /v1/responses endpoint with the server-side x_search tool to
+// enumerate candidate predictions from a specific expert's X posts in a
+// bounded date window. Returns a structured list the ingestion pipeline can
+// hand to oEmbed verification and then to the existing extraction stages.
+//
+// This replaces the old Live Search (search_parameters on /v1/chat/completions),
+// which xAI deprecated with HTTP 410 in favor of the Agent Tools API.
 //
 // The adapter is offline-safe: with no XAI_API_KEY it throws a friendly error
 // so the CLI can skip discovery cleanly. It never scrapes X, never invents a
@@ -95,7 +98,7 @@ const JSON_SCHEMA = {
       saturation_likely: {
         type: "boolean",
         description:
-          "True if the search likely returned the maximum number of results and more predictions from this expert in this window may still exist.",
+          "True if x_search likely returned the maximum number of results and more predictions from this expert in this window may still exist.",
       },
       candidates: {
         type: "array",
@@ -119,7 +122,7 @@ const JSON_SCHEMA = {
             post_url: {
               type: "string",
               description:
-                "Canonical https://x.com/<handle>/status/<id> URL from a search citation. Never invent; only return URLs actually returned by x_search.",
+                "Canonical https://x.com/<handle>/status/<id> URL from a search citation. Never invent; only return URLs surfaced by x_search.",
             },
             post_id: { type: ["string", "null"] },
             posted_at: {
@@ -129,12 +132,12 @@ const JSON_SCHEMA = {
             source_quote: {
               type: "string",
               description:
-                "Exact contiguous substring from the X post body containing the prediction. No paraphrasing. Copy characters as they appear.",
+                "Exact contiguous substring from the X post body containing the prediction. No paraphrasing.",
             },
             proposed_normalized_claim: {
               type: "string",
               description:
-                "Concise falsifiable rephrasing of the prediction (a downstream stage may replace this — do not invent numbers).",
+                "Concise falsifiable rephrasing of the prediction. Do not invent numbers.",
             },
             proposed_resolution_date: {
               type: ["string", "null"],
@@ -145,7 +148,7 @@ const JSON_SCHEMA = {
             explicit_probability: {
               type: ["number", "null"],
               description:
-                "Only fill this if the post literally states a probability. Do not translate hedges into numbers.",
+                "Fill only if the post literally states a probability. Do not translate hedges into numbers.",
             },
             category: { type: ["string", "null"] },
             falsifiability_rating: {
@@ -162,18 +165,19 @@ const JSON_SCHEMA = {
 function buildSystemPrompt(): string {
   return [
     "You are a research analyst for Receipts, a public database of falsifiable expert predictions.",
-    "You use the x_search tool to enumerate PREDICTIONS that a specific X account posted in a given date window.",
+    "Use the x_search tool to enumerate PREDICTIONS a specific X account posted in a given date window.",
     "",
     "Hard rules:",
-    "- Only return posts that x_search actually surfaces as citations. Never invent URLs, IDs, quotes, or dates.",
-    "- The source_quote MUST be an exact contiguous substring of the post body. If you cannot reproduce it exactly, skip the candidate.",
+    "- Only return posts x_search actually surfaces as citations. Never invent URLs, IDs, quotes, or dates.",
+    "- The source_quote MUST be an exact contiguous substring of the post body. If you can't reproduce it exactly, skip the candidate.",
     "- Do not invent numeric probabilities. If the author does not state a probability, leave explicit_probability null.",
-    "- A candidate must be a testable prediction with a resolvable outcome. Skip opinions, jokes, rhetorical questions, reposts of others' predictions, and generic commentary.",
+    "- A candidate must be a testable prediction with a resolvable outcome. Skip opinions, jokes, rhetorical questions, and reposts of others' predictions.",
     "- Skip replies where the prediction is not stated in the author's own words in this specific post.",
     "- Prefer high-signal predictions (specific outcomes, named entities, dated targets) over vague hedges.",
     "",
     "If x_search returns the maximum number of results and the window plausibly contains more, set saturation_likely=true so the caller can split the window.",
-    "Return AT MOST the number of candidates requested by the user; if fewer clearly qualify, return fewer.",
+    "Return AT MOST the number of candidates requested. If fewer clearly qualify, return fewer.",
+    "Respond ONLY with a JSON object matching the schema. No prose, no code fences.",
   ].join("\n");
 }
 
@@ -182,8 +186,8 @@ function buildUserPrompt(input: XaiDiscoveryInput): string {
   const cap = input.maxCandidates ?? env.XAI_MAX_CANDIDATES_PER_WINDOW;
   return [
     `Find falsifiable predictions posted by @${handle} (${input.expertDisplayName}) on X.`,
-    `Time window: ${input.fromDate} to ${input.toDate} (UTC, inclusive of from, exclusive of to).`,
-    `Only return posts authored by @${handle} in that window. Ignore quote-tweets of others unless the author is making a distinct new prediction of their own.`,
+    `Time window: ${input.fromDate.slice(0, 10)} to ${input.toDate.slice(0, 10)} (UTC).`,
+    `Only return posts authored by @${handle} in that window. Ignore quote-tweets of others unless the author makes a distinct new prediction of their own.`,
     `Return at most ${cap} of the highest-quality candidates.`,
   ].join("\n");
 }
@@ -204,37 +208,34 @@ function estimateCost(usage: {
 export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDiscoveryResult> {
   if (!integrations.xai) throw new XaiNotConfiguredError();
 
-  const url = new URL("chat/completions", env.XAI_BASE_URL.endsWith("/") ? env.XAI_BASE_URL : `${env.XAI_BASE_URL}/`);
+  const url = new URL("responses", env.XAI_BASE_URL.endsWith("/") ? env.XAI_BASE_URL : `${env.XAI_BASE_URL}/`);
   const maxSearchResults = input.maxSearchResults ?? env.XAI_MAX_SEARCH_RESULTS;
+  const handle = input.expertHandle.replace(/^@/, "");
   const body = {
     model: env.XAI_MODEL,
-    reasoning_effort: "low",
-    max_tokens: 4000,
-    messages: [
+    input: [
       { role: "system", content: buildSystemPrompt() },
       { role: "user", content: buildUserPrompt(input) },
     ],
-    response_format: { type: "json_schema", json_schema: JSON_SCHEMA },
-    search_parameters: {
-      mode: "on",
-      return_citations: true,
-      from_date: input.fromDate.slice(0, 10),
-      to_date: input.toDate.slice(0, 10),
-      max_search_results: maxSearchResults,
-      sources: [
-        {
-          type: "x",
-          x_handles: [input.expertHandle.replace(/^@/, "")],
-        },
-      ],
-    },
+    tools: [
+      {
+        type: "x_search",
+        allowed_x_handles: [handle],
+        from_date: input.fromDate.slice(0, 10),
+        to_date: input.toDate.slice(0, 10),
+        max_results: maxSearchResults,
+        enable_image_understanding: false,
+        enable_video_understanding: false,
+      },
+    ],
+    text: { format: { type: "json_schema", ...JSON_SCHEMA } },
   } as const;
 
   const startedAt = Date.now();
   const payload = await withRetry(
     async () => {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 60_000);
+      const timer = setTimeout(() => controller.abort(), 120_000);
       try {
         const response = await fetch(url, {
           method: "POST",
@@ -262,27 +263,29 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
     },
   );
 
+  const usageBits = extractUsage(payload);
+  const searchCalls = countSearchCalls(payload);
   const usage: XaiUsage = {
     model: payload.model ?? env.XAI_MODEL,
-    inputTokens: payload.usage?.prompt_tokens ?? payload.usage?.input_tokens ?? 0,
-    outputTokens: payload.usage?.completion_tokens ?? payload.usage?.output_tokens ?? 0,
-    reasoningTokens: payload.usage?.completion_tokens_details?.reasoning_tokens ?? payload.usage?.reasoning_tokens ?? 0,
-    xSearchToolCalls: payload.usage?.num_sources_used ?? payload.citations?.length ?? 0,
+    inputTokens: usageBits.inputTokens,
+    outputTokens: usageBits.outputTokens,
+    reasoningTokens: usageBits.reasoningTokens,
+    xSearchToolCalls: searchCalls,
     costUsd: estimateCost({
-      input_tokens: payload.usage?.prompt_tokens ?? payload.usage?.input_tokens ?? 0,
-      output_tokens: payload.usage?.completion_tokens ?? payload.usage?.output_tokens ?? 0,
-      reasoning_tokens: payload.usage?.completion_tokens_details?.reasoning_tokens ?? payload.usage?.reasoning_tokens ?? 0,
-      num_sources_used: payload.usage?.num_sources_used ?? payload.citations?.length ?? 0,
+      input_tokens: usageBits.inputTokens,
+      output_tokens: usageBits.outputTokens,
+      reasoning_tokens: usageBits.reasoningTokens,
+      num_sources_used: searchCalls,
     }),
     requestId: payload.id ?? null,
   };
 
-  const rawContent = payload.choices?.[0]?.message?.content;
-  const parsed = parseDiscoveryContent(rawContent);
+  const rawText = extractOutputText(payload);
+  const parsed = parseDiscoveryContent(rawText);
   const candidates = normalizeCandidates(parsed?.candidates ?? [], input.expertHandle);
   const saturationLikely =
     parsed?.saturation_likely === true ||
-    (usage.xSearchToolCalls >= maxSearchResults && candidates.length >= (input.maxCandidates ?? env.XAI_MAX_CANDIDATES_PER_WINDOW));
+    (searchCalls >= maxSearchResults && candidates.length >= (input.maxCandidates ?? env.XAI_MAX_CANDIDATES_PER_WINDOW));
 
   const status: XaiDiscoveryStatus = parsed ? (saturationLikely ? "saturated" : "succeeded") : "failed";
 
@@ -294,6 +297,8 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
       window: { from: input.fromDate, to: input.toDate },
       candidates: candidates.length,
       x_search_tool_calls: usage.xSearchToolCalls,
+      input_tokens: usage.inputTokens,
+      output_tokens: usage.outputTokens,
       cost_usd: Number(usage.costUsd.toFixed(4)),
       duration_ms: Date.now() - startedAt,
       saturation_likely: saturationLikely,
@@ -310,31 +315,94 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
   };
 }
 
+type XaiOutputBlock = {
+  type?: string;
+  text?: string;
+  content?: string | Array<{ type?: string; text?: string }>;
+  tool_calls?: Array<{ type?: string; name?: string }>;
+  name?: string;
+};
+
 type XaiRawResponse = {
   id?: string;
   model?: string;
+  output_text?: string;
+  output?: Array<XaiOutputBlock>;
   choices?: Array<{ message?: { content?: string | Array<{ type: string; text?: string }> } }>;
   usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
     input_tokens?: number;
     output_tokens?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
     reasoning_tokens?: number;
     num_sources_used?: number;
+    output_tokens_details?: { reasoning_tokens?: number };
     completion_tokens_details?: { reasoning_tokens?: number };
   };
   citations?: string[];
 };
 
-function parseDiscoveryContent(
-  content: string | Array<{ type: string; text?: string }> | undefined,
-): z.infer<typeof discoveryResponseSchema> | null {
-  if (!content) return null;
-  const text = typeof content === "string" ? content : content.map((p) => p.text ?? "").join("");
+function extractUsage(payload: XaiRawResponse): {
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+} {
+  const u = payload.usage ?? {};
+  return {
+    inputTokens: u.input_tokens ?? u.prompt_tokens ?? 0,
+    outputTokens: u.output_tokens ?? u.completion_tokens ?? 0,
+    reasoningTokens:
+      u.output_tokens_details?.reasoning_tokens ??
+      u.completion_tokens_details?.reasoning_tokens ??
+      u.reasoning_tokens ??
+      0,
+  };
+}
+
+function countSearchCalls(payload: XaiRawResponse): number {
+  if (typeof payload.usage?.num_sources_used === "number") return payload.usage.num_sources_used;
+  if (Array.isArray(payload.citations)) return payload.citations.length;
+  if (Array.isArray(payload.output)) {
+    return payload.output.filter(
+      (b) => b.type === "tool_use" || b.type === "server_tool_use" || b.type === "x_search",
+    ).length;
+  }
+  return 0;
+}
+
+function extractOutputText(payload: XaiRawResponse): string {
+  if (typeof payload.output_text === "string" && payload.output_text.trim().length > 0) {
+    return payload.output_text;
+  }
+  if (Array.isArray(payload.output)) {
+    const parts: string[] = [];
+    for (const block of payload.output) {
+      if (typeof block.text === "string") parts.push(block.text);
+      const content = block.content;
+      if (typeof content === "string") parts.push(content);
+      else if (Array.isArray(content)) {
+        for (const c of content) if (typeof c.text === "string") parts.push(c.text);
+      }
+    }
+    const joined = parts.join("");
+    if (joined.trim().length > 0) return joined;
+  }
+  const legacy = payload.choices?.[0]?.message?.content;
+  if (typeof legacy === "string") return legacy;
+  if (Array.isArray(legacy)) return legacy.map((p) => p.text ?? "").join("");
+  return "";
+}
+
+function parseDiscoveryContent(text: string): z.infer<typeof discoveryResponseSchema> | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
+  // Some models still wrap JSON in ```json fences even when told not to.
+  const stripped = trimmed
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
   try {
-    const json = JSON.parse(trimmed);
+    const json = JSON.parse(stripped);
     return discoveryResponseSchema.parse(json);
   } catch {
     return null;
