@@ -373,15 +373,24 @@ async function runOneExpert(
   const successAt = lastError === null && !hardBudgetHit ? new Date().toISOString() : null;
   // Dry-runs never advance the checkpoint. Otherwise a preview would silently
   // fast-forward the next real run's window to just the overlap slice.
-  if (!options.dryRun) await upsertCheckpoint(sql, {
-    expertId: expert.id,
-    startedAt,
-    successAt,
-    fromDate: rootWindow.fromDate,
-    toDate: latestWindow.toDate,
-    status: hardBudgetHit ? "budget_hit" : lastError ? "failed" : "succeeded",
-    error: lastError,
-  });
+  if (!options.dryRun) {
+    await upsertCheckpoint(sql, {
+      expertId: expert.id,
+      startedAt,
+      successAt,
+      fromDate: rootWindow.fromDate,
+      toDate: latestWindow.toDate,
+      status: hardBudgetHit ? "budget_hit" : lastError ? "failed" : "succeeded",
+      error: lastError,
+    });
+    // Flip source_status to verified the first time we successfully insert an
+    // xai_oembed source for this expert. oEmbed already confirmed the handle
+    // per post — a stronger check than the old one-shot X API lookup — so
+    // downstream extraction should treat these experts as verified.
+    if (candidatesInserted > 0 && expert.source_status !== "verified") {
+      await sql`update public.experts set source_status = 'verified' where id = ${expert.id} and source_status <> 'verified'`;
+    }
+  }
 
   return {
     expertId: expert.id, handle: expert.x_handle,

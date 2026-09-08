@@ -64,7 +64,11 @@ async function main() {
     ),
   );
 
-  if (!flags.skipExtraction && !flags.dryRun && summary.totalCandidatesInserted > 0) {
+  // Always run extraction on non-dry runs — even when this pass inserted 0
+  // new sources, prior xai_oembed rows that never went through OpenAI (e.g.
+  // because the expert wasn't yet source_status='verified') will finally get
+  // processed once their expert flips to verified.
+  if (!flags.skipExtraction && !flags.dryRun) {
     console.log(JSON.stringify({ stage: "extraction_start" }));
     const processing = await processSources();
     console.log(JSON.stringify({ stage: "extraction_summary", ...processing }));
