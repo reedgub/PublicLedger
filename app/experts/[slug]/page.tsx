@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, BadgeCheck } from "lucide-react";
@@ -30,12 +31,13 @@ export default async function ExpertPage({ params }: PageProps<"/experts/[slug]"
       <div className="grid gap-8 border-b border-foreground pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="flex items-start gap-5">
           {expert.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={expert.avatarUrl}
               alt=""
+              width={80}
+              height={80}
               className="size-16 shrink-0 border border-foreground bg-card object-cover sm:size-20"
-              loading="lazy"
+              unoptimized={expert.avatarUrl.includes("unavatar.io")}
             />
           ) : (
             <div className="metric flex size-16 shrink-0 items-center justify-center border border-foreground bg-card text-xl font-bold sm:size-20">

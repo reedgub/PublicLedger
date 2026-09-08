@@ -13,7 +13,7 @@ export default async function ExpertOpenGraphImage({ params }: { params: Promise
   const accuracy = card?.accuracy == null ? "—" : `${Math.round(card.accuracy * 100)}%`;
   return new ImageResponse(
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#f4f1e8", color: "#151515", padding: "64px", border: "18px solid #151515" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22, letterSpacing: 7, fontWeight: 800 }}><span>RECEIPTS</span><span>EXPERT RECORD</span></div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22, letterSpacing: 4, fontWeight: 800 }}><span>PROJECT LIGHTHOUSE</span><span>EXPERT RECORD</span></div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 40 }}>
         <div style={{ display: "flex", flexDirection: "column", maxWidth: 780 }}><div style={{ fontSize: 76, lineHeight: 1, fontWeight: 700 }}>{name}</div><div style={{ fontSize: 24, marginTop: 20 }}>Public, source-backed prediction history</div></div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}><div style={{ fontSize: 102, fontWeight: 700, letterSpacing: -7 }}>{accuracy}</div><div style={{ fontSize: 18, letterSpacing: 4 }}>ACCURACY</div></div>

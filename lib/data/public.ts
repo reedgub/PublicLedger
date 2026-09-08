@@ -24,13 +24,19 @@ const category = (value: unknown): CategorySlug =>
   typeof value === "string" && CATEGORY_SLUGS.includes(value as CategorySlug) ? (value as CategorySlug) : "other";
 
 function mapExpert(row: Row): Expert {
+  const storedAvatar = stringOrNull(row.avatar_url);
+  const xHandle = stringOrNull(row.x_handle);
+  // Fall back to unavatar.io for experts we haven't hydrated via X API yet.
+  // Public proxy, redirects to pbs.twimg.com; cosmetic only, safe to lose.
+  const avatarUrl =
+    storedAvatar ?? (xHandle ? `https://unavatar.io/x/${encodeURIComponent(xHandle)}` : null);
   return {
     id: String(row.id ?? ""),
     slug: String(row.slug ?? ""),
     displayName: String(row.display_name ?? "Unknown"),
-    xHandle: stringOrNull(row.x_handle),
+    xHandle,
     xUserId: stringOrNull(row.x_user_id),
-    avatarUrl: stringOrNull(row.avatar_url),
+    avatarUrl,
     headline: stringOrNull(row.headline),
     primaryCategorySlug: category(row.primary_category_slug),
     categorySlugs: array(row.expert_categories).map((item) => category(object(item).category_slug)),
