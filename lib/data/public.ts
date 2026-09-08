@@ -318,12 +318,13 @@ export const getTopicBySlug = cache(async (slug: string): Promise<{ topic: Topic
 });
 
 export const getHomepageData = cache(async () => {
-  const [scorecards, latest, resolved, open, topics] = await Promise.all([
+  const [scorecards, latest, resolved, open, topics, published] = await Promise.all([
     getExpertScorecards(),
     getLatestPredictions({ limit: 6 }),
     getLatestPredictions({ limit: 4, resolved: true }),
     getLatestPredictions({ limit: 4, open: true }),
     getTopics(),
+    getPublishedPredictionCount(),
   ]);
   const storedMarkets = selectDiverseMarkets(
     topics.flatMap((topic) => topic.markets ?? []).filter((market) => market.active),
@@ -336,9 +337,22 @@ export const getHomepageData = cache(async () => {
     latest,
     resolved,
     open,
+    published,
     rosterPreview: scorecards.slice(0, 12),
   };
 });
+
+async function getPublishedPredictionCount(): Promise<number> {
+  if (!integrations.supabase) return 0;
+  const supabase = await createServerSupabaseClient();
+  if (!supabase) return 0;
+  const { count, error } = await supabase
+    .from("predictions")
+    .select("id", { count: "exact", head: true })
+    .not("published_at", "is", null);
+  if (error) return 0;
+  return count ?? 0;
+}
 
 export async function searchPublic(query: string): Promise<SearchResult[]> {
   const trimmed = query.trim().slice(0, 120);

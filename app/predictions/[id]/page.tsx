@@ -11,7 +11,7 @@ import { formatUtcAuditTime, formatUtcDate, formatUtcDateTime } from "@/lib/date
 export async function generateMetadata({ params }: PageProps<"/predictions/[id]">): Promise<Metadata> {
   const { id } = await params;
   const prediction = await getPredictionById(id);
-  if (!prediction) return { title: "Receipt not found" };
+  if (!prediction) return { title: "Prediction not found" };
   return {
     title: `${prediction.expert.displayName}: ${prediction.normalizedClaim}`,
     description: `A source-backed prediction by ${prediction.expert.displayName}, recorded on ${formatUtcDate(prediction.predictionDate, "long")}.`,
@@ -38,10 +38,10 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
   return (
     <div className="container-receipts py-10 sm:py-16">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-4 flex items-center justify-between gap-4"><p className="eyebrow">Receipt / {prediction.id.slice(0, 8)}</p><ShareButton title={`Receipt: ${prediction.expert.displayName}`} text={prediction.normalizedClaim} /></div>
+        <div className="mb-4 flex items-center justify-between gap-4"><p className="eyebrow">Record / {prediction.id.slice(0, 8)}</p><ShareButton title={`${prediction.expert.displayName} — Project Lighthouse`} text={prediction.normalizedClaim} /></div>
         <article className="receipt-edge border-y border-foreground bg-card px-5 py-8 sm:px-12 sm:py-12">
           <header className="border-b border-dashed border-border pb-10 text-center">
-            <p className="font-mono text-sm font-black tracking-[0.24em]">RECEIPTS</p>
+            <p className="font-mono text-sm font-black tracking-[0.24em]">PROJECT LIGHTHOUSE</p>
             <div className="mt-5"><StatusBadge status={displayStatus} /></div>
             <h1 className="editorial mx-auto mt-7 max-w-3xl text-4xl font-semibold leading-[1.03] tracking-[-0.035em] text-balance sm:text-6xl">{prediction.normalizedClaim}</h1>
           </header>

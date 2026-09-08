@@ -29,7 +29,19 @@ export default async function ExpertPage({ params }: PageProps<"/experts/[slug]"
     <div className="container-receipts py-12 sm:py-20">
       <div className="grid gap-8 border-b border-foreground pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="flex items-start gap-5">
-          <div className="metric flex size-16 shrink-0 items-center justify-center border border-foreground bg-card text-xl font-bold sm:size-20">{expert.displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</div>
+          {expert.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={expert.avatarUrl}
+              alt=""
+              className="size-16 shrink-0 border border-foreground bg-card object-cover sm:size-20"
+              loading="lazy"
+            />
+          ) : (
+            <div className="metric flex size-16 shrink-0 items-center justify-center border border-foreground bg-card text-xl font-bold sm:size-20">
+              {expert.displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}
+            </div>
+          )}
           <div>
             <p className="eyebrow">Expert record</p>
             <h1 className="editorial mt-2 text-5xl font-semibold tracking-[-0.04em] sm:text-7xl">{expert.displayName}</h1>

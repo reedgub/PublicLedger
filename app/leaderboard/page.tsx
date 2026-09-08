@@ -14,6 +14,25 @@ export default async function LeaderboardPage() {
   const eligible = scorecards.filter((scorecard) => scorecard.leaderboardEligible);
   const rosterExperts = scorecards.map((scorecard) => scorecard.expert);
 
+  if (eligible.length === 0) {
+    return (
+      <div className="container-receipts py-10 sm:py-14">
+        <p className="eyebrow">Leaderboard / Awaiting first ranked track records</p>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          An expert appears on the ranked leaderboard once they have five verified binary resolutions.
+          Until then, this is the discovery roster the ingestion pipeline draws from — real handles,
+          real profiles, zero fabricated numbers.
+        </p>
+        <div className="mt-8">
+          <RosterPreview
+            experts={rosterExperts}
+            eyebrow={`Roster / ${rosterExperts.length} profiles / 0 eligible`}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container-receipts py-12 sm:py-20">
       <p className="eyebrow">Adjusted rankings / Binary resolutions only</p>
@@ -24,29 +43,11 @@ export default async function LeaderboardPage() {
           correct/incorrect resolutions are required; fewer than 20 is marked provisional.
         </p>
       </div>
-
-      {eligible.length > 0 ? (
-        <>
-          <LeaderboardTable scorecards={eligible} />
-          <p className="mt-5 text-xs text-muted-foreground">
-            Lower Brier scores indicate better calibration. Partial, ambiguous, and void outcomes
-            never enter binary accuracy.
-          </p>
-        </>
-      ) : (
-        <>
-          <RosterPreview
-            experts={rosterExperts}
-            eyebrow={`Roster / ${rosterExperts.length} profiles / 0 eligible`}
-          />
-          <p className="mt-5 text-xs text-muted-foreground">
-            Project Lighthouse intentionally starts empty. The extraction pipeline (X + OpenAI) must run
-            against real posts, produce candidates that clear the strict publication thresholds,
-            and accumulate at least five resolved binary outcomes per expert before that expert
-            appears on the ranked leaderboard.
-          </p>
-        </>
-      )}
+      <LeaderboardTable scorecards={eligible} />
+      <p className="mt-5 text-xs text-muted-foreground">
+        Lower Brier scores indicate better calibration. Partial, ambiguous, and void outcomes
+        never enter binary accuracy.
+      </p>
     </div>
   );
 }
