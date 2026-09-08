@@ -34,7 +34,7 @@ export const CATEGORIES: ReadonlyArray<{
   { slug: "other", name: "Other", shortName: "Other" },
 ];
 
-export const EXTRACTION_SCHEMA_VERSION = "2026-08-27.1";
+export const EXTRACTION_SCHEMA_VERSION = "2026-09-08.2-explicit-deadline";
 export const VERIFIER_SCHEMA_VERSION = "2026-08-27.1";
 export const RESOLUTION_SCHEMA_VERSION = "2026-08-27.1";
 

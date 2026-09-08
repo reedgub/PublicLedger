@@ -28,6 +28,32 @@ describe("prediction utilities", () => {
     expect(result.errors).toContain("resolution_before_prediction");
   });
 
+  it("rejects predictions without a resolution date", () => {
+    const result = validateExtractedPrediction("It will happen someday.", "2026-01-01Z", {
+      normalized_claim: "It will happen someday.",
+      source_quote: "It will happen someday.",
+      resolution_date: null,
+      resolution_criteria: "An official record confirms it.",
+      explicit_probability: null,
+      category: "other",
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain("resolution_date_missing");
+  });
+
+  it("accepts predictions with a valid future resolution date", () => {
+    const result = validateExtractedPrediction("Inflation will fall below 3% by end of 2027.", "2026-01-01Z", {
+      normalized_claim: "US CPI year-over-year will print below 3% for December 2027.",
+      source_quote: "Inflation will fall below 3% by end of 2027.",
+      resolution_date: "2027-12-31",
+      resolution_criteria: "BLS December 2027 CPI YoY release shows <3.0%.",
+      explicit_probability: null,
+      category: "economy-rates",
+    });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
   it("applies every auto-publication threshold", () => {
     const candidate = { sourceIsUsable: true, speakerIsAuthor: true, extractionConfidence: 0.93, sourceFidelityScore: 0.98, falsifiabilityScore: 0.9, verifierVerdict: "faithful", verifierConfidence: 0.96, sourceQuoteLiteral: true, hasResolutionCriteria: true, hasResolutionDate: true };
     expect(canAutoPublish(candidate)).toBe(true);

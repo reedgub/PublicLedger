@@ -28,7 +28,14 @@ export function validateExtractedPrediction(
   if (candidate.explicit_probability !== null && (candidate.explicit_probability < 0 || candidate.explicit_probability > 1)) {
     errors.push("invalid_probability");
   }
-  if (candidate.resolution_date && new Date(candidate.resolution_date) < new Date(predictionDate)) {
+  // A prediction without a defensible deadline is not falsifiable and not a
+  // Project Lighthouse candidate — reject at extraction time so it never
+  // reaches the review queue or the auto-publish gate.
+  if (!candidate.resolution_date) {
+    errors.push("resolution_date_missing");
+  } else if (Number.isNaN(new Date(candidate.resolution_date).getTime())) {
+    errors.push("resolution_date_invalid");
+  } else if (new Date(candidate.resolution_date) < new Date(predictionDate)) {
     errors.push("resolution_before_prediction");
   }
   return { valid: errors.length === 0, errors };
