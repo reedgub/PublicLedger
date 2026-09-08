@@ -76,8 +76,22 @@ export async function processSources(): Promise<ProcessingSummary> {
         await sql`insert into public.prediction_candidates (source_id, expert_id, status, reason_rejected, model_name, raw_extraction) values (${source.id}, ${source.expert_id}, 'rejected', ${extraction.result.reason_rejected ?? "not_prediction"}, ${extraction.model}, ${sql.json({ extraction: extraction.result, extraction_schema_version: EXTRACTION_SCHEMA_VERSION })})`;
         return;
       }
-      summary.aiPredictions += extraction.result.predictions.length;
-      for (const candidate of extraction.result.predictions) {
+      // Intra-source dedupe: if the model returned both a hard prediction and
+      // a soft take of essentially the same claim from one source, drop the
+      // take. Predictions are stronger evidence and enter scoring; keeping the
+      // take alongside just clutters the review queue.
+      const hardClaims = extraction.result.predictions.filter((p) => (p.record_type ?? "prediction") === "prediction");
+      const dedupedCandidates = extraction.result.predictions.filter((candidate) => {
+        if ((candidate.record_type ?? "prediction") !== "take") return true;
+        return !hardClaims.some((hard) =>
+          isLikelyDuplicate(
+            { expertId: source.expert_id, claim: candidate.normalized_claim, resolutionDate: candidate.resolution_date },
+            { expertId: source.expert_id, claim: hard.normalized_claim, resolutionDate: hard.resolution_date },
+          ),
+        );
+      });
+      summary.aiPredictions += dedupedCandidates.length;
+      for (const candidate of dedupedCandidates) {
         const deterministic = validateExtractedPrediction(source.exact_text, source.published_at, candidate);
         const verification = deterministic.valid ? await verifyPrediction({ sourceText: source.exact_text, sourceTimestamp: source.published_at, authorName: source.display_name, candidate }) : null;
         if (!verification || verification.result.verdict !== "faithful") summary.verifierRejected += 1;
