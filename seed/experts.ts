@@ -81,6 +81,21 @@ export const EXPERT_ROSTER: ExpertSeed[] = [
   expert("bill-simmons", "Bill Simmons", "BillSimmons", "sports", "Sports media host"),
   expert("kevin-pelton", "Kevin Pelton", "kpelton", "sports", "Basketball analyst"),
   expert("daryl-morey", "Daryl Morey", "dmorey", "sports", "Basketball executive"),
+  expert("zach-lowe", "Zach Lowe", "ZachLowe_NBA", "sports", "NBA writer"),
+  expert("kevin-oconnor", "Kevin O'Connor", "KevinOConnorNBA", "sports", "NBA writer"),
+  expert("adrian-wojnarowski", "Adrian Wojnarowski", "wojespn", "sports", "NBA reporter"),
+  expert("shams-charania", "Shams Charania", "ShamsCharania", "sports", "NBA reporter"),
+  expert("adam-schefter", "Adam Schefter", "AdamSchefter", "sports", "NFL reporter"),
+  expert("ian-rapoport", "Ian Rapoport", "RapSheet", "sports", "NFL reporter"),
+  expert("peter-schrager", "Peter Schrager", "PSchrags", "sports", "NFL analyst"),
+  expert("bruce-feldman", "Bruce Feldman", "BruceFeldmanCFB", "sports", "College football analyst"),
+  expert("ken-rosenthal", "Ken Rosenthal", "Ken_Rosenthal", "sports", "MLB reporter"),
+  expert("jeff-passan", "Jeff Passan", "JeffPassan", "sports", "MLB reporter"),
+  expert("bob-nightengale", "Bob Nightengale", "BNightengale", "sports", "MLB reporter"),
+  expert("chris-vernon", "Chris Vernon", "ChrisVernonShow", "sports", "NBA media host"),
+  expert("jj-redick", "JJ Redick", "jj_redick", "sports", "Basketball media host"),
+  expert("kirk-goldsberry", "Kirk Goldsberry", "kirkgoldsberry", "sports", "Basketball analyst"),
+  expert("colin-cowherd", "Colin Cowherd", "ColinCowherd", "sports", "Sports media host"),
 ];
 
 export function rosterAsExperts(): Expert[] {
