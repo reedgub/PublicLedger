@@ -40,7 +40,7 @@ export default async function LeaderboardPage() {
             eyebrow={`Roster / ${rosterExperts.length} profiles / 0 eligible`}
           />
           <p className="mt-5 text-xs text-muted-foreground">
-            Receipts intentionally starts empty. The extraction pipeline (X + OpenAI) must run
+            Project Lighthouse intentionally starts empty. The extraction pipeline (X + OpenAI) must run
             against real posts, produce candidates that clear the strict publication thresholds,
             and accumulate at least five resolved binary outcomes per expert before that expert
             appears on the ranked leaderboard.

@@ -1,8 +1,8 @@
 @AGENTS.md
 
-# Receipts project handoff
+# Project Lighthouse handoff
 
-Receipts is a source-backed public database of falsifiable predictions. Treat the original source, attribution, frozen claim, deadline, resolution criteria, evidence, and audit history as integrity-critical data.
+Project Lighthouse (repo directory: `receipts/`, historical brand: "Receipts") is a source-backed public database of falsifiable predictions. Treat the original source, attribution, frozen claim, deadline, resolution criteria, evidence, and audit history as integrity-critical data.
 
 ## Start here
 
@@ -39,4 +39,4 @@ Receipts is a source-backed public database of falsifiable predictions. Treat th
 
 ## Handoff status
 
-The repository contains a complete, tested MVP. A credential-free local seed produces 65 experts, 199 topics, 200 real Polymarket markets, and 200 market snapshots. It intentionally produces zero public Receipts until an official X bearer token and OpenAI API key are configured and the resulting candidates pass verification or admin review.
+The repository contains a complete, tested MVP. A credential-free local seed produces 65 experts, 199 topics, 200 real Polymarket markets, and 200 market snapshots. It intentionally produces zero public predictions until an official X bearer token and OpenAI API key are configured and the resulting candidates pass verification or admin review.

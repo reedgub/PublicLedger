@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { getExpertBySlug } from "@/lib/data/public";
 
-export const alt = "An expert prediction track record on Receipts";
+export const alt = "An expert prediction track record on Project Lighthouse";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

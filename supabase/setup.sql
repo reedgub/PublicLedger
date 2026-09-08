@@ -1,5 +1,5 @@
 -- ============================================================================
--- Receipts one-shot setup (IDEMPOTENT — safe to re-run against any state).
+-- Project Lighthouse one-shot setup (IDEMPOTENT — safe to re-run against any state).
 -- Paste into Supabase Dashboard -> SQL Editor -> New Query -> Run.
 -- Contains:
 --   1. Schema (all tables, indexes, RLS, is_admin(), triggers, views, RPC).

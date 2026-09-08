@@ -49,7 +49,7 @@ export default async function ExpertPage({ params }: PageProps<"/experts/[slug]"
       <dl className="grid border-b border-foreground sm:grid-cols-2 lg:grid-cols-4">
         <div className="border-b py-7 sm:border-r lg:border-b-0"><dt className="eyebrow">Accuracy</dt><dd className="metric mt-2 text-5xl font-semibold tracking-[-0.08em]">{accuracy}</dd>{scorecard.provisional && scorecard.resolvedPredictions > 0 && <span className="mt-2 inline-block border border-provisional px-1.5 font-mono text-[8px] text-provisional uppercase">Provisional</span>}</div>
         <div className="border-b py-7 sm:pl-6 lg:border-b-0"><dt className="eyebrow">Resolved</dt><dd className="metric mt-2 text-3xl">{scorecard.correctPredictions} / {scorecard.resolvedPredictions}</dd><dd className="eyebrow mt-1">Correct / resolved</dd></div>
-        <div className="border-b py-7 sm:border-r lg:border-y-0 lg:border-l lg:pl-6"><dt className="eyebrow">Total Receipts</dt><dd className="metric mt-2 text-3xl">{scorecard.totalPredictions}</dd></div>
+        <div className="border-b py-7 sm:border-r lg:border-y-0 lg:border-l lg:pl-6"><dt className="eyebrow">Total predictions</dt><dd className="metric mt-2 text-3xl">{scorecard.totalPredictions}</dd></div>
         <div className="py-7 sm:pl-6"><dt className="eyebrow">Open</dt><dd className="metric mt-2 text-3xl">{scorecard.openPredictions}</dd></div>
       </dl>
       <ExpertProfileTabs predictions={predictions} />

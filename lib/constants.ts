@@ -45,6 +45,8 @@ export const AUTO_PUBLICATION_THRESHOLDS = {
   verifierConfidence: 0.95,
 } as const;
 
-export const SITE_NAME = "Receipts";
+export const SITE_NAME = "Project Lighthouse";
+export const SITE_TAGLINE = "Check the track record.";
 export const SITE_DESCRIPTION =
   "A public record of what influential people predicted—and what actually happened.";
+export const SITE_ORIGIN_DEFAULT = "https://projectlighthouse.dev";

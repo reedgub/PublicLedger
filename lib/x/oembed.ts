@@ -37,7 +37,7 @@ export async function fetchXOembed(canonicalUrl: string): Promise<XOembedResult>
       const timer = setTimeout(() => controller.abort(), 8000);
       try {
         const response = await fetch(target, {
-          headers: { Accept: "application/json", "User-Agent": "Receipts/0.1 (+https://receipts.app)" },
+          headers: { Accept: "application/json", "User-Agent": "ProjectLighthouse/0.1 (+https://projectlighthouse.dev)" },
           signal: controller.signal,
         });
         if (response.status === 404) throw new XOembedNotFoundError(canonicalUrl);

@@ -14,7 +14,7 @@ export function RosterPreview({
   experts,
   eyebrow = "Roster / Pre-ingestion",
   title = "Awaiting first resolutions",
-  description = "The public leaderboard opens once experts accumulate at least five resolved binary predictions. Until then, this is the discovery roster the extraction pipeline will draw from — every handle is real, every profile will remain empty until source-backed Receipts land.",
+  description = "The public leaderboard opens once experts accumulate at least five resolved binary predictions. Until then, this is the discovery roster the extraction pipeline will draw from — every handle is real, every profile will remain empty until source-backed predictions land.",
 }: Props) {
   const byCategory = new Map<CategorySlug, Expert[]>();
   for (const expert of experts) {

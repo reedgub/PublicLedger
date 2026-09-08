@@ -8,7 +8,7 @@ export const contentType = "image/png";
 export default async function PredictionOpenGraphImage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const prediction = await getPredictionById(id);
-  const expert = prediction?.expert.displayName ?? "Receipts";
+  const expert = prediction?.expert.displayName ?? "Project Lighthouse";
   const claim = prediction?.normalizedClaim ?? "A source-backed public prediction record.";
   const status = prediction?.resolution?.outcome ?? prediction?.status ?? "record";
   return new ImageResponse(

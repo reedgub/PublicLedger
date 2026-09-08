@@ -15,7 +15,7 @@ export default async function TopicsPage() {
       <div className="mt-4 grid gap-6 md:grid-cols-[1fr_380px] md:items-end">
         <h1 className="editorial text-6xl font-semibold tracking-[-0.05em] sm:text-8xl">Topics</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          High-interest public questions normalized from markets and linked to Receipts only when the outcome
+          High-interest public questions normalized from markets and linked to predictions only when the outcome
           definition and timeframe match.
         </p>
       </div>

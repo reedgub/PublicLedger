@@ -70,7 +70,7 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
           </section>
 
           <section className="grid border-b border-dashed border-border md:grid-cols-2">
-            <div className="py-9 md:border-r md:pr-8"><p className="eyebrow">Receipts normalization</p><p className="editorial mt-4 text-2xl font-semibold leading-snug">{prediction.normalizedClaim}</p><p className="mt-4 text-xs text-muted-foreground">A falsifiable interpretation, separate from the exact source text.</p></div>
+            <div className="py-9 md:border-r md:pr-8"><p className="eyebrow">Normalized claim</p><p className="editorial mt-4 text-2xl font-semibold leading-snug">{prediction.normalizedClaim}</p><p className="mt-4 text-xs text-muted-foreground">A falsifiable interpretation, separate from the exact source text.</p></div>
             <div className="py-9 md:pl-8"><p className="eyebrow">Resolution criteria</p><p className="mt-4 text-sm leading-relaxed">{prediction.resolutionCriteria}</p></div>
           </section>
 
@@ -88,7 +88,7 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
 
           <section className="py-9"><p className="eyebrow">Audit trail</p><ol className="mt-5 border-l border-border pl-5 text-sm"><li className="relative pb-5 before:absolute before:-left-[23px] before:top-1.5 before:size-1.5 before:bg-foreground"><span className="font-semibold">Source recorded</span><span className="metric ml-3 text-[9px] text-muted-foreground">{formatUtcAuditTime(prediction.source.publishedAt)}</span></li>{prediction.publishedAt && <li className="relative pb-5 before:absolute before:-left-[23px] before:top-1.5 before:size-1.5 before:bg-foreground"><span className="font-semibold">Prediction verified and frozen</span><span className="metric ml-3 text-[9px] text-muted-foreground">{formatUtcAuditTime(prediction.publishedAt)}</span></li>}{prediction.resolution?.approvedAt && <li className="relative before:absolute before:-left-[23px] before:top-1.5 before:size-1.5 before:bg-foreground"><span className="font-semibold">Resolution approved</span><span className="metric ml-3 text-[9px] text-muted-foreground">{formatUtcAuditTime(prediction.resolution.approvedAt)}</span></li>}</ol></section>
         </article>
-        <div className="mt-6 flex items-center justify-between gap-4 text-xs text-muted-foreground"><Link href="/methodology" className="hover:underline">How Receipts Works</Link><Link href={`/submit?type=issue&prediction=${prediction.id}`} className="hover:underline">Report an issue</Link></div>
+        <div className="mt-6 flex items-center justify-between gap-4 text-xs text-muted-foreground"><Link href="/methodology" className="hover:underline">Methodology</Link><Link href={`/submit?type=issue&prediction=${prediction.id}`} className="hover:underline">Report an issue</Link></div>
       </div>
     </div>
   );

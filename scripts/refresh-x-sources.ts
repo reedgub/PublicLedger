@@ -20,7 +20,7 @@ export async function refreshXSources(): Promise<{ checked: number; updated: num
         const hash = createHash("sha256").update(current.exactText).digest("hex");
         await sql`update public.sources set exact_text = ${current.exactText}, content_hash = ${hash}, metadata = ${sql.json(current.metadata as never)}, fetched_at = now(), last_verified_at = now() where id = ${source.id}`;
         const predictions = await sql<{ id: string }[]>`update public.predictions set status = 'source_unavailable', published_at = null where source_id = ${source.id} and published_at is not null returning id`;
-        await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, before, after, reason) values ('source', ${source.id}, 'source_updated', 'system', ${sql.json({ exact_text: source.exact_text })}, ${sql.json({ exact_text: current.exactText })}, 'X source content changed; linked Receipts quarantined for review.')`;
+        await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, before, after, reason) values ('source', ${source.id}, 'source_updated', 'system', ${sql.json({ exact_text: source.exact_text })}, ${sql.json({ exact_text: current.exactText })}, 'X source content changed; linked predictions quarantined for review.')`;
         for (const prediction of predictions) await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, reason) values ('prediction', ${prediction.id}, 'prediction_unpublished', 'system', 'Source content changed materially or requires review.')`;
         updated += 1;
       } else await sql`update public.sources set fetched_at = now(), last_verified_at = now() where id = ${source.id}`;

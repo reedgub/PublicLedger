@@ -54,7 +54,7 @@ async function main() {
     `Polymarket events: ${polymarket.topics}`, `Markets: ${polymarket.markets}`,
     `Raw X posts: ${x.rawPosts}`, `Candidates: ${counts.candidates}`,
     `Rejected by heuristic: ${processing.rejectedByHeuristic}`, `AI predictions detected: ${processing.aiPredictions}`,
-    `Verifier rejected: ${processing.verifierRejected}`, `Published Receipts: ${counts.published}`,
+    `Verifier rejected: ${processing.verifierRejected}`, `Published predictions: ${counts.published}`,
     `Open: ${counts.open}`, `Resolved: ${counts.resolved}`, `Ambiguous: ${counts.ambiguous}`,
     `Duplicates: ${counts.duplicates}`, `Errors: ${errors}`,
   ].join("\n"));

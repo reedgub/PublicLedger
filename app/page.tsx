@@ -22,7 +22,7 @@ export default async function HomePage() {
             </h1>
           </div>
           <div className="border-l border-border pl-5 lg:pb-2">
-            <p className="editorial text-2xl leading-snug text-balance">Receipts keeps a public record of what influential people predicted — and what actually happened.</p>
+            <p className="editorial text-2xl leading-snug text-balance">Project Lighthouse keeps a public record of what influential people predicted — and what actually happened.</p>
             <div className="mt-6 flex gap-5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
               <span className="flex items-center gap-1.5"><Database className="size-3.5" />Source-backed</span>
               <span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5" />Auditable</span>
@@ -66,8 +66,8 @@ export default async function HomePage() {
 
       <section className="container-receipts mt-20 grid gap-16 sm:mt-28 lg:grid-cols-2">
         <div>
-          <SectionHeading index="03" title="Latest Receipts" />
-          <div className="mt-5">{data.latest.length ? <PredictionList predictions={data.latest} /> : <EmptyState title="No verified Receipts yet" description="Verified predictions will appear after source ingestion, extraction, and independent review pass strict publication thresholds." />}</div>
+          <SectionHeading index="03" title="Latest predictions" />
+          <div className="mt-5">{data.latest.length ? <PredictionList predictions={data.latest} /> : <EmptyState title="No verified predictions yet" description="Verified predictions will appear after source ingestion, extraction, and independent review pass strict publication thresholds." />}</div>
         </div>
         <div>
           <SectionHeading index="04" title="Recently Resolved" />

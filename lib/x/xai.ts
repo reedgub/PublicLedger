@@ -243,7 +243,7 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${env.XAI_API_KEY}`,
-            "User-Agent": "Receipts/0.1 (+https://receipts.app)",
+            "User-Agent": "ProjectLighthouse/0.1 (+https://projectlighthouse.dev)",
           },
           body: JSON.stringify(body),
           signal: controller.signal,
