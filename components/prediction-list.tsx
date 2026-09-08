@@ -20,7 +20,13 @@ export function PredictionList({ predictions }: { predictions: Prediction[] }) {
               <p className="editorial text-xl font-medium leading-snug group-hover:underline group-hover:underline-offset-4">{prediction.normalizedClaim}</p>
               <p className="eyebrow mt-2">{CATEGORIES.find((item) => item.slug === prediction.categorySlug)?.shortName}</p>
             </div>
-            <div className="flex items-center gap-3 sm:justify-end"><StatusBadge status={status} /><ArrowUpRight className="size-4 opacity-40 group-hover:opacity-100" /></div>
+            <div className="flex items-center gap-3 sm:justify-end">
+              {prediction.recordType === "take" && (
+                <span className="border border-provisional px-1.5 py-1 font-mono text-[8px] text-provisional uppercase tracking-[0.14em]">Take</span>
+              )}
+              <StatusBadge status={status} />
+              <ArrowUpRight className="size-4 opacity-40 group-hover:opacity-100" />
+            </div>
           </Link>
         );
       })}

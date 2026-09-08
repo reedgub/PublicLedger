@@ -85,17 +85,27 @@ export async function processSources(): Promise<ProcessingSummary> {
           select expert_id, normalized_claim, resolution_date::text from public.predictions
           where expert_id = ${source.expert_id} and published_at is not null order by prediction_date asc
         `;
+        const recordType = candidate.record_type ?? "prediction";
+        const imputationNote = candidate.imputation_note ?? null;
         const duplicate = existing.some((item) => isLikelyDuplicate({ expertId: source.expert_id, claim: candidate.normalized_claim, resolutionDate: candidate.resolution_date }, { expertId: item.expert_id, claim: item.normalized_claim, resolutionDate: item.resolution_date }));
-        const publish = !duplicate && deterministic.valid && canAutoPublish({ sourceIsUsable: extraction.result.source_is_usable, speakerIsAuthor: extraction.result.speaker_is_author, extractionConfidence: candidate.extraction_confidence, sourceFidelityScore: candidate.source_fidelity_score, falsifiabilityScore: candidate.falsifiability_score, verifierVerdict: verification?.result.verdict ?? null, verifierConfidence: verification?.result.confidence ?? null, sourceQuoteLiteral: deterministic.valid, hasResolutionCriteria: Boolean(candidate.resolution_criteria), hasResolutionDate: Boolean(candidate.resolution_date) });
+        // Takes NEVER auto-publish — they always route to admin review so a
+        // human can eyeball the imputation before it goes live. Predictions
+        // (hard) go through the existing threshold gate.
+        const publish = recordType === "prediction"
+          && !duplicate
+          && deterministic.valid
+          && canAutoPublish({ sourceIsUsable: extraction.result.source_is_usable, speakerIsAuthor: extraction.result.speaker_is_author, extractionConfidence: candidate.extraction_confidence, sourceFidelityScore: candidate.source_fidelity_score, falsifiabilityScore: candidate.falsifiability_score, verifierVerdict: verification?.result.verdict ?? null, verifierConfidence: verification?.result.confidence ?? null, sourceQuoteLiteral: deterministic.valid, hasResolutionCriteria: Boolean(candidate.resolution_criteria), hasResolutionDate: Boolean(candidate.resolution_date) });
         const status = duplicate ? "duplicate" : publish ? "auto_verified" : deterministic.valid ? "review" : "rejected";
         const [storedCandidate] = await sql<{ id: string }[]>`
           insert into public.prediction_candidates (source_id, expert_id, normalized_claim, source_quote, resolution_date, resolution_criteria,
             explicit_probability, confidence_language, category_slug, extraction_confidence, falsifiability_score, source_fidelity_score,
-            verifier_verdict, verifier_confidence, status, reason_rejected, model_name, raw_extraction)
+            verifier_verdict, verifier_confidence, status, reason_rejected, model_name, raw_extraction,
+            record_type, imputation_note)
           values (${source.id}, ${source.expert_id}, ${candidate.normalized_claim}, ${candidate.source_quote}, ${candidate.resolution_date}, ${candidate.resolution_criteria},
             ${candidate.explicit_probability}, ${candidate.confidence_language}, ${candidate.category}, ${candidate.extraction_confidence}, ${candidate.falsifiability_score}, ${candidate.source_fidelity_score},
             ${verification?.result.verdict ?? null}, ${verification?.result.confidence ?? null}, ${status}, ${duplicate ? "semantic_duplicate" : deterministic.errors.join(",") || verification?.result.reason || null}, ${extraction.model},
-            ${sql.json({ extraction: extraction.result, verifier: verification?.result, extraction_schema_version: EXTRACTION_SCHEMA_VERSION, verifier_schema_version: VERIFIER_SCHEMA_VERSION, content_hash: source.content_hash })})
+            ${sql.json({ extraction: extraction.result, verifier: verification?.result, extraction_schema_version: EXTRACTION_SCHEMA_VERSION, verifier_schema_version: VERIFIER_SCHEMA_VERSION, content_hash: source.content_hash })},
+            ${recordType}, ${imputationNote})
           returning id
         `;
         if (duplicate) {

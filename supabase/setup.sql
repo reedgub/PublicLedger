@@ -131,6 +131,8 @@ create table if not exists public.prediction_candidates (
   reason_rejected text,
   model_name text,
   raw_extraction jsonb not null default '{}'::jsonb,
+  record_type text not null default 'prediction' check (record_type in ('prediction', 'take')),
+  imputation_note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -154,9 +156,12 @@ create table if not exists public.predictions (
   fingerprint_sha256 text unique not null,
   published_at timestamptz,
   frozen_at timestamptz not null default now(),
+  record_type text not null default 'prediction' check (record_type in ('prediction', 'take')),
+  imputation_note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+create index if not exists predictions_record_type_idx on public.predictions(record_type) where published_at is not null;
 
 create table if not exists public.prediction_topics (
   prediction_id uuid not null references public.predictions(id) on delete cascade,
@@ -374,10 +379,14 @@ select
   avg(power(p.explicit_probability - case when r.outcome = 'correct' then 1 else 0 end, 2))
     filter (where r.outcome in ('correct','incorrect') and p.explicit_probability is not null) as brier_score,
   count(r.id) filter (where r.outcome in ('correct','incorrect')) >= 5 as leaderboard_eligible,
-  count(r.id) filter (where r.outcome in ('correct','incorrect')) < 20 as provisional
+  count(r.id) filter (where r.outcome in ('correct','incorrect')) < 20 as provisional,
+  (select count(*)::integer from public.predictions t
+     where t.expert_id = e.id and t.published_at is not null
+       and t.status <> 'source_unavailable' and t.record_type = 'take') as total_takes
 from public.experts e
 left join public.predictions p on p.expert_id = e.id
   and p.published_at is not null and p.status <> 'source_unavailable'
+  and p.record_type = 'prediction'
 left join public.resolutions r on r.prediction_id = p.id and r.approved_at is not null
 where e.is_active
 group by e.id;

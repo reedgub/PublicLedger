@@ -14,6 +14,16 @@ export const extractedPredictionSchema = z.object({
   extraction_confidence: z.number().min(0).max(1),
   falsifiability_score: z.number().min(0).max(1),
   source_fidelity_score: z.number().min(0).max(1),
+  // Two-tier record system.
+  // 'prediction' — hard: every ingredient was stated by the author or is
+  //   defensibly inferable from the source alone. Enters scoring.
+  // 'take' — soft: at least one ingredient (usually the deadline) had to be
+  //   imputed by the extractor. Displayed on the site but never scored.
+  record_type: z.enum(["prediction", "take"]).default("prediction"),
+  // Required whenever record_type = 'take'. Explains what was imputed and why
+  // that imputation is defensible. Shown on the take's card so a reader can
+  // decide whether to trust it.
+  imputation_note: z.string().nullable().default(null),
 });
 
 export const extractionResponseSchema = z.object({

@@ -138,6 +138,8 @@ function mapPrediction(row: Row): Prediction {
     resolution,
     topics: topicRelations.filter((topic) => topic.id),
     markets: marketRelations.filter((market) => market.id),
+    recordType: row.record_type === "take" ? "take" : "prediction",
+    imputationNote: stringOrNull(row.imputation_note),
   };
 }
 
@@ -158,6 +160,7 @@ function emptyScorecard(expert: Expert): ExpertScorecard {
     brierScore: null,
     leaderboardEligible: false,
     provisional: true,
+    totalTakes: 0,
   };
 }
 
@@ -179,6 +182,7 @@ function mapScorecard(row: Row): ExpertScorecard {
     brierScore: numberOrNull(row.brier_score),
     leaderboardEligible: bool(row.leaderboard_eligible),
     provisional: row.provisional !== false,
+    totalTakes: numberOrNull(row.total_takes) ?? 0,
   };
 }
 

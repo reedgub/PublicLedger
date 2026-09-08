@@ -54,6 +54,8 @@ export async function moderateCandidateAction(formData: FormData) {
       confidence_language: candidate.confidence_language, falsifiability_score: candidate.falsifiability_score,
       verification_mode: "admin", status: new Date(parsed.data.resolutionDate) <= new Date() ? "due" : "open",
       fingerprint_sha256: fingerprint, published_at: publishedAt, frozen_at: publishedAt,
+      record_type: candidate.record_type === "take" ? "take" : "prediction",
+      imputation_note: candidate.imputation_note ?? null,
     }, { onConflict: "fingerprint_sha256" }).select("id").single();
     if (predictionError) throw predictionError;
     const after = { normalized_claim: parsed.data.normalizedClaim, source_quote: parsed.data.sourceQuote, resolution_date: parsed.data.resolutionDate, resolution_criteria: parsed.data.resolutionCriteria, category_slug: parsed.data.categorySlug, status: "approved" };

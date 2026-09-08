@@ -41,6 +41,35 @@ describe("prediction utilities", () => {
     expect(result.errors).toContain("resolution_date_missing");
   });
 
+  it("rejects a take that is missing an imputation note", () => {
+    const result = validateExtractedPrediction("It will happen by 2027.", "2026-01-01Z", {
+      normalized_claim: "It happens by 2027.",
+      source_quote: "It will happen by 2027.",
+      resolution_date: "2027-12-31",
+      resolution_criteria: "A named public data source confirms it.",
+      explicit_probability: null,
+      category: "other",
+      record_type: "take",
+      imputation_note: null,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain("take_missing_imputation_note");
+  });
+
+  it("accepts a take when the imputation note explains what was imputed", () => {
+    const result = validateExtractedPrediction("It will happen by 2027.", "2026-01-01Z", {
+      normalized_claim: "It happens by 2027.",
+      source_quote: "It will happen by 2027.",
+      resolution_date: "2027-12-31",
+      resolution_criteria: "A named public data source confirms it.",
+      explicit_probability: null,
+      category: "other",
+      record_type: "take",
+      imputation_note: "Author said 'by 2027'; deadline pinned to year-end.",
+    });
+    expect(result.valid).toBe(true);
+  });
+
   it("accepts predictions with a valid future resolution date", () => {
     const result = validateExtractedPrediction("Inflation will fall below 3% by end of 2027.", "2026-01-01Z", {
       normalized_claim: "US CPI year-over-year will print below 3% for December 2027.",

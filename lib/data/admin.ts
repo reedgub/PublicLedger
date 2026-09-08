@@ -41,7 +41,7 @@ export const getAdminDashboard = cache(async () => {
 export const getAdminCandidates = cache(async () => {
   await assertAdmin();
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin.from("prediction_candidates").select("id, normalized_claim, source_quote, resolution_date, resolution_criteria, explicit_probability, confidence_language, category_slug, extraction_confidence, falsifiability_score, source_fidelity_score, verifier_verdict, verifier_confidence, status, reason_rejected, created_at, experts(id, display_name, x_handle), sources(id, source_type, exact_text, canonical_path, published_at, deleted_at)").in("status", ["pending", "review", "auto_verified"]).order("created_at", { ascending: true }).limit(100);
+  const { data, error } = await admin.from("prediction_candidates").select("id, normalized_claim, source_quote, resolution_date, resolution_criteria, explicit_probability, confidence_language, category_slug, extraction_confidence, falsifiability_score, source_fidelity_score, verifier_verdict, verifier_confidence, status, reason_rejected, record_type, imputation_note, created_at, experts(id, display_name, x_handle), sources(id, source_type, exact_text, canonical_path, published_at, deleted_at)").in("status", ["pending", "review", "auto_verified"]).order("created_at", { ascending: true }).limit(100);
   if (error) throw error;
   return (data ?? []).map((raw) => {
     const row = object(raw); const expert = first(row.experts); const source = first(row.sources);

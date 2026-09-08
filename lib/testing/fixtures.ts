@@ -40,4 +40,6 @@ export const syntheticPrediction: Prediction = {
   resolution: null,
   topics: [],
   markets: [],
+  recordType: "prediction",
+  imputationNote: null,
 };

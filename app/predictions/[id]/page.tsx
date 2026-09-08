@@ -42,8 +42,19 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
         <article className="receipt-edge border-y border-foreground bg-card px-5 py-8 sm:px-12 sm:py-12">
           <header className="border-b border-dashed border-border pb-10 text-center">
             <p className="font-mono text-sm font-black tracking-[0.24em]">PROJECT LIGHTHOUSE</p>
-            <div className="mt-5"><StatusBadge status={displayStatus} /></div>
+            <div className="mt-5 flex items-center justify-center gap-2">
+              {prediction.recordType === "take" && (
+                <span className="border border-provisional px-2 py-1 font-mono text-[9px] text-provisional uppercase tracking-[0.14em]">Take</span>
+              )}
+              <StatusBadge status={displayStatus} />
+            </div>
             <h1 className="editorial mx-auto mt-7 max-w-3xl text-4xl font-semibold leading-[1.03] tracking-[-0.035em] text-balance sm:text-6xl">{prediction.normalizedClaim}</h1>
+            {prediction.recordType === "take" && prediction.imputationNote && (
+              <p className="mx-auto mt-6 max-w-2xl border border-provisional/40 bg-provisional/5 p-3 text-left text-xs leading-relaxed text-muted-foreground">
+                <span className="eyebrow mb-1 block text-provisional">Editor&apos;s note</span>
+                {prediction.imputationNote}
+              </p>
+            )}
           </header>
 
           <dl className="metric grid grid-cols-2 gap-px border-b border-dashed border-border bg-border py-px sm:grid-cols-5">

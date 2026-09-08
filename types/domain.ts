@@ -52,6 +52,8 @@ export type Resolution = {
   }>;
 };
 
+export type RecordType = "prediction" | "take";
+
 export type Prediction = {
   id: string;
   expert: Expert;
@@ -69,6 +71,8 @@ export type Prediction = {
   resolution: Resolution | null;
   topics: Topic[];
   markets: Market[];
+  recordType: RecordType;
+  imputationNote: string | null;
 };
 
 export type Market = {
@@ -116,6 +120,7 @@ export type ExpertScorecard = {
   brierScore: number | null;
   leaderboardEligible: boolean;
   provisional: boolean;
+  totalTakes: number;
 };
 
 export type SearchResult = {

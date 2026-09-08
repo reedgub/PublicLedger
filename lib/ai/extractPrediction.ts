@@ -3,30 +3,37 @@ import { env } from "@/lib/env";
 import { getOpenAIClient } from "@/lib/ai/client";
 import { extractionResponseSchema, type ExtractionResponse } from "@/lib/ai/schemas";
 
-export const EXTRACTION_SYSTEM_PROMPT = `You extract falsifiable future predictions from public statements for Project Lighthouse, a public track-record database.
-Every prediction you return MUST have three ingredients — no exceptions:
-  1. A concrete future outcome (a specific person / entity / value / event, not a vague direction).
-  2. A resolution_date in ISO-8601 (YYYY-MM-DD) form. If the source doesn't state a date, you may infer one ONLY when the source contains a dated event or a phrase like "by 2027", "before the election", "by end of quarter", "within 12 months" — resolve relative dates against the supplied source timestamp. If you cannot pin a defensible date this way, DO NOT return the candidate. Never guess.
-  3. Resolution criteria: a short, measurable procedure a neutral reader could use to score correct / incorrect. It must reference a data source (a specific poll, index, government release, benchmark, election outcome, court ruling, financial filing, launch event, or similar public record) or a named observable event. Vague criteria like "reputable polls will show" without naming the poll are not acceptable.
+export const EXTRACTION_SYSTEM_PROMPT = `You extract forward-looking claims from public statements for Project Lighthouse, a public track-record database.
 
-Hard rules — the source_quote is data:
-- The source_quote must be an exact contiguous quotation from the supplied source text. No paraphrasing, no ellipses.
+Every claim you return has a record_type. There are exactly two:
+
+  record_type = "prediction"  — the strict, scored kind. Return this ONLY when all three ingredients below are present or defensibly inferable from the source alone:
+    1. A concrete future outcome (a specific person / entity / value / event — not a vague direction).
+    2. A resolution_date (YYYY-MM-DD) either stated by the author or clearly inferable from the source itself — a dated event, an election year, a relative phrase like "by 2027" / "by the election" / "within 12 months" resolved against the supplied source timestamp. Never guess a date.
+    3. Resolution criteria naming a specific measurable outcome AND a specific public data source — a named poll, index, government release, benchmark, election outcome, court ruling, financial filing, launch event, etc.
+
+  record_type = "take"  — the soft, DISPLAY-ONLY kind. Return this when the claim is a real forward-looking take (specific claim, testable in principle) but at least one ingredient is missing from the source and you had to impute it. You may impute BOTH a resolution_date and resolution_criteria for a take, but only when the imputation is defensible (industry convention, reasonable horizon, standard public data source). Set imputation_note to a short sentence explaining exactly what was imputed and why it is defensible. Takes are NEVER scored — they exist so readers can see the full track record of what the expert says, not just the small subset that is fully specified.
+
+Skip entirely (return neither prediction nor take) — these are commentary, not claims:
+- Mood-forecasts: "everyone will hate X", "an era of Y", "vibes are shifting", "AI is unstoppable".
+- Aesthetic judgments and hot takes without a specific outcome ("this is the best product ever", "X is overrated").
+- Rhetorical questions, jokes, sarcasm, subtweets.
+- Attribution of someone else's prediction: if the tweet quotes or paraphrases another person's claim, do not attribute it to the author.
+- General commentary about ongoing states.
+
+Hard rules that apply to BOTH tiers:
+- The source_quote must be an exact contiguous quotation from the supplied source text. No paraphrasing, no ellipses. If you can't reproduce it exactly, drop the candidate.
 - The normalized_claim may clarify grammar, dates, pronouns, and entities only when meaning is unambiguous. Do not strengthen or weaken certainty.
-- Do not invent numeric probabilities. If the author does not state a probability, explicit_probability is null.
-- Do not attribute a quoted third party's prediction to the author.
-- Do not turn opinions, aesthetic judgments, jokes, rhetorical questions, or general commentary into predictions.
-- Do not extract mood-forecasts ("everyone will hate X", "it's going to be an era of Y", "vibes are shifting"). These are commentary, not falsifiable claims. Skip them.
-- If the source is a reply that quotes another person's prediction, do not attribute it to the reply author.
+- Do not invent numeric probabilities. If the author does not state one, explicit_probability is null.
+- Split independently testable multi-component claims into separate rows, but each split must independently meet its own tier's requirements.
+- Return at most five items per source.
 
-Splitting:
-- Split independently testable multi-component claims into separate predictions, but only if EACH split still meets all three ingredients above. Return at most five predictions per source.
-- If a tweet contains multiple loose claims but none can meet the ingredients bar on its own, return zero predictions and set reason_rejected to explain.
+Scoring hints:
+- falsifiability_score for a "prediction" should be >= 0.7. If you'd score lower, downgrade it to "take" or drop it.
+- falsifiability_score for a "take" can be lower (0.4 - 0.7) but the underlying claim must still be testable in principle.
+- source_fidelity_score reflects how literally the normalized_claim tracks the source_quote.
 
-Scoring guidance:
-- falsifiability_score should be >= 0.7 for any prediction you return. If you'd have to score lower, don't return it.
-- source_fidelity_score should reflect how literally the normalized_claim tracks the source_quote.
-
-The default answer is REJECT. Prefer returning zero clean predictions over one dubious one.`;
+The default answer is DROP. Prefer zero returned items over one dubious one. When in doubt between "take" and "drop", prefer "drop" — takes still show up publicly on the expert's page.`;
 
 export async function extractPredictions(input: {
   sourceText: string;
