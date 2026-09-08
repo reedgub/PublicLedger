@@ -107,7 +107,7 @@ pnpm ingest:x:weekly --dry-run
 
 Cost is enforced against `X_INGESTION_WEEKLY_SOFT_BUDGET_USD` (warn, keep going) and `X_INGESTION_WEEKLY_HARD_BUDGET_USD` (stop). Every request is recorded in `x_discovery_runs` with model, tokens, `x_search` tool calls, and dollar cost; each expert's `ingestion_checkpoints` row advances only on success. Saturated windows (xAI returns the max number of results and reports the window may still hold more) are automatically split in half and re-queried, bounded so a pathological account cannot burn the budget.
 
-The GitHub Actions workflow `.github/workflows/ingest-x-weekly.yml` runs `pnpm ingest:x:weekly` every Monday at 12:00 UTC. It requires the following repo secrets: `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `XAI_API_KEY`, `OPENAI_API_KEY`, `SUBMISSION_HASH_SALT`, and optional overrides for model IDs and budget caps.
+The GitHub Actions workflow `.github/workflows/ingest-x.yml` runs `pnpm ingest:x:weekly` every day at 12:00 UTC. It requires the following repo secrets: `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `XAI_API_KEY`, `OPENAI_API_KEY`, `SUBMISSION_HASH_SALT`, and optional overrides for model IDs and budget caps. Add `SLACK_WEBHOOK_URL` and `NEXT_PUBLIC_SITE_ORIGIN` to route per-run summaries into Slack.
 
 ## Admin and operations
 

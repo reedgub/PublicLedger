@@ -1,9 +1,9 @@
-name: Ingest X (weekly)
+name: Ingest X (daily)
 
 on:
-  # Every Monday 12:00 UTC. Manual trigger available for backfills or reruns.
+  # Every day at 12:00 UTC. Manual trigger available for backfills or reruns.
   schedule:
-    - cron: "0 12 * * 1"
+    - cron: "0 12 * * *"
   workflow_dispatch:
     inputs:
       backfill_days:
@@ -41,6 +41,8 @@ jobs:
       OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
       OPENAI_VERIFIER_MODEL: ${{ secrets.OPENAI_VERIFIER_MODEL }}
       SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      NEXT_PUBLIC_SITE_ORIGIN: ${{ secrets.NEXT_PUBLIC_SITE_ORIGIN }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

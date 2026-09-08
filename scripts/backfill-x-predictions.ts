@@ -1,7 +1,8 @@
 import "dotenv/config";
 import { closeDatabase } from "@/lib/db/postgres";
 import { runXaiWeekly } from "@/lib/ingestion/x-runner";
-import { processSources } from "@/scripts/process-sources";
+import { postIngestionSummary } from "@/lib/ingestion/slack";
+import { processSources, type ProcessingSummary } from "@/scripts/process-sources";
 
 type Flags = {
   expert?: string;
@@ -37,6 +38,11 @@ function parseFlags(argv: string[]): Flags {
 
 async function main() {
   const flags = parseFlags(process.argv.slice(2));
+  const startedAt = Date.now();
+  const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://projectlighthouse.dev";
+  let extraction: ProcessingSummary | null = null;
+  let fatalError: string | null = null;
+
   console.log(JSON.stringify({ stage: "xai_backfill_start", ...flags }));
   const summary = await runXaiWeekly({
     onlyExpertSlug: flags.expert,
@@ -45,6 +51,9 @@ async function main() {
     maxWindowsPerExpert: flags.maxWindows,
     concurrency: flags.concurrency,
     dryRun: flags.dryRun,
+  }).catch((error) => {
+    fatalError = error instanceof Error ? error.message : String(error);
+    throw error;
   });
 
   console.log(
@@ -67,9 +76,43 @@ async function main() {
 
   if (!flags.skipExtraction && !flags.dryRun && summary.totalCandidatesInserted > 0) {
     console.log(JSON.stringify({ stage: "extraction_start" }));
-    const processing = await processSources();
-    console.log(JSON.stringify({ stage: "extraction_summary", ...processing }));
+    try {
+      extraction = await processSources();
+      console.log(JSON.stringify({ stage: "extraction_summary", ...extraction }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "extraction failed";
+      console.error(`Extraction stage failed: ${message}`);
+      fatalError = fatalError ?? message;
+    }
   }
+
+  const scope = flags.expert ? `@${flags.expert.replace(/^@/, "")}` : "all experts";
+  await postIngestionSummary({
+    jobLabel: `backfill ${flags.days}d · ${scope}`,
+    runId: summary.runId,
+    siteOrigin,
+    durationMs: Date.now() - startedAt,
+    ingestion: {
+      expertsAttempted: summary.expertsAttempted,
+      expertsSucceeded: summary.expertsSucceeded,
+      candidatesReturned: summary.totalCandidatesReturned,
+      candidatesInserted: summary.totalCandidatesInserted,
+      costUsd: summary.totalCostUsd,
+      hitSoftBudget: summary.hitSoftBudget,
+      hitHardBudget: summary.hitHardBudget,
+      perExpertTop: summary.perExpert
+        .slice()
+        .sort((a, b) => b.candidatesInserted - a.candidatesInserted)
+        .map((row) => ({
+          handle: row.handle,
+          candidatesInserted: row.candidatesInserted,
+          costUsd: row.costUsd,
+          status: row.status,
+        })),
+    },
+    extraction,
+    error: fatalError,
+  });
 }
 
 main()
