@@ -3,7 +3,7 @@ import { SYNTHETIC_PREDICTION_ID } from "../../lib/testing/fixtures";
 
 test("homepage presents the product and live-data sections", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /don't trust the title/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /public predictions/i })).toBeVisible();
   await expect(page.getByText(/live market context/i).first()).toBeVisible();
   const mobileMenu = page.getByRole("button", { name: "Open navigation" });
   if (await mobileMenu.isVisible()) await mobileMenu.click();
@@ -26,7 +26,7 @@ test("atomic receipt renders source, criteria, and status", async ({ page }) => 
 
 test("methodology explains immutable criteria and scoring", async ({ page }) => {
   await page.goto("/methodology");
-  await expect(page.getByRole("heading", { name: /how receipts works/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /methodology/i })).toBeVisible();
   await expect(page.getByText(/wilson/i).first()).toBeVisible();
   await expect(page.getByText(/freezes/i).first()).toBeVisible();
 });
