@@ -150,7 +150,7 @@ create table if not exists public.predictions (
   explicit_probability numeric check (explicit_probability between 0 and 1),
   confidence_language text,
   falsifiability_score numeric check (falsifiability_score between 0 and 1),
-  verification_mode text not null check (verification_mode in ('auto', 'admin')),
+  verification_mode text not null check (verification_mode in ('auto', 'admin', 'auto_low_confidence')),
   status text not null default 'open'
     check (status in ('open', 'due', 'resolution_pending', 'resolved', 'ambiguous', 'void', 'source_unavailable')),
   fingerprint_sha256 text unique not null,

@@ -21,6 +21,8 @@ export type SlackIngestionSummary = {
     rejectedByHeuristic: number;
     aiPredictions: number;
     verifierRejected: number;
+    autoApproved: number;
+    autoRejected: number;
     published: number;
     duplicates: number;
     errors: number;
@@ -56,6 +58,7 @@ export async function postIngestionSummary(summary: SlackIngestionSummary): Prom
   if (ext) {
     fields.push(
       { type: "mrkdwn", text: `*Predictions extracted*\n${ext.aiPredictions} (verifier kept ${ext.aiPredictions - ext.verifierRejected})` },
+      { type: "mrkdwn", text: `*Auto-approver*\n${ext.autoApproved} approved · ${ext.autoRejected} rejected` },
       { type: "mrkdwn", text: `*Published to site*\n${ext.published} live${ext.errors ? ` · ${ext.errors} error(s)` : ""}` },
     );
   }

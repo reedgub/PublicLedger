@@ -12,10 +12,11 @@ import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
 import { predictionFingerprint } from "@/lib/predictions/fingerprint";
 import { verifyMarketMatch } from "@/lib/ai/matchMarket";
 import { canCreateMarketLink } from "@/lib/matching/markets";
+import { applyAutoApprovalDecision, judgeCandidate } from "@/lib/ai/autoApprove";
 
 type SourceRow = { id: string; exact_text: string; published_at: string; content_hash: string; expert_id: string; display_name: string; x_handle: string };
 
-export type ProcessingSummary = { examined: number; rejectedByHeuristic: number; aiPredictions: number; verifierRejected: number; published: number; duplicates: number; errors: number };
+export type ProcessingSummary = { examined: number; rejectedByHeuristic: number; aiPredictions: number; verifierRejected: number; autoApproved: number; autoRejected: number; published: number; duplicates: number; errors: number };
 
 async function linkPublishedPrediction(predictionId: string, claim: string, resolutionCriteria: string, category: string, resolutionDate: string | null, predictionDate: string) {
   const sql = getDatabase();
@@ -61,7 +62,7 @@ export async function processSources(): Promise<ProcessingSummary> {
       )
     order by s.published_at asc limit ${env.SEED_MAX_OPENAI_ITEMS}
   `;
-  const summary: ProcessingSummary = { examined: sources.length, rejectedByHeuristic: 0, aiPredictions: 0, verifierRejected: 0, published: 0, duplicates: 0, errors: 0 };
+  const summary: ProcessingSummary = { examined: sources.length, rejectedByHeuristic: 0, aiPredictions: 0, verifierRejected: 0, autoApproved: 0, autoRejected: 0, published: 0, duplicates: 0, errors: 0 };
   const limit = pLimit(env.SEED_CONCURRENCY);
   await Promise.all(sources.map((source) => limit(async () => {
     try {
@@ -127,20 +128,72 @@ export async function processSources(): Promise<ProcessingSummary> {
           await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction_candidate', ${storedCandidate.id}, 'duplicate_merged', 'system', ${sql.json({ source_id: source.id })}, 'Likely semantic duplicate of an earlier qualifying statement.')`;
           continue;
         }
-        if (publish && candidate.resolution_date) {
+        // Auto-approver: LLM-as-judge second pass. If the strict `canAutoPublish`
+        // gate sent this to human review (which it will for most candidates and
+        // for every take), ask the judge whether an editorial reviewer would
+        // approve. On approve we route to the publish path below with
+        // verification_mode='auto'; on reject we flip the stored candidate to
+        // 'rejected'. Every judge decision is written to audit_log with the
+        // full reason so it can be spot-checked and reversed.
+        let autoApproved = false;
+        let autoApprovedLowConfidence = false;
+        if (env.AUTO_APPROVE_MODE === "on" && status === "review" && candidate.resolution_date) {
+          try {
+            const judgment = await judgeCandidate({
+              sourceText: source.exact_text,
+              sourceTimestamp: source.published_at,
+              authorName: source.display_name,
+              authorHandle: source.x_handle,
+              normalizedClaim: candidate.normalized_claim,
+              sourceQuote: candidate.source_quote,
+              resolutionDate: candidate.resolution_date,
+              resolutionCriteria: candidate.resolution_criteria,
+              recordType: recordType as "prediction" | "take",
+              imputationNote,
+              verifierVerdict: verification?.result.verdict ?? null,
+              verifierConfidence: verification?.result.confidence ?? null,
+              verifierReason: verification?.result.reason ?? null,
+            });
+            const decision = applyAutoApprovalDecision(judgment);
+            if (decision.action === "approve") {
+              autoApproved = true;
+              autoApprovedLowConfidence = decision.lowConfidence;
+              summary.autoApproved += 1;
+              await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction_candidate', ${storedCandidate.id}, 'prediction_auto_approved', 'system', ${sql.json({ judge_confidence: decision.judgeConfidence, low_confidence: decision.lowConfidence, record_type: recordType })}, ${decision.reason})`;
+            } else {
+              summary.autoRejected += 1;
+              await sql`update public.prediction_candidates set status = 'rejected', reason_rejected = ${`Auto-reject: ${decision.reason}`} where id = ${storedCandidate.id}`;
+              await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction_candidate', ${storedCandidate.id}, 'prediction_rejected', 'system', ${sql.json({ judge_confidence: decision.judgeConfidence, record_type: recordType })}, ${`Auto-reject: ${decision.reason}`})`;
+              continue;
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "unknown error";
+            console.error(`Auto-approver failed for candidate ${storedCandidate.id}: ${message}`);
+            // Leave the candidate in 'review' for human triage — fail closed, not open.
+          }
+        }
+        const shouldPublish = (publish || autoApproved) && !!candidate.resolution_date;
+        if (shouldPublish) {
           const fingerprint = predictionFingerprint({ expertId: source.expert_id, sourceId: source.id, normalizedClaim: candidate.normalized_claim, predictionDate: source.published_at, resolutionDate: candidate.resolution_date, resolutionCriteria: candidate.resolution_criteria, explicitProbability: candidate.explicit_probability });
+          const verificationMode = autoApprovedLowConfidence ? "auto_low_confidence" : "auto";
           const [prediction] = await sql<{ id: string }[]>`
             insert into public.predictions (expert_id, source_id, category_slug, normalized_claim, source_quote, prediction_date,
               resolution_date, resolution_criteria, explicit_probability, confidence_language, falsifiability_score, verification_mode,
-              status, fingerprint_sha256, published_at, frozen_at)
+              status, fingerprint_sha256, published_at, frozen_at, record_type, imputation_note)
             values (${source.expert_id}, ${source.id}, ${candidate.category}, ${candidate.normalized_claim}, ${candidate.source_quote}, ${source.published_at},
-              ${candidate.resolution_date}, ${candidate.resolution_criteria}, ${candidate.explicit_probability}, ${candidate.confidence_language}, ${candidate.falsifiability_score}, 'auto',
-              ${new Date(candidate.resolution_date) <= new Date() ? "due" : "open"}, ${fingerprint}, now(), now())
+              ${candidate.resolution_date}, ${candidate.resolution_criteria}, ${candidate.explicit_probability}, ${candidate.confidence_language}, ${candidate.falsifiability_score}, ${verificationMode},
+              ${new Date(candidate.resolution_date!) <= new Date() ? "due" : "open"}, ${fingerprint}, now(), now(),
+              ${recordType}, ${recordType === "take" ? imputationNote : null})
             on conflict (fingerprint_sha256) do update set updated_at = public.predictions.updated_at
             returning id
           `;
           summary.published += 1;
-          await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, 'prediction_auto_verified', 'system', ${sql.json({ candidate_id: storedCandidate.id, fingerprint })}, 'Passed extraction, deterministic validation, and independent verifier thresholds.')`;
+          await sql`update public.prediction_candidates set status = 'approved' where id = ${storedCandidate.id}`;
+          const auditAction = autoApproved ? "prediction_auto_approved" : "prediction_auto_verified";
+          const auditReason = autoApproved
+            ? "Auto-approver LLM judged the candidate ready for public display."
+            : "Passed extraction, deterministic validation, and independent verifier thresholds.";
+          await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, ${auditAction}, 'system', ${sql.json({ candidate_id: storedCandidate.id, fingerprint, record_type: recordType, low_confidence: autoApprovedLowConfidence })}, ${auditReason})`;
           await linkPublishedPrediction(prediction.id, candidate.normalized_claim, candidate.resolution_criteria, candidate.category, candidate.resolution_date, source.published_at);
         }
       }

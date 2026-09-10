@@ -25,6 +25,7 @@
     "sync:polymarket": "tsx scripts/seed-polymarket.ts",
     "ingest:x:weekly": "tsx scripts/ingest-x-weekly.ts",
     "ingest:x:backfill": "tsx scripts/backfill-x-predictions.ts",
+    "auto-approve:backlog": "tsx scripts/auto-approve-backlog.ts",
     "refresh:x": "tsx scripts/refresh-x-sources.ts",
     "readiness": "tsx scripts/launch-readiness.ts"
   },
