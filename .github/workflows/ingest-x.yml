@@ -43,6 +43,7 @@ jobs:
       SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       NEXT_PUBLIC_SITE_ORIGIN: ${{ secrets.NEXT_PUBLIC_SITE_ORIGIN }}
+      AUTO_APPROVE_MODE: ${{ secrets.AUTO_APPROVE_MODE }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -53,7 +54,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Run weekly X ingestion
+      - name: Run daily X ingestion
         run: |
           args=""
           if [ -n "${{ inputs.expert }}" ]; then args="$args --expert ${{ inputs.expert }}"; fi
@@ -61,3 +62,9 @@ jobs:
           if [ "${{ inputs.dry_run }}" = "true" ]; then args="$args --dry-run"; fi
           echo "Running: pnpm ingest:x:weekly $args"
           pnpm ingest:x:weekly $args
+      # After ingestion, sweep any leftover review-queue items through the
+      # LLM auto-approver. Idempotent — a no-op when the queue is empty —
+      # so it doubles as insurance against candidates ever piling up.
+      - name: Sweep review-queue backlog through auto-approver
+        if: ${{ inputs.dry_run != 'true' }}
+        run: pnpm auto-approve:backlog
