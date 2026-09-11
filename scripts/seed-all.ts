@@ -41,7 +41,7 @@ async function main() {
     try { x = await seedX([env.X_FULL_ARCHIVE_ENABLED === "true" ? "--full-archive" : "--recent", "--all"]); errors += x.errors; }
     catch (error) { errors += 1; console.error("X seed failed:", error instanceof Error ? error.message : "unknown"); }
   } else console.log("X ingestion skipped: X_BEARER_TOKEN is not configured.");
-  let processing = { examined: 0, rejectedByHeuristic: 0, aiPredictions: 0, verifierRejected: 0, published: 0, duplicates: 0, errors: 0 };
+  let processing = { examined: 0, rejectedByHeuristic: 0, aiPredictions: 0, verifierRejected: 0, autoApproved: 0, autoRejected: 0, autoApproverErrors: 0, published: 0, duplicates: 0, errors: 0 };
   if (env.OPENAI_API_KEY) {
     try { processing = await processSources(); errors += processing.errors; }
     catch (error) { errors += 1; console.error("Prediction processing failed:", error instanceof Error ? error.message : "unknown"); }

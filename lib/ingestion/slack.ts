@@ -23,6 +23,7 @@ export type SlackIngestionSummary = {
     verifierRejected: number;
     autoApproved: number;
     autoRejected: number;
+    autoApproverErrors?: number;
     published: number;
     duplicates: number;
     errors: number;
@@ -56,9 +57,11 @@ export async function postIngestionSummary(summary: SlackIngestionSummary): Prom
   ];
 
   if (ext) {
+    const judgeErrors = ext.autoApproverErrors ?? 0;
+    const judgeSuffix = judgeErrors > 0 ? ` · ⚠️ ${judgeErrors} judge error(s)` : "";
     fields.push(
       { type: "mrkdwn", text: `*Predictions extracted*\n${ext.aiPredictions} (verifier kept ${ext.aiPredictions - ext.verifierRejected})` },
-      { type: "mrkdwn", text: `*Auto-approver*\n${ext.autoApproved} approved · ${ext.autoRejected} rejected` },
+      { type: "mrkdwn", text: `*Auto-approver*\n${ext.autoApproved} approved · ${ext.autoRejected} rejected${judgeSuffix}` },
       { type: "mrkdwn", text: `*Published to site*\n${ext.published} live${ext.errors ? ` · ${ext.errors} error(s)` : ""}` },
     );
   }

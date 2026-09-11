@@ -26,17 +26,17 @@ const category = (value: unknown): CategorySlug =>
 function mapExpert(row: Row): Expert {
   const storedAvatar = stringOrNull(row.avatar_url);
   const xHandle = stringOrNull(row.x_handle);
-  // Fall back to unavatar.io for experts we haven't hydrated via X API yet.
-  // Public proxy, redirects to pbs.twimg.com; cosmetic only, safe to lose.
-  const avatarUrl =
-    storedAvatar ?? (xHandle ? `https://unavatar.io/x/${encodeURIComponent(xHandle)}` : null);
+  // Only serve an avatar the admin/X-verify pipeline actually stored. The old
+  // fallback (unavatar.io) leaked the roster to a hobby third party and would
+  // 404 or hang whenever that service was down. Missing avatar → initials
+  // placeholder in the client component; safer and offline-friendly.
   return {
     id: String(row.id ?? ""),
     slug: String(row.slug ?? ""),
     displayName: String(row.display_name ?? "Unknown"),
     xHandle,
     xUserId: stringOrNull(row.x_user_id),
-    avatarUrl,
+    avatarUrl: storedAvatar,
     headline: stringOrNull(row.headline),
     primaryCategorySlug: category(row.primary_category_slug),
     categorySlugs: array(row.expert_categories).map((item) => category(object(item).category_slug)),
@@ -246,6 +246,35 @@ export const getExpertBySlug = cache(async (slug: string): Promise<{ scorecard: 
   };
 });
 
+export type PredictionHistoryEntry = {
+  id: string;
+  action: string;
+  actorType: string;
+  reason: string | null;
+  createdAt: string;
+};
+
+export const getPredictionHistory = cache(async (id: string): Promise<PredictionHistoryEntry[]> => {
+  if (!integrations.supabase) return [];
+  const client = await createServerSupabaseClient();
+  const { data, error } = await client!
+    .from("prediction_history")
+    .select("id, action, actor_type, reason, created_at")
+    .eq("prediction_id", id)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const item = object(row);
+    return {
+      id: String(item.id ?? ""),
+      action: String(item.action ?? ""),
+      actorType: String(item.actor_type ?? ""),
+      reason: stringOrNull(item.reason),
+      createdAt: String(item.created_at ?? ""),
+    };
+  });
+});
+
 export const getPredictionById = cache(async (id: string): Promise<Prediction | null> => {
   if (process.env.ENABLE_SYNTHETIC_FIXTURES === "true" && id === SYNTHETIC_PREDICTION_ID) return syntheticPrediction;
   if (!integrations.supabase) return null;
@@ -260,7 +289,7 @@ export const getPredictionById = cache(async (id: string): Promise<Prediction | 
   return data ? mapPrediction(object(data)) : null;
 });
 
-export const getLatestPredictions = cache(async (options: { limit?: number; resolved?: boolean; open?: boolean } = {}): Promise<Prediction[]> => {
+export const getLatestPredictions = cache(async (options: { limit?: number; resolved?: boolean; open?: boolean; recordType?: "prediction" | "take" | "any" } = {}): Promise<Prediction[]> => {
   if (!integrations.supabase) return [];
   const client = await createServerSupabaseClient();
   let query = client!
@@ -271,6 +300,11 @@ export const getLatestPredictions = cache(async (options: { limit?: number; reso
     .limit(options.limit ?? 10);
   if (options.resolved) query = query.eq("status", "resolved");
   if (options.open) query = query.in("status", ["open", "due", "resolution_pending"]);
+  // Default to scored predictions only. Takes are soft, imputed claims and
+  // must not be mixed into the primary "latest / resolved / open" streams —
+  // they get their own dedicated surface.
+  const recordType = options.recordType ?? "prediction";
+  if (recordType !== "any") query = query.eq("record_type", recordType);
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []).map((row) => mapPrediction(object(row)));
@@ -328,11 +362,12 @@ export const getTopicBySlug = cache(async (slug: string): Promise<{ topic: Topic
 });
 
 export const getHomepageData = cache(async () => {
-  const [scorecards, latest, resolved, open, topics, published] = await Promise.all([
+  const [scorecards, latest, resolved, open, takes, topics, published] = await Promise.all([
     getExpertScorecards(),
     getLatestPredictions({ limit: 6 }),
-    getLatestPredictions({ limit: 4, resolved: true }),
+    getLatestPredictions({ limit: 8, resolved: true }),
     getLatestPredictions({ limit: 4, open: true }),
+    getLatestPredictions({ limit: 4, recordType: "take" }),
     getTopics(),
     getPublishedPredictionCount(),
   ]);
@@ -341,13 +376,23 @@ export const getHomepageData = cache(async () => {
     6,
   );
   const markets = storedMarkets.length ? storedMarkets : await fallbackMarkets(6);
+  // The flagship is the resolved Receipt we most want a first-time visitor to
+  // open. Prefer the most recent decisive miss (highest visceral payoff),
+  // then the most recent hit, then anything resolved at all.
+  const flagship =
+    resolved.find((prediction) => prediction.resolution?.outcome === "incorrect") ??
+    resolved.find((prediction) => prediction.resolution?.outcome === "correct") ??
+    resolved[0] ?? null;
   return {
     markets,
     scorecards: scorecards.filter((scorecard) => scorecard.leaderboardEligible).slice(0, 10),
     latest,
-    resolved,
+    resolved: resolved.slice(0, 4),
     open,
+    takes,
+    topics,
     published,
+    flagship,
     rosterPreview: scorecards.slice(0, 12),
   };
 });

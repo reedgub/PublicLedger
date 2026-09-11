@@ -13,10 +13,11 @@ import { predictionFingerprint } from "@/lib/predictions/fingerprint";
 import { verifyMarketMatch } from "@/lib/ai/matchMarket";
 import { canCreateMarketLink } from "@/lib/matching/markets";
 import { applyAutoApprovalDecision, judgeCandidate } from "@/lib/ai/autoApprove";
+import { revalidateLive } from "@/lib/http/revalidate";
 
 type SourceRow = { id: string; exact_text: string; published_at: string; content_hash: string; expert_id: string; display_name: string; x_handle: string };
 
-export type ProcessingSummary = { examined: number; rejectedByHeuristic: number; aiPredictions: number; verifierRejected: number; autoApproved: number; autoRejected: number; published: number; duplicates: number; errors: number };
+export type ProcessingSummary = { examined: number; rejectedByHeuristic: number; aiPredictions: number; verifierRejected: number; autoApproved: number; autoRejected: number; autoApproverErrors: number; published: number; duplicates: number; errors: number };
 
 async function linkPublishedPrediction(predictionId: string, claim: string, resolutionCriteria: string, category: string, resolutionDate: string | null, predictionDate: string) {
   const sql = getDatabase();
@@ -62,7 +63,7 @@ export async function processSources(): Promise<ProcessingSummary> {
       )
     order by s.published_at asc limit ${env.SEED_MAX_OPENAI_ITEMS}
   `;
-  const summary: ProcessingSummary = { examined: sources.length, rejectedByHeuristic: 0, aiPredictions: 0, verifierRejected: 0, autoApproved: 0, autoRejected: 0, published: 0, duplicates: 0, errors: 0 };
+  const summary: ProcessingSummary = { examined: sources.length, rejectedByHeuristic: 0, aiPredictions: 0, verifierRejected: 0, autoApproved: 0, autoRejected: 0, autoApproverErrors: 0, published: 0, duplicates: 0, errors: 0 };
   const limit = pLimit(env.SEED_CONCURRENCY);
   await Promise.all(sources.map((source) => limit(async () => {
     try {
@@ -167,8 +168,10 @@ export async function processSources(): Promise<ProcessingSummary> {
               continue;
             }
           } catch (error) {
+            summary.autoApproverErrors += 1;
             const message = error instanceof Error ? error.message : "unknown error";
             console.error(`Auto-approver failed for candidate ${storedCandidate.id}: ${message}`);
+            await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction_candidate', ${storedCandidate.id}, 'auto_approver_error', 'system', ${sql.json({ record_type: recordType })}, ${message})`;
             // Leave the candidate in 'review' for human triage — fail closed, not open.
           }
         }
@@ -202,5 +205,8 @@ export async function processSources(): Promise<ProcessingSummary> {
       console.error(`Processing source ${source.id} failed:`, error instanceof Error ? error.message : "unknown");
     }
   })));
+  if (summary.published > 0) {
+    await revalidateLive(["/", "/leaderboard"]);
+  }
   return summary;
 }

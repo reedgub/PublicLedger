@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { env, integrations } from "@/lib/env";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { fetchPolymarketMarkets } from "@/lib/sources/polymarket";
@@ -68,6 +69,11 @@ async function handle(request: Request) {
       if (linkError) console.error("failed to link markets to topic", slug, linkError.message);
     }
     if (run) await admin.from("ingestion_runs").update({ status: "succeeded", finished_at: new Date().toISOString(), items_requested: 250, items_fetched: active.length, items_created: stored?.length ?? 0, metadata: { topics_created: topicsCreated, orphan_markets_swept: orphanRows?.length ?? 0 } }).eq("id", run.id);
+    // Market prices, topic lists, and the homepage market rail are downstream
+    // of this refresh; without an explicit revalidate they stay stale until an
+    // admin acts.
+    revalidatePath("/");
+    revalidatePath("/topics");
     return Response.json({ ok: true, markets: active.length, snapshots: snapshots.length, topics: topicsCreated, orphansSwept: orphanRows?.length ?? 0 });
   } catch (error) {
     if (run) await admin.from("ingestion_runs").update({ status: "failed", finished_at: new Date().toISOString(), errors: 1, metadata: { error: error instanceof Error ? error.message : "unknown" } }).eq("id", run.id);

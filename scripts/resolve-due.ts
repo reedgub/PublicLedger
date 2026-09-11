@@ -4,6 +4,7 @@ import { getDatabase, closeDatabase } from "@/lib/db/postgres";
 import { env } from "@/lib/env";
 import { RESOLUTION_SCHEMA_VERSION } from "@/lib/constants";
 import { canAutoResolve, proposeResolution, validateResolutionEvidence, verifyResolution } from "@/lib/resolution/resolve";
+import { revalidateLive } from "@/lib/http/revalidate";
 
 type DueRow = { id: string; normalized_claim: string; prediction_date: string; resolution_date: string | null; resolution_criteria: string };
 
@@ -46,6 +47,9 @@ export async function resolveDue(): Promise<{ due: number; proposed: number; app
       }
     } catch (error) { errors += 1; console.error(`Resolution failed for ${prediction.id}:`, error instanceof Error ? error.message : "unknown"); }
   })));
+  if (approved > 0) {
+    await revalidateLive(["/", "/leaderboard"]);
+  }
   return { due: due.length, proposed, approved, errors, skipped: false };
 }
 
