@@ -51,11 +51,18 @@ async function linkPublishedPrediction(predictionId: string, claim: string, reso
 export async function processSources(): Promise<ProcessingSummary> {
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured. AI extraction was skipped.");
   const sql = getDatabase();
+  // Substack sources come through the admin-run `pnpm seed:substack` script,
+  // one publication at a time, so the identity guarantee is stronger than X's
+  // per-post oEmbed check — no need to gate them on e.source_status='verified'.
+  // Everything downstream (heuristic, extractor, verifier, auto-approver,
+  // duplicate check) is source-type-agnostic and still runs.
   const sources = await sql<SourceRow[]>`
     select s.id, s.exact_text, s.published_at::text, s.content_hash, e.id as expert_id, e.display_name, e.x_handle
     from public.sources s join public.experts e on lower(e.x_handle) = lower(s.author_handle)
-    where s.source_type = 'x' and s.exact_text is not null and s.deleted_at is null
-      and e.source_status = 'verified'
+    where s.source_type in ('x', 'substack')
+      and s.exact_text is not null
+      and s.deleted_at is null
+      and (s.source_type = 'substack' or e.source_status = 'verified')
       and not exists (
         select 1 from public.prediction_candidates pc
         where pc.source_id = s.id and pc.model_name = ${env.OPENAI_MODEL}
