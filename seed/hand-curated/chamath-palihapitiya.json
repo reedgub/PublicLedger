@@ -1,0 +1,209 @@
+[
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://x.com/chamath/status/1285179487014068224",
+    "sourceType": "x",
+    "authorHandle": "chamath",
+    "exactText": "This is our $AMZN deck from @SohnConf in 2016. Our idea was that $AMZN would 10x in 10y, become a $3T company by 2025, generating a 24% CAGR.\n\nHalfway through, it’s eerily on track...",
+    "publishedAtSource": "2020-07-20T11:47:21Z",
+    "sourceQuote": "$AMZN would 10x in 10y, become a $3T company by 2025",
+    "normalizedClaim": "Amazon market capitalization reaches $3 trillion by the end of 2025.",
+    "resolutionCriteria": "Amazon (AMZN) market capitalization as reported by major exchanges (NASDAQ/Yahoo Finance/Bloomberg) on or before 2025-12-31 reaches or exceeds $3,000,000,000,000.",
+    "resolutionDate": "2025-12-31",
+    "category": "markets-investing",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "Amazon first reached a $3 trillion market capitalization in August 2026, after the 2025 deadline.",
+      "resolvedAt": "2026-08-03T20:00:00Z",
+      "evidence": [{
+        "sourceTitle": "Amazon enters $3 trillion club as AI, cloud growth power rally",
+        "sourcePath": "https://www.reuters.com/legal/transactional/amazon-enters-3-trillion-club-ai-optimism-sweeps-through-wall-street-2026-08-03/",
+        "publisher": "Reuters",
+        "isPrimarySource": false
+      }]
+    }
+  },
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://x.com/chamath/status/1344306851891056642",
+    "sourceType": "x",
+    "authorHandle": "chamath",
+    "exactText": "When $BTC gets to $150k, I will buy The Hamptons and convert it to sleepaway camps for kids, working farms and low-cost housing.",
+    "publishedAtSource": "2020-12-30T15:38:24Z",
+    "sourceQuote": "When $BTC gets to $150k",
+    "normalizedClaim": "Bitcoin reaches a price of $150,000 USD.",
+    "resolutionCriteria": "Bitcoin (BTC-USD) spot price as reported by CoinMarketCap or major exchanges (Coinbase, Binance) first reaches or exceeds $150,000.",
+    "resolutionDate": "2030-12-31",
+    "category": "crypto",
+    "recordType": "take",
+    "falsifiabilityScore": 0.7,
+    "imputationNote": "No explicit deadline stated; long-horizon take imputed from contemporaneous interviews referencing 5–10 year windows for six-figure BTC prices."
+  },
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://allin-predictions.pages.dev/host/chamath",
+    "sourceType": "interview",
+    "authorHandle": "chamath",
+    "exactText": "Starlink will go public… And my prediction is that the Starlink valuation will be at least half of SpaceX's current private market, 75 billion… I think that this is an obvious outcome in 2023.",
+    "publishedAtSource": "2023-01-06T00:00:00Z",
+    "sourceQuote": "Starlink will go public… And my prediction is that the Starlink valuation will be at least half of SpaceX's current private market, 75 billion… I think that this is an obvious outcome in 2023.",
+    "normalizedClaim": "Starlink conducts an IPO in 2023 at a valuation of at least $75 billion.",
+    "resolutionCriteria": "SEC Form S-1 filing or completed IPO for Starlink (or Starlink Services) in calendar year 2023, with disclosed valuation ≥ $75B.",
+    "resolutionDate": "2023-12-31",
+    "category": "business-startups",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "No Starlink IPO occurred in 2023 or subsequently as a standalone entity; SpaceX itself IPO'd in 2026 with Starlink remaining a subsidiary.",
+      "resolvedAt": "2023-12-31T23:59:59Z",
+      "evidence": [{
+        "sourceTitle": "Elon Musk Could Take Starlink Public in 2023, Chamath Palihapitiya Says",
+        "sourcePath": "https://markets.businessinsider.com/news/stocks/elon-musk-spacex-starlink-ipo-spac-blank-check-chamath-palihapitiya-2023-1",
+        "publisher": "Business Insider",
+        "isPrimarySource": false
+      }]
+    }
+  },
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://allin-predictions.pages.dev/host/chamath",
+    "sourceType": "interview",
+    "authorHandle": "chamath",
+    "exactText": "Biden 6535, approaching 7030.",
+    "publishedAtSource": "2020-10-03T00:00:00Z",
+    "sourceQuote": "Biden 6535, approaching 7030.",
+    "normalizedClaim": "Joe Biden wins the November 2020 U.S. presidential election (with implied ~65-70% probability).",
+    "resolutionCriteria": "Official Electoral College results certified by Congress and reported by the National Archives for the 2020 presidential election.",
+    "resolutionDate": "2020-11-03",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "explicitProbability": 0.65,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "Joe Biden defeated Donald Trump, receiving 306 electoral votes to Trump’s 232.",
+      "resolvedAt": "2020-12-14T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2020 Electoral College Results",
+        "sourcePath": "https://www.archives.gov/electoral-college/2020",
+        "publisher": "U.S. National Archives",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://x.com/chamath/status/2084161451728441838",
+    "sourceType": "x",
+    "authorHandle": "chamath",
+    "exactText": "The AI Singularity\n\nThe argument goes like this:\n\n1. Humans build an AGI.\n2. The AGI becomes good at AI research.\n3. It designs a smarter AI.\n4. That smarter AI designs an even smarter AI.\n5. The cycle repeats faster and faster.\n\nLooking at the results and capabilities from the various labs over the past few weeks I would say we are firmly in this loop now.\n\nThe next 18months will be wild.\n\nRecursive self improvement will dramatically increase capability very quickly from here.\n\nMarginal costs of all models will go to ~$0.",
+    "publishedAtSource": "2026-08-03T06:16:26Z",
+    "sourceQuote": "The next 18months will be wild.\n\nRecursive self improvement will dramatically increase capability very quickly from here.\n\nMarginal costs of all models will go to ~$0.",
+    "normalizedClaim": "By approximately February 2028, AI models undergo recursive self-improvement leading to dramatically higher capability and marginal inference costs approaching $0.",
+    "resolutionCriteria": "Public announcements or technical reports from major labs (OpenAI, Anthropic, Google DeepMind, xAI, Meta) documenting sustained recursive self-improvement loops plus reported API/token pricing approaching zero marginal cost (≤ $0.0001 per 1k tokens) by 2028-02-03.",
+    "resolutionDate": "2028-02-03",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.75
+  },
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://www.cnbc.com/video/2021/01/07/bitcoin-going-to-100k-then-150k-then-200k-palihapitiya.html",
+    "sourceType": "interview",
+    "authorHandle": "chamath",
+    "exactText": "It’s probably going to $100,000, then $150,000, then $200,000. In what period? I don’t know. [Maybe] five or 10 years, but it’s going there.",
+    "publishedAtSource": "2021-01-07T00:00:00Z",
+    "sourceQuote": "It’s probably going to $100,000, then $150,000, then $200,000.",
+    "normalizedClaim": "Bitcoin price reaches $100,000, then $150,000, then $200,000 within roughly 5–10 years from early 2021.",
+    "resolutionCriteria": "Bitcoin (BTC-USD) closing price on CoinMarketCap or major U.S. exchanges first exceeds each successive threshold.",
+    "resolutionDate": "2031-01-07",
+    "category": "crypto",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.8
+  },
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://x.com/chamath/status/2083854613040533569",
+    "sourceType": "x",
+    "authorHandle": "chamath",
+    "exactText": "The resolution of this trillion dollar bet will happen before EOY 2026. Stakes are enormous on the outcome.\n\nPath1: Markets price the Ant IPO and public valuation answers this question.\nPath2: Harness + Open Model math becomes more precise and well known. It shows material token efficiency. Model forward valuations changes independent of current revenue run rate.\nPath3: Open Models pressure proactive price cuts and performance improvements on token efficiency from the frontier labs. This resets the Pareto frontier.\n\nIf I had to guess, valuations were most skewed and top ticked in Feb. Valuations can still rise from here but it will be less skewed and will be measured more precisely on an EV/MW basis.",
+    "publishedAtSource": "2026-08-02T09:57:10Z",
+    "sourceQuote": "The resolution of this trillion dollar bet will happen before EOY 2026.",
+    "normalizedClaim": "The question of whether OpenAI/Anthropic-style frontier model companies can sustain multi-trillion-dollar valuations is resolved by end of 2026 via IPO pricing, open-model efficiency data, or price competition.",
+    "resolutionCriteria": "Public IPO filings/valuations for OpenAI or Anthropic, or major published analyses of open-model token efficiency / pricing changes from frontier labs, by 2026-12-31.",
+    "resolutionDate": "2026-12-31",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.7
+  },
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://allin-predictions.pages.dev/host/chamath",
+    "sourceType": "interview",
+    "authorHandle": "chamath",
+    "exactText": "There may be no turnaround award until 2025.",
+    "publishedAtSource": "2022-12-24T00:00:00Z",
+    "sourceQuote": "There may be no turnaround award until 2025.",
+    "normalizedClaim": "The All-In Podcast will not present a “Best Turnaround” award until 2025.",
+    "resolutionCriteria": "All-In Podcast Bestie Awards episodes for 2023 and 2024 (YouTube chapter lists / transcripts) either contain or omit a “Best Turnaround” segment.",
+    "resolutionDate": "2024-12-31",
+    "category": "media-culture",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "The 2023 Bestie Awards episode explicitly included a “Best Turnaround” segment.",
+      "resolvedAt": "2023-12-29T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "All-In Predictions site documentation of 2023 Bestie Awards",
+        "sourcePath": "https://allin-predictions.pages.dev/host/chamath",
+        "publisher": "All-In Predictions",
+        "isPrimarySource": false
+      }]
+    }
+  },
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://x.com/chamath/status/2084161451728441838",
+    "sourceType": "x",
+    "authorHandle": "chamath",
+    "exactText": "Looking at the results and capabilities from the various labs over the past few weeks I would say we are firmly in this loop now.\n\nThe next 18months will be wild.\n\nRecursive self improvement will dramatically increase capability very quickly from here.\n\nMarginal costs of all models will go to ~$0.",
+    "publishedAtSource": "2026-08-03T06:16:26Z",
+    "sourceQuote": "Marginal costs of all models will go to ~$0.",
+    "normalizedClaim": "Marginal costs of frontier AI models approach zero within the next 18 months (by early 2028).",
+    "resolutionCriteria": "Published API pricing pages of OpenAI, Anthropic, Google, or xAI showing marginal token costs ≤ $0.0001 / 1k tokens for flagship models, or equivalent open-source inference costs.",
+    "resolutionDate": "2028-02-03",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.85
+  },
+  {
+    "expertSlug": "chamath-palihapitiya",
+    "sourcePath": "https://www.livemint.com/companies/people/spacex-will-not-go-for-ipo-predicts-ace-investor-chamath-palihapitiya-says-reverse-merger-with-tesla-more-likely-11768142393926.html",
+    "sourceType": "interview",
+    "authorHandle": "chamath",
+    "exactText": "I don’t think SpaceX will IPO, I think it will reverse merge into Tesla and I think Elon will use it as a moment to consolidate control and power of his two seminal assets into one cap table.",
+    "publishedAtSource": "2026-01-11T00:00:00Z",
+    "sourceQuote": "I don’t think SpaceX will IPO, I think it will reverse merge into Tesla",
+    "normalizedClaim": "SpaceX does not conduct a traditional IPO but instead reverse-merges into Tesla.",
+    "resolutionCriteria": "SEC filings for SpaceX (or Tesla) announcing either a traditional IPO or a reverse merger / business combination with Tesla.",
+    "resolutionDate": "2026-12-31",
+    "category": "business-startups",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "SpaceX completed a traditional IPO in June 2026 at approximately $1.75–1.77 trillion valuation; no reverse merger with Tesla occurred.",
+      "resolvedAt": "2026-06-12T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "Elon Musk's SpaceX prepares for IPO",
+        "sourcePath": "https://apnews.com/article/spacex-musk-starship-ipo-satellites-data-center-293e82ea0216efdd0ff7601baf85bae8",
+        "publisher": "Associated Press",
+        "isPrimarySource": true
+      }]
+    }
+  }
+]

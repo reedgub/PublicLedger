@@ -36,7 +36,10 @@ const envSchema = z.object({
   SEED_END_DATE: z.string().optional(),
   HISTORICAL_MARKET_MAX_DISTANCE_HOURS: z.coerce.number().positive().default(12),
   SUBMISSION_HASH_SALT: z.string().default("local-development-only"),
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
+
+const DEFAULT_SUBMISSION_HASH_SALT = "local-development-only";
 
 // Vercel materializes unset env vars as empty strings, which defeats Zod's
 // .default() (defaults only apply when the input is undefined). Normalize
@@ -78,7 +81,27 @@ export const env = envSchema.parse({
   SEED_END_DATE: raw(process.env.SEED_END_DATE),
   HISTORICAL_MARKET_MAX_DISTANCE_HOURS: raw(process.env.HISTORICAL_MARKET_MAX_DISTANCE_HOURS),
   SUBMISSION_HASH_SALT: raw(process.env.SUBMISSION_HASH_SALT),
+  NODE_ENV: raw(process.env.NODE_ENV),
 });
+
+// In production the IP-hash salt MUST be unique per deployment. The default
+// value is publicly known (it lives in this repository), so if we ever ship it
+// the /api/submissions rate limit collapses: any attacker can precompute the
+// hashes and bypass throttling. Fail loudly at runtime boot instead of
+// silently — but skip during `next build` (NEXT_PHASE=phase-production-build),
+// where the module is evaluated for route collection without real secrets in
+// scope.
+const IS_NEXT_BUILD_PHASE = process.env.NEXT_PHASE === "phase-production-build";
+if (
+  env.NODE_ENV === "production" &&
+  !IS_NEXT_BUILD_PHASE &&
+  env.SUBMISSION_HASH_SALT === DEFAULT_SUBMISSION_HASH_SALT
+) {
+  throw new Error(
+    "SUBMISSION_HASH_SALT is set to the default development value in production. " +
+      "Set a strong, deployment-unique value (e.g. `openssl rand -hex 32`) before booting.",
+  );
+}
 
 export const integrations = {
   supabase: Boolean(env.NEXT_PUBLIC_SUPABASE_URL && env.NEXT_PUBLIC_SUPABASE_ANON_KEY),

@@ -80,6 +80,18 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
             </div>
           </section>
 
+          {/*
+            When the Receipt is resolved, put the payoff here — right under the
+            original quote. A reader who shared the link came here to see the
+            outcome, not to scroll past three sections of criteria first.
+          */}
+          {prediction.resolution && (
+            <section className="border-b border-dashed border-border py-9">
+              <p className="eyebrow flex items-center gap-2"><FileCheck2 className="size-3.5" />Resolution</p>
+              <div className="mt-4"><StatusBadge status={prediction.resolution.outcome} /><p className="editorial mt-4 text-2xl leading-snug">{prediction.resolution.explanation}</p><div className="mt-6 space-y-3">{prediction.resolution.evidence.map((evidence) => <Link key={evidence.id} href={evidence.sourcePath} target="_blank" rel="noopener noreferrer" className="block border p-4 hover:bg-muted"><span className="eyebrow">{evidence.isPrimarySource ? "Primary evidence" : "Supporting evidence"}</span><p className="mt-2 font-semibold">{evidence.sourceTitle ?? evidence.publisher ?? "Evidence source"}</p>{evidence.excerpt && <p className="mt-2 text-sm text-muted-foreground">{evidence.excerpt}</p>}</Link>)}</div><p className="metric mt-5 text-[9px] text-muted-foreground">Resolved {formatUtcDateTime(prediction.resolution.resolvedAt)}</p></div>
+            </section>
+          )}
+
           <section className="grid border-b border-dashed border-border md:grid-cols-2">
             <div className="py-9 md:border-r md:pr-8"><p className="eyebrow">Normalized claim</p><p className="editorial mt-4 text-2xl font-semibold leading-snug">{prediction.normalizedClaim}</p><p className="mt-4 text-xs text-muted-foreground">A falsifiable interpretation, separate from the exact source text.</p></div>
             <div className="py-9 md:pl-8"><p className="eyebrow">Resolution criteria</p><p className="mt-4 text-sm leading-relaxed">{prediction.resolutionCriteria}</p></div>
@@ -91,13 +103,14 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
               : <p className="mt-4 text-sm text-muted-foreground">No high-confidence matching market is linked. Loose thematic matches are not shown.</p>}
           </section>
 
-          <section className="border-b border-dashed border-border py-9">
-            <p className="eyebrow flex items-center gap-2"><FileCheck2 className="size-3.5" />Resolution</p>
-            {prediction.resolution ? <div className="mt-4"><StatusBadge status={prediction.resolution.outcome} /><p className="editorial mt-4 text-2xl leading-snug">{prediction.resolution.explanation}</p><div className="mt-6 space-y-3">{prediction.resolution.evidence.map((evidence) => <Link key={evidence.id} href={evidence.sourcePath} target="_blank" rel="noopener noreferrer" className="block border p-4 hover:bg-muted"><span className="eyebrow">{evidence.isPrimarySource ? "Primary evidence" : "Supporting evidence"}</span><p className="mt-2 font-semibold">{evidence.sourceTitle ?? evidence.publisher ?? "Evidence source"}</p>{evidence.excerpt && <p className="mt-2 text-sm text-muted-foreground">{evidence.excerpt}</p>}</Link>)}</div><p className="metric mt-5 text-[9px] text-muted-foreground">Resolved {formatUtcDateTime(prediction.resolution.resolvedAt)}</p></div>
-              : <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><CircleDotDashed className="size-4" />This prediction remains open.</p>}
-          </section>
+          {!prediction.resolution && (
+            <section className="border-b border-dashed border-border py-9">
+              <p className="eyebrow flex items-center gap-2"><FileCheck2 className="size-3.5" />Resolution</p>
+              <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"><CircleDotDashed className="size-4" />This prediction remains open.</p>
+            </section>
+          )}
 
-          <section className="py-9"><p className="eyebrow">Audit trail</p><ol className="mt-5 border-l border-border pl-5 text-sm"><li className="relative pb-5 before:absolute before:-left-[23px] before:top-1.5 before:size-1.5 before:bg-foreground"><span className="font-semibold">Source recorded</span><span className="metric ml-3 text-[9px] text-muted-foreground">{formatUtcAuditTime(prediction.source.publishedAt)}</span></li>{prediction.publishedAt && <li className="relative pb-5 before:absolute before:-left-[23px] before:top-1.5 before:size-1.5 before:bg-foreground"><span className="font-semibold">Prediction verified and frozen</span><span className="metric ml-3 text-[9px] text-muted-foreground">{formatUtcAuditTime(prediction.publishedAt)}</span></li>}{prediction.resolution?.approvedAt && <li className="relative before:absolute before:-left-[23px] before:top-1.5 before:size-1.5 before:bg-foreground"><span className="font-semibold">Resolution approved</span><span className="metric ml-3 text-[9px] text-muted-foreground">{formatUtcAuditTime(prediction.resolution.approvedAt)}</span></li>}</ol></section>
+          <section className="py-9"><p className="eyebrow flex items-center justify-between"><span>Audit trail</span><Link href={`/predictions/${prediction.id}/history`} className="text-[10px] font-semibold text-foreground uppercase tracking-[0.14em] hover:underline">View full history</Link></p><ol className="mt-5 border-l border-border pl-5 text-sm"><li className="relative pb-5 before:absolute before:-left-[23px] before:top-1.5 before:size-1.5 before:bg-foreground"><span className="font-semibold">Source recorded</span><span className="metric ml-3 text-[9px] text-muted-foreground">{formatUtcAuditTime(prediction.source.publishedAt)}</span></li>{prediction.publishedAt && <li className="relative pb-5 before:absolute before:-left-[23px] before:top-1.5 before:size-1.5 before:bg-foreground"><span className="font-semibold">Prediction verified and frozen</span><span className="metric ml-3 text-[9px] text-muted-foreground">{formatUtcAuditTime(prediction.publishedAt)}</span></li>}{prediction.resolution?.approvedAt && <li className="relative before:absolute before:-left-[23px] before:top-1.5 before:size-1.5 before:bg-foreground"><span className="font-semibold">Resolution approved</span><span className="metric ml-3 text-[9px] text-muted-foreground">{formatUtcAuditTime(prediction.resolution.approvedAt)}</span></li>}</ol></section>
         </article>
         <div className="mt-6 flex items-center justify-between gap-4 text-xs text-muted-foreground"><Link href="/methodology" className="hover:underline">Methodology</Link><Link href={`/submit?type=issue&prediction=${prediction.id}`} className="hover:underline">Report an issue</Link></div>
       </div>

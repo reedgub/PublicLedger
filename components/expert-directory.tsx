@@ -37,7 +37,6 @@ export function ExpertDirectory({ experts }: { experts: Expert[] }) {
                   width={44}
                   height={44}
                   className="size-11 border border-foreground bg-card object-cover"
-                  unoptimized={expert.avatarUrl.includes("unavatar.io")}
                 />
               ) : (
                 <span className="metric flex size-11 items-center justify-center border border-foreground text-sm font-semibold">

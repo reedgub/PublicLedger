@@ -1,0 +1,236 @@
+[
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://x.com/NateSilver538/status/1293501172217786370",
+    "sourceType": "x",
+    "authorHandle": "NateSilver538",
+    "exactText": "Our forecast is up!!! It gives Joe Biden a 71% chance of winning and Donald Trump a 29% chance.\nhttps://projects.fivethirtyeight.com/2020-election-forecast/",
+    "publishedAtSource": "2020-08-12T10:54:46Z",
+    "sourceQuote": "It gives Joe Biden a 71% chance of winning and Donald Trump a 29% chance.",
+    "normalizedClaim": "Joe Biden has a 71% chance of winning the 2020 U.S. presidential election.",
+    "resolutionCriteria": "Official Electoral College results certified by Congress / National Archives for the 2020 presidential election.",
+    "resolutionDate": "2020-11-03",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "explicitProbability": 0.71,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "Joe Biden won the Electoral College 306-232 and the popular vote.",
+      "resolvedAt": "2020-12-14T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2020 Electoral College Results",
+        "sourcePath": "https://www.archives.gov/electoral-college/2020",
+        "publisher": "U.S. National Archives",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://fivethirtyeight.com/features/final-2020-presidential-election-forecast/",
+    "sourceType": "writing",
+    "authorHandle": "NateSilver538",
+    "exactText": "Still, even making what we think are fairly conservative assumptions , our final forecast has Biden with an 89 percent chance of winning the Electoral College , as compared to a 10 percent chance for Trump.",
+    "publishedAtSource": "2020-11-03T06:08:00Z",
+    "sourceQuote": "our final forecast has Biden with an 89 percent chance of winning the Electoral College , as compared to a 10 percent chance for Trump.",
+    "normalizedClaim": "Joe Biden has an 89% chance of winning the Electoral College in the 2020 U.S. presidential election.",
+    "resolutionCriteria": "Official Electoral College results certified by Congress / National Archives for the 2020 presidential election.",
+    "resolutionDate": "2020-11-03T23:59:59Z",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98,
+    "explicitProbability": 0.89,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "Joe Biden won the Electoral College 306-232.",
+      "resolvedAt": "2020-12-14T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2020 Electoral College Results",
+        "sourcePath": "https://www.archives.gov/electoral-college/2020",
+        "publisher": "U.S. National Archives",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://x.com/NateSilver538/status/1542509098008055809",
+    "sourceType": "x",
+    "authorHandle": "NateSilver538",
+    "exactText": "Our forecast is out! Republicans are heavy favorites to win the House, but the Senate is a toss-up.\nhttps://projects.fivethirtyeight.com/2022-election-forecast/",
+    "publishedAtSource": "2022-06-30T14:03:22Z",
+    "sourceQuote": "Republicans are heavy favorites to win the House, but the Senate is a toss-up.",
+    "normalizedClaim": "Republicans are heavy favorites to win control of the U.S. House of Representatives in the 2022 midterms; the Senate is a toss-up.",
+    "resolutionCriteria": "Official results certified by state election authorities and the Clerk of the House for the 2022 midterm elections (House majority = 218 seats).",
+    "resolutionDate": "2022-11-08",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "Republicans won a narrow House majority (222-213); Democrats retained the Senate 51-49.",
+      "resolvedAt": "2023-01-03T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2022 House Election Results",
+        "sourcePath": "https://clerk.house.gov/Members",
+        "publisher": "Clerk of the U.S. House",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://fivethirtyeight.com/features/final-2022-house-forecast/",
+    "sourceType": "writing",
+    "authorHandle": "NateSilver538",
+    "exactText": "FiveThirtyEight’s Deluxe forecast for the U.S. House , which is now final and no longer updating, estimates that Republicans have an 84-in-100 chance of taking control of the chamber.",
+    "publishedAtSource": "2022-11-08T07:22:00Z",
+    "sourceQuote": "Republicans have an 84-in-100 chance of taking control of the chamber.",
+    "normalizedClaim": "Republicans have an 84% chance of winning control of the U.S. House in the 2022 midterms.",
+    "resolutionCriteria": "Official results certified by state election authorities and the Clerk of the House for the 2022 midterm elections (House majority = 218 seats).",
+    "resolutionDate": "2022-11-08T23:59:59Z",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "explicitProbability": 0.84,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "Republicans secured a House majority with 222 seats.",
+      "resolvedAt": "2023-01-03T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2022 House Election Results",
+        "sourcePath": "https://clerk.house.gov/Members",
+        "publisher": "Clerk of the U.S. House",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://www.natesilver.net/p/nate-silver-2024-president-election-polls-model",
+    "sourceType": "writing",
+    "authorHandle": "NateSilver538",
+    "exactText": "Out of 80,000 simulations, Kamala Harris won in 40,012 (50.015%) cases. She did not win in 39,988 simulations (49.985%).",
+    "publishedAtSource": "2024-11-05T00:00:00Z",
+    "sourceQuote": "Kamala Harris won in 40,012 (50.015%) cases. She did not win in 39,988 simulations (49.985%).",
+    "normalizedClaim": "Kamala Harris has a 50.015% chance of winning the Electoral College in the 2024 U.S. presidential election.",
+    "resolutionCriteria": "Official Electoral College results certified by Congress / National Archives for the 2024 presidential election.",
+    "resolutionDate": "2024-11-05",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98,
+    "explicitProbability": 0.50015,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "Donald Trump won the Electoral College and the popular vote; Harris did not win.",
+      "resolvedAt": "2024-12-17T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2024 Electoral College Results",
+        "sourcePath": "https://www.archives.gov/electoral-college/2024",
+        "publisher": "U.S. National Archives",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://www.natesilver.net/p/a-random-number-generator-determined",
+    "sourceType": "writing",
+    "authorHandle": "NateSilver538",
+    "exactText": "When I say the odds in this year’s presidential race are about as close as you can possibly get to 50/50, I’m not exaggerating.",
+    "publishedAtSource": "2024-11-05T00:00:00Z",
+    "sourceQuote": "the odds in this year’s presidential race are about as close as you can possibly get to 50/50",
+    "normalizedClaim": "The 2024 U.S. presidential election is essentially a 50/50 toss-up between Harris and Trump.",
+    "resolutionCriteria": "Official Electoral College results certified by Congress / National Archives for the 2024 presidential election.",
+    "resolutionDate": "2024-11-05",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.85,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "Donald Trump won both the popular vote and Electoral College; the outcome was not a near-tie in result.",
+      "resolvedAt": "2024-12-17T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2024 Electoral College Results",
+        "sourcePath": "https://www.archives.gov/electoral-college/2024",
+        "publisher": "U.S. National Archives",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://www.natesilver.net/p/the-presidential-election-isnt-a",
+    "sourceType": "writing",
+    "authorHandle": "NateSilver538",
+    "exactText": "When the model was finally done on Sunday night, it turned out that Trump was favored by a slightly larger degree than I’d anticipated at Manifest — although Biden retains highly viable paths to victory.",
+    "publishedAtSource": "2024-06-26T00:00:00Z",
+    "sourceQuote": "Trump was favored by a slightly larger degree than I’d anticipated at Manifest",
+    "normalizedClaim": "Donald Trump is favored over Joe Biden in the 2024 U.S. presidential election (model showed ~66% Trump).",
+    "resolutionCriteria": "Official Electoral College results certified by Congress / National Archives for the 2024 presidential election (Biden later withdrew; claim assessed on Trump victory).",
+    "resolutionDate": "2024-11-05",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.8,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "Donald Trump won the 2024 presidential election.",
+      "resolvedAt": "2024-12-17T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2024 Electoral College Results",
+        "sourcePath": "https://www.archives.gov/electoral-college/2024",
+        "publisher": "U.S. National Archives",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://x.com/NateSilver538/status/1853713816858611907",
+    "sourceType": "x",
+    "authorHandle": "NateSilver538",
+    "exactText": "The final Model Talk of the campaign is published! I’ll finally give you my “real” prediction, which, by sheer coincidence, almost exactly matches the election model I’ve spent several thousand hours designing.\nSee you tonight/tomorrow.\nhttps://www.natesilver.net/p/a-random-number-generator-determined",
+    "publishedAtSource": "2024-11-05T08:19:48Z",
+    "sourceQuote": "I’ll finally give you my “real” prediction, which, by sheer coincidence, almost exactly matches the election model I’ve spent several thousand hours designing.",
+    "normalizedClaim": "Nate Silver’s personal “real” prediction matches the Silver Bulletin model’s near-50/50 (Harris 50.015%) forecast for the 2024 presidential election.",
+    "resolutionCriteria": "Official Electoral College results certified by Congress / National Archives for the 2024 presidential election.",
+    "resolutionDate": "2024-11-05T23:59:59Z",
+    "category": "politics-elections",
+    "recordType": "take",
+    "falsifiabilityScore": 0.7,
+    "imputationNote": "Personal endorsement of the model’s near-coin-flip forecast; deadline is Election Day 2024."
+  },
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://podcastrex.com/shows/all-in-with-chamath-jason-sacks-friedberg/nate-silver-predicts-democrats-take-the-house-newsom-is-fading-aoc-might-win-it-all-in-2028",
+    "sourceType": "interview",
+    "authorHandle": "NateSilver538",
+    "exactText": "Nate Silver predicts an 85-90% chance Democrats retake the House in 2026, with the Senate a toss-up.",
+    "publishedAtSource": "2026-06-29T00:00:00Z",
+    "sourceQuote": "an 85-90% chance Democrats retake the House in 2026, with the Senate a toss-up.",
+    "normalizedClaim": "Democrats have an 85–90% chance of retaking the U.S. House of Representatives in the 2026 midterms; the Senate is a toss-up.",
+    "resolutionCriteria": "Official results certified by state election authorities and the Clerk of the House for the 2026 midterm elections (House majority = 218 seats).",
+    "resolutionDate": "2026-11-03",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "explicitProbability": 0.875
+  },
+  {
+    "expertSlug": "nate-silver",
+    "sourcePath": "https://www.natesilver.net/p/nate-silver-2026-midterm-election-polls-model",
+    "sourceType": "writing",
+    "authorHandle": "NateSilver538",
+    "exactText": "Silver Bulletin forecasts combine three pillars: a quality-weighted polling average with house-effect corrections, a fundamentals model (presidential approval + economic indicators), and a simulation engine designed to generate appropriately wide confidence intervals. ... 72% D probability of House majority (Silver Bulletin)",
+    "publishedAtSource": "2026-09-09T00:00:00Z",
+    "sourceQuote": "72% D probability of House majority (Silver Bulletin)",
+    "normalizedClaim": "Democrats have a 72% probability of winning a House majority in the 2026 midterms.",
+    "resolutionCriteria": "Official results certified by state election authorities and the Clerk of the House for the 2026 midterm elections (House majority = 218 seats).",
+    "resolutionDate": "2026-11-03",
+    "category": "politics-elections",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "explicitProbability": 0.72
+  }
+]

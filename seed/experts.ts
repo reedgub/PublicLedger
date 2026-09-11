@@ -71,6 +71,7 @@ export const EXPERT_ROSTER: ExpertSeed[] = [
   expert("keith-rabois", "Keith Rabois", "rabois", "business-startups", "Technology investor"),
   expert("fred-wilson", "Fred Wilson", "fredwilson", "business-startups", "Technology investor"),
   expert("scott-galloway", "Scott Galloway", "profgalloway", "business-startups", "Business professor and author"),
+  expert("david-friedberg", "David Friedberg", "friedberg", "business-startups", "Technology and biotech entrepreneur", ["business-startups", "science-space", "energy-climate"]),
   expert("tyler-cowen", "Tyler Cowen", "tylercowen", "economy-rates", "Economist and author", ["economy-rates", "business-startups"]),
   expert("jesse-jenkins", "Jesse Jenkins", "JesseJenkins", "energy-climate", "Energy systems researcher"),
   expert("david-roberts", "David Roberts", "drvolts", "energy-climate", "Energy and climate writer"),

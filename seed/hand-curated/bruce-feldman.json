@@ -1,0 +1,196 @@
+[
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://www.nytimes.com/athletic/7541313/2026/08/27/college-football-playoff-bracket-predictions-national-champions/",
+    "sourceType": "writing",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "Bruce Feldman's Champion: Notre Dame ... No. 2 Notre Dame over No. 1 Oregon: ... Freeman’s Irish give fans their first national title since 1988, going 15-0.",
+    "publishedAtSource": "2026-08-27T00:00:00Z",
+    "sourceQuote": "Freeman’s Irish give fans their first national title since 1988, going 15-0.",
+    "normalizedClaim": "Notre Dame wins the 2026 College Football Playoff national championship.",
+    "resolutionCriteria": "Official College Football Playoff national championship game result on or around January 25, 2027, as reported by the CFP or NCAA.",
+    "resolutionDate": "2027-01-25",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98
+  },
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://x.com/BruceFeldmanCFB/status/2095134654450020607",
+    "sourceType": "x",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "I picked ND to win the title. Love the D. Love what I saw from CJ Carr last year. Love how Freeman has built that staff & how he leads.",
+    "publishedAtSource": "2026-08-28T00:00:00Z",
+    "sourceQuote": "I picked ND to win the title.",
+    "normalizedClaim": "Notre Dame wins the 2026 national championship.",
+    "resolutionCriteria": "Official CFP national championship result for the 2026 season.",
+    "resolutionDate": "2027-01-25",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98
+  },
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://www.youtube.com/shorts/vx4iWOVRIR8",
+    "sourceType": "interview",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "I bet they'll be in the playoff within the next two though",
+    "publishedAtSource": "2026-09-01T00:00:00Z",
+    "sourceQuote": "I bet they'll be in the playoff within the next two though",
+    "normalizedClaim": "Florida under Jon Sumrall reaches the College Football Playoff within the next two seasons (2026 or 2027).",
+    "resolutionCriteria": "Official CFP selection for Florida in the 2026 or 2027 postseason.",
+    "resolutionDate": "2028-01-01",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95
+  },
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://clutchpoints.com/ncaa-football/nebraska-football-news-bruce-feldman-believes-cornhuskers-prediction-will-get-eye-rolls-snickers",
+    "sourceType": "writing",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "Starting 5-1 seems very plausible.",
+    "publishedAtSource": "2025-05-19T00:00:00Z",
+    "sourceQuote": "Starting 5-1 seems very plausible.",
+    "normalizedClaim": "Nebraska starts the 2025 season 5-1.",
+    "resolutionCriteria": "Official Nebraska 2025 regular-season results through the first six games as reported by the NCAA or team site.",
+    "resolutionDate": "2025-10-15",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95
+  },
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://clutchpoints.com/ncaa-football/bruce-feldman-picks-texas-vs-clemson-national-championship-game",
+    "sourceType": "writing",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "he would pick Texas and Clemson to meet in the National Championship Game",
+    "publishedAtSource": "2025-05-19T00:00:00Z",
+    "sourceQuote": "pick Texas and Clemson to meet in the National Championship Game",
+    "normalizedClaim": "Texas and Clemson meet in the 2025 College Football Playoff national championship game.",
+    "resolutionCriteria": "Official CFP national championship matchup for the 2025 season.",
+    "resolutionDate": "2026-01-20",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "Texas and Clemson did not meet in the 2025 national championship game.",
+      "resolvedAt": "2026-01-20T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2025 College Football Playoff results",
+        "sourcePath": "https://www.collegefootballplayoff.com/",
+        "publisher": "CFP",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://sports.mynorthwest.com/wyman-and-bob/why-cfb-insider-bruce-feldman-thinks-uw-huskies-will-beat-texas",
+    "sourceType": "interview",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "I think they beat Washington. I think Washington will get through there and get through Texas",
+    "publishedAtSource": "2023-12-22T00:00:00Z",
+    "sourceQuote": "I think Washington will get through there and get through Texas",
+    "normalizedClaim": "Washington defeats Texas in the 2023 Sugar Bowl / CFP semifinal.",
+    "resolutionCriteria": "Official result of the 2023-24 Sugar Bowl (CFP semifinal) between Washington and Texas.",
+    "resolutionDate": "2024-01-01",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "Washington defeated Texas in the Sugar Bowl to advance to the national championship.",
+      "resolvedAt": "2024-01-01T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2024 Sugar Bowl result",
+        "sourcePath": "https://www.collegefootballplayoff.com/",
+        "publisher": "CFP / NCAA",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://sports.mynorthwest.com/wyman-and-bob/why-cfb-insider-bruce-feldman-thinks-uw-huskies-will-beat-texas",
+    "sourceType": "interview",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "I still think that team that had all these guys come back, I think they are really physical, they’re really deep and ultimately are the team I think will still win",
+    "publishedAtSource": "2023-12-22T00:00:00Z",
+    "sourceQuote": "ultimately are the team I think will still win",
+    "normalizedClaim": "Michigan wins the 2023 national championship.",
+    "resolutionCriteria": "Official 2023-24 College Football Playoff national championship result.",
+    "resolutionDate": "2024-01-08",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "Michigan defeated Washington to win the 2023 national championship.",
+      "resolvedAt": "2024-01-08T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2024 CFP National Championship result",
+        "sourcePath": "https://www.collegefootballplayoff.com/",
+        "publisher": "CFP",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://www.nytimes.com/athletic/7541313/2026/08/27/college-football-playoff-bracket-predictions-national-champions/",
+    "sourceType": "writing",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "I don’t see the Irish losing more than one regular-season game",
+    "publishedAtSource": "2026-08-27T00:00:00Z",
+    "sourceQuote": "I don’t see the Irish losing more than one regular-season game",
+    "normalizedClaim": "Notre Dame loses no more than one regular-season game in 2026.",
+    "resolutionCriteria": "Official Notre Dame 2026 regular-season win-loss record as reported by the NCAA or Notre Dame athletics.",
+    "resolutionDate": "2026-12-15",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95
+  },
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://www.youtube.com/watch?v=-vHqxA6wgzk",
+    "sourceType": "interview",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "I just don’t see Notre Dame not making it.",
+    "publishedAtSource": "2026-08-31T00:00:00Z",
+    "sourceQuote": "I just don’t see Notre Dame not making it.",
+    "normalizedClaim": "Notre Dame qualifies for the 2026 College Football Playoff.",
+    "resolutionCriteria": "Official CFP selection announcement including Notre Dame for the 2026 postseason.",
+    "resolutionDate": "2026-12-10",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95
+  },
+  {
+    "expertSlug": "bruce-feldman",
+    "sourcePath": "https://www.youtube.com/watch?v=Ai7xOu9Od4Q",
+    "sourceType": "interview",
+    "authorHandle": "BruceFeldmanCFB",
+    "exactText": "if you ask me right now who do I think is going to win the national title I'm still picking Ohio State",
+    "publishedAtSource": "2024-10-16T00:00:00Z",
+    "sourceQuote": "I'm still picking Ohio State",
+    "normalizedClaim": "Ohio State wins the 2024 national championship.",
+    "resolutionCriteria": "Official 2024-25 College Football Playoff national championship result.",
+    "resolutionDate": "2025-01-20",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "Ohio State did not win the 2024 national championship.",
+      "resolvedAt": "2025-01-20T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2025 CFP National Championship result",
+        "sourcePath": "https://www.collegefootballplayoff.com/",
+        "publisher": "CFP",
+        "isPrimarySource": true
+      }]
+    }
+  }
+]

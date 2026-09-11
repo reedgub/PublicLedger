@@ -37,7 +37,6 @@ export default async function ExpertPage({ params }: PageProps<"/experts/[slug]"
               width={80}
               height={80}
               className="size-16 shrink-0 border border-foreground bg-card object-cover sm:size-20"
-              unoptimized={expert.avatarUrl.includes("unavatar.io")}
             />
           ) : (
             <div className="metric flex size-16 shrink-0 items-center justify-center border border-foreground bg-card text-xl font-bold sm:size-20">

@@ -1,0 +1,222 @@
+[
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://www.washingtonpost.com/opinions/2021/02/04/larry-summers-biden-covid-stimulus/",
+    "sourceType": "writing",
+    "authorHandle": "LHSummers",
+    "exactText": "set off inflationary pressures of a kind we have not seen in a generation.",
+    "publishedAtSource": "2021-02-04T00:00:00Z",
+    "sourceQuote": "set off inflationary pressures of a kind we have not seen in a generation.",
+    "normalizedClaim": "The $1.9 trillion American Rescue Plan will generate inflationary pressures of a magnitude not seen in a generation.",
+    "resolutionCriteria": "BLS CPI year-over-year inflation rate exceeding 5% (highest in decades) within 12-18 months of the bill’s passage.",
+    "resolutionDate": "2022-06-30",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "CPI inflation peaked above 9% YoY in mid-2022, the highest in 40 years.",
+      "resolvedAt": "2022-06-10T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "BLS Consumer Price Index releases 2021-2022",
+        "sourcePath": "https://www.bls.gov/cpi/",
+        "publisher": "U.S. Bureau of Labor Statistics",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://www.newsweek.com/larry-summers-who-predicted-bidens-inflation-missteps-expects-recession-1727335",
+    "sourceType": "interview",
+    "authorHandle": "LHSummers",
+    "exactText": "the odds are probably better than half that a recession will start next year.",
+    "publishedAtSource": "2022-07-22T00:00:00Z",
+    "sourceQuote": "the odds are probably better than half that a recession will start next year.",
+    "normalizedClaim": "Probability greater than 50% that a U.S. recession begins in 2023.",
+    "resolutionCriteria": "NBER Business Cycle Dating Committee declaration of a recession starting in calendar year 2023.",
+    "resolutionDate": "2023-12-31",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "explicitProbability": 0.5,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "No NBER-declared recession began in 2023; the U.S. avoided recession that year.",
+      "resolvedAt": "2024-01-01T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "NBER Business Cycle Dating Committee announcements",
+        "sourcePath": "https://www.nber.org/research/business-cycle-dating",
+        "publisher": "National Bureau of Economic Research",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://www.barrons.com/articles/larry-summers-economy-fed-hard-landing-inflation-recession-51655402216",
+    "sourceType": "interview",
+    "authorHandle": "LHSummers",
+    "exactText": "We are still headed for a pretty hard landing.",
+    "publishedAtSource": "2022-06-16T00:00:00Z",
+    "sourceQuote": "We are still headed for a pretty hard landing.",
+    "normalizedClaim": "The U.S. economy is headed for a hard landing (significant rise in unemployment and GDP contraction) as the Fed fights inflation.",
+    "resolutionCriteria": "NBER recession declaration or unemployment rate rising above 6% combined with two consecutive quarters of negative GDP growth within two years.",
+    "resolutionDate": "2024-06-30",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.85,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "The U.S. achieved a soft landing; no recession was declared and unemployment remained well below 6%.",
+      "resolvedAt": "2024-06-30T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "NBER and BLS unemployment/GDP data 2022-2024",
+        "sourcePath": "https://www.nber.org/research/business-cycle-dating",
+        "publisher": "NBER / BLS / BEA",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://finance.yahoo.com/news/larry-summers-recession-inflation-reduction-act-213052877.html",
+    "sourceType": "interview",
+    "authorHandle": "LHSummers",
+    "exactText": "the odds that the economy will go into recession within the next 18 months are quite serious, and probably in the three quarters range.",
+    "publishedAtSource": "2022-08-03T00:00:00Z",
+    "sourceQuote": "the odds that the economy will go into recession within the next 18 months are quite serious, and probably in the three quarters range.",
+    "normalizedClaim": "Approximately 75% chance of U.S. recession within 18 months (by early 2024).",
+    "resolutionCriteria": "NBER Business Cycle Dating Committee declaration of recession beginning by February 2024.",
+    "resolutionDate": "2024-02-29",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "explicitProbability": 0.75,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "No NBER recession was declared by early 2024.",
+      "resolvedAt": "2024-02-29T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "NBER Business Cycle Dating Committee",
+        "sourcePath": "https://www.nber.org/research/business-cycle-dating",
+        "publisher": "National Bureau of Economic Research",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://finance.yahoo.com/news/larry-summers-recession-inflation-reduction-act-213052877.html",
+    "sourceType": "interview",
+    "authorHandle": "LHSummers",
+    "exactText": "I would expect sometime within the next two or three years, that the unemployment rate will have crossed 6%.",
+    "publishedAtSource": "2022-08-03T00:00:00Z",
+    "sourceQuote": "the unemployment rate will have crossed 6%.",
+    "normalizedClaim": "U.S. unemployment rate exceeds 6% sometime between 2022 and 2025.",
+    "resolutionCriteria": "BLS monthly unemployment rate (U-3) reaching or exceeding 6.0% by August 2025.",
+    "resolutionDate": "2025-08-31",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "U.S. unemployment rate remained well below 6% throughout the period.",
+      "resolvedAt": "2025-08-31T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "BLS Unemployment Rate historical data",
+        "sourcePath": "https://www.bls.gov/cps/",
+        "publisher": "U.S. Bureau of Labor Statistics",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://www.newsweek.com/larry-summers-recession-trump-tariff-2057306",
+    "sourceType": "interview",
+    "authorHandle": "LHSummers",
+    "exactText": "It's more likely than not that we're going to have a recession—and in the context of a recession, we'll see an extra 2 million people be unemployed.",
+    "publishedAtSource": "2025-04-09T00:00:00Z",
+    "sourceQuote": "It's more likely than not that we're going to have a recession—and in the context of a recession, we'll see an extra 2 million people be unemployed.",
+    "normalizedClaim": "More likely than not that the U.S. enters a recession (with ~2 million additional unemployed) due to tariff policies.",
+    "resolutionCriteria": "NBER recession declaration beginning in 2025 or 2026, accompanied by BLS employment data showing approximately 2 million additional unemployed relative to pre-recession levels.",
+    "resolutionDate": "2026-12-31",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.85,
+    "explicitProbability": 0.5
+  },
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://www.azcentral.com/story/money/business/economy/2025/04/13/economist-larry-summers-predicts-recession-asu-event/83045847007/",
+    "sourceType": "interview",
+    "authorHandle": "LHSummers",
+    "exactText": "there was a 60% chance of a 2025 economic recession.",
+    "publishedAtSource": "2025-04-10T00:00:00Z",
+    "sourceQuote": "a 60% chance of a 2025 economic recession.",
+    "normalizedClaim": "60% probability of a U.S. recession in calendar year 2025.",
+    "resolutionCriteria": "NBER Business Cycle Dating Committee declaration of a recession beginning in 2025.",
+    "resolutionDate": "2025-12-31",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "explicitProbability": 0.6
+  },
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://www.investmentnews.com/ria-news/trump-tax-proposals-would-spark-mother-of-all-stagflations-warns-larry-summers/254501",
+    "sourceType": "interview",
+    "authorHandle": "LHSummers",
+    "exactText": "This is a prescription for the mother of all stagflations.",
+    "publishedAtSource": "2024-06-14T00:00:00Z",
+    "sourceQuote": "This is a prescription for the mother of all stagflations.",
+    "normalizedClaim": "Implementation of proposed large tariff hikes combined with income-tax cuts will produce severe stagflation (high inflation + stagnant growth).",
+    "resolutionCriteria": "Simultaneous occurrence of CPI inflation remaining elevated (>4%) and real GDP growth near zero or negative for multiple quarters following significant tariff implementation.",
+    "resolutionDate": "2027-12-31",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.7
+  },
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://x.com/LHSummers/status/1968724877961052285",
+    "sourceType": "x",
+    "authorHandle": "LHSummers",
+    "exactText": "I think we may be at the foothills of stagflation. I don’t think tariff impacts have been fully felt or will be for some time, and confidence has more room to decline than to rise. I think inflation will surprise a bit on the high side.",
+    "publishedAtSource": "2025-09-18T17:12:42Z",
+    "sourceQuote": "I think we may be at the foothills of stagflation.",
+    "normalizedClaim": "The U.S. is entering or approaching stagflation, with inflation surprising to the upside due to tariffs.",
+    "resolutionCriteria": "BLS CPI inflation remaining sticky or rising while real GDP growth slows markedly (near-zero or negative) in subsequent quarters, per BEA data.",
+    "resolutionDate": "2026-12-31",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.75
+  },
+  {
+    "expertSlug": "larry-summers",
+    "sourcePath": "https://www.barrons.com/articles/larry-summers-economy-fed-hard-landing-inflation-recession-51655402216",
+    "sourceType": "interview",
+    "authorHandle": "LHSummers",
+    "exactText": "when you have unemployment below 4% and inflation above 4%, recession always follows within two years.",
+    "publishedAtSource": "2022-06-16T00:00:00Z",
+    "sourceQuote": "when you have unemployment below 4% and inflation above 4%, recession always follows within two years.",
+    "normalizedClaim": "Given 2022 conditions of unemployment <4% and inflation >4%, a U.S. recession will occur within two years (by mid-2024).",
+    "resolutionCriteria": "NBER recession declaration beginning no later than June 2024.",
+    "resolutionDate": "2024-06-30",
+    "category": "economy-rates",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "No NBER-declared recession occurred within two years of the 2022 high-inflation/low-unemployment period.",
+      "resolvedAt": "2024-06-30T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "NBER Business Cycle Dating Committee",
+        "sourcePath": "https://www.nber.org/research/business-cycle-dating",
+        "publisher": "National Bureau of Economic Research",
+        "isPrimarySource": true
+      }]
+    }
+  }
+]

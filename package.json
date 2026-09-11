@@ -27,7 +27,9 @@
     "ingest:x:backfill": "tsx scripts/backfill-x-predictions.ts",
     "auto-approve:backlog": "tsx scripts/auto-approve-backlog.ts",
     "refresh:x": "tsx scripts/refresh-x-sources.ts",
-    "readiness": "tsx scripts/launch-readiness.ts"
+    "readiness": "tsx scripts/launch-readiness.ts",
+    "import:seed-predictions": "tsx scripts/import-seed-predictions.ts",
+    "seed:substack": "tsx scripts/seed-substack.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
