@@ -1,0 +1,181 @@
+[
+  {
+    "expertSlug": "adam-schefter",
+    "sourcePath": "https://saintswire.usatoday.com/story/sports/nfl/saints/2026/06/06/2026-nfl-season-saints-adam-schefter-sleeper-team/90426642007/",
+    "sourceType": "interview",
+    "authorHandle": "AdamSchefter",
+    "exactText": "The team that I'm putting into that category right now... I'm going to go right now with the New Orleans Saints.",
+    "publishedAtSource": "2026-06-06T00:00:00Z",
+    "sourceQuote": "I'm going to go right now with the New Orleans Saints.",
+    "normalizedClaim": "The New Orleans Saints will be a sleeper team that surprises in the 2026 NFL season.",
+    "resolutionCriteria": "New Orleans Saints 2026 regular-season record and playoff outcome per official NFL.com standings (sleeper defined as exceeding preseason consensus expectations, e.g., playoff berth or 10+ wins after low preseason ranking).",
+    "resolutionDate": "2027-01-10",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.7
+  },
+  {
+    "expertSlug": "adam-schefter",
+    "sourcePath": "https://www.espn.com/nfl/story/_/id/49872143/2026-nfl-season-predictions-expert-picks-super-bowl-mvp-conference-winners",
+    "sourceType": "writing",
+    "authorHandle": "AdamSchefter",
+    "exactText": "Adam Schefter, senior NFL insider: Bills",
+    "publishedAtSource": "2026-09-09T00:00:00Z",
+    "sourceQuote": "Adam Schefter, senior NFL insider: Bills",
+    "normalizedClaim": "The Buffalo Bills win the AFC Championship (or are Schefter’s AFC pick) for the 2026 season.",
+    "resolutionCriteria": "Official NFL AFC Championship Game result for the 2026 season (played January 2027).",
+    "resolutionDate": "2027-01-25",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95
+  },
+  {
+    "expertSlug": "adam-schefter",
+    "sourcePath": "https://www.espn.com/nfl/story/_/id/49872143/2026-nfl-season-predictions-expert-picks-super-bowl-mvp-conference-winners",
+    "sourceType": "writing",
+    "authorHandle": "AdamSchefter",
+    "exactText": "Schefter: Cowboys",
+    "publishedAtSource": "2026-09-09T00:00:00Z",
+    "sourceQuote": "Schefter: Cowboys",
+    "normalizedClaim": "The Dallas Cowboys win the NFC Championship for the 2026 season.",
+    "resolutionCriteria": "Official NFL NFC Championship Game result for the 2026 season (played January 2027).",
+    "resolutionDate": "2027-01-25",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95
+  },
+  {
+    "expertSlug": "adam-schefter",
+    "sourcePath": "https://www.espn.com/nfl/story/_/id/49872143/2026-nfl-season-predictions-expert-picks-super-bowl-mvp-conference-winners",
+    "sourceType": "writing",
+    "authorHandle": "AdamSchefter",
+    "exactText": "Schefter: Josh Allen",
+    "publishedAtSource": "2026-09-09T00:00:00Z",
+    "sourceQuote": "Schefter: Josh Allen",
+    "normalizedClaim": "Josh Allen wins the 2026 NFL regular-season MVP award.",
+    "resolutionCriteria": "Official AP NFL Most Valuable Player award announcement for the 2026 season (typically February 2027).",
+    "resolutionDate": "2027-02-15",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.98
+  },
+  {
+    "expertSlug": "adam-schefter",
+    "sourcePath": "https://nesn.com/2025/05/adam-schefter-makes-patriots-prediction-after-nfl-schedule-release/",
+    "sourceType": "interview",
+    "authorHandle": "AdamSchefter",
+    "exactText": "I’m gonna make a prediction here right now: The Patriots are gonna win more games this year than people realize. They’re gonna be a better team this year than people realize.",
+    "publishedAtSource": "2025-05-01T00:00:00Z",
+    "sourceQuote": "The Patriots are gonna win more games this year than people realize. They’re gonna be a better team this year than people realize.",
+    "normalizedClaim": "The New England Patriots exceed preseason expectations in wins during the 2025 NFL season.",
+    "resolutionCriteria": "New England Patriots 2025 regular-season win total per official NFL.com standings compared to preseason over/under or consensus rankings.",
+    "resolutionDate": "2026-01-10",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.75,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "The Patriots significantly outperformed low preseason expectations, reaching the Super Bowl as a surprise contender.",
+      "resolvedAt": "2026-02-08T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "NFL 2025 season standings and Super Bowl LX results",
+        "sourcePath": "https://www.nfl.com/standings/",
+        "publisher": "NFL",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "adam-schefter",
+    "sourcePath": "https://espnpressroom.com/press-release/espn-experts-drop-predictions-for-super-bowl-lx-conference-champions-2025-league-mvp/",
+    "sourceType": "writing",
+    "authorHandle": "AdamSchefter",
+    "exactText": "Schefter | Adam | Ravens | Buccaneers | Ravens | Lamar Jackson",
+    "publishedAtSource": "2025-09-04T00:00:00Z",
+    "sourceQuote": "Schefter | Adam | Ravens | Buccaneers | Ravens | Lamar Jackson",
+    "normalizedClaim": "The Baltimore Ravens win Super Bowl LX; Lamar Jackson wins 2025 MVP.",
+    "resolutionCriteria": "Official Super Bowl LX result (February 2026) and AP NFL MVP award for 2025 season.",
+    "resolutionDate": "2026-02-15",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "The Ravens did not win Super Bowl LX (Seahawks vs Patriots); Lamar Jackson did not win the 2025 MVP.",
+      "resolvedAt": "2026-02-09T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "Super Bowl LX official result",
+        "sourcePath": "https://www.nfl.com/super-bowl/",
+        "publisher": "NFL",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "adam-schefter",
+    "sourcePath": "https://x.com/AdamSchefter/status/2031822479472140537",
+    "sourceType": "x",
+    "authorHandle": "AdamSchefter",
+    "exactText": "The Arizona Cardinals officially have released QB Kyler Murray.\n\nWith Murray now free, the Minnesota Vikings are considered the overwhelming favorite to sign him.\n\nIn the words of one source: “I’d be shocked if he’s not a Viking.”",
+    "publishedAtSource": "2026-03-11T20:00:03Z",
+    "sourceQuote": "the Minnesota Vikings are considered the overwhelming favorite to sign him.\n\nIn the words of one source: “I’d be shocked if he’s not a Viking.”",
+    "normalizedClaim": "Kyler Murray signs with the Minnesota Vikings after his release from the Cardinals.",
+    "resolutionCriteria": "Official NFL transaction or team announcement of Kyler Murray signing with any team (or remaining unsigned) following March 2026 release.",
+    "resolutionDate": "2026-09-01",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9
+  },
+  {
+    "expertSlug": "adam-schefter",
+    "sourcePath": "https://nesn.com/2025/05/adam-schefter-makes-patriots-prediction-after-nfl-schedule-release/",
+    "sourceType": "interview",
+    "authorHandle": "AdamSchefter",
+    "exactText": "They are, to me, what the Commanders were last year... I could see the Patriots doing the same with the Buffalo Bills this year.",
+    "publishedAtSource": "2025-05-01T00:00:00Z",
+    "sourceQuote": "I could see the Patriots doing the same with the Buffalo Bills this year.",
+    "normalizedClaim": "The New England Patriots make a significant postseason run in 2025 comparable to the 2024 Commanders.",
+    "resolutionCriteria": "New England Patriots 2025 playoff result per official NFL.com (reaching at least Divisional or Conference Championship).",
+    "resolutionDate": "2026-02-01",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.8,
+    "resolution": {
+      "outcome": "correct",
+      "explanation": "The Patriots reached Super Bowl LX in the 2025 season.",
+      "resolvedAt": "2026-02-08T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "Super Bowl LX official result",
+        "sourcePath": "https://www.nfl.com/super-bowl/",
+        "publisher": "NFL",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "adam-schefter",
+    "sourcePath": "https://www.espn.com/nfl/story/_/id/46137305/2025-nfl-season-predictions-conference-winners-super-bowl-mvp",
+    "sourceType": "writing",
+    "authorHandle": "AdamSchefter",
+    "exactText": "Adam Schefter, senior NFL insider: Ravens",
+    "publishedAtSource": "2025-09-07T00:00:00Z",
+    "sourceQuote": "Adam Schefter, senior NFL insider: Ravens",
+    "normalizedClaim": "The Baltimore Ravens win the AFC (or Schefter’s primary 2025 conference/Super Bowl pick).",
+    "resolutionCriteria": "Official NFL AFC Championship and Super Bowl LX results for the 2025 season.",
+    "resolutionDate": "2026-02-09",
+    "category": "sports",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "The Ravens did not represent the AFC in Super Bowl LX.",
+      "resolvedAt": "2026-01-26T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "2025 NFL playoff results",
+        "sourcePath": "https://www.nfl.com/playoffs/",
+        "publisher": "NFL",
+        "isPrimarySource": true
+      }]
+    }
+  }
+]

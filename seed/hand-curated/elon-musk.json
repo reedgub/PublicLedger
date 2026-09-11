@@ -1,0 +1,196 @@
+[
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://en.wikipedia.org/wiki/List_of_predictions_for_autonomous_Tesla_vehicles_by_Elon_Musk",
+    "sourceType": "interview",
+    "authorHandle": "elonmusk",
+    "exactText": "I remain confident that we will have the basic functionality for level five autonomy complete this year.",
+    "publishedAtSource": "2020-07-09T00:00:00Z",
+    "sourceQuote": "we will have the basic functionality for level five autonomy complete this year.",
+    "normalizedClaim": "Tesla completes basic functionality for Level 5 autonomy by the end of 2020.",
+    "resolutionCriteria": "Tesla public statements, FSD software releases, or regulatory filings confirming Level 5 (full unsupervised autonomy in all conditions) capability by 2020-12-31.",
+    "resolutionDate": "2020-12-31",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "Tesla did not achieve Level 5 autonomy in 2020; FSD remained supervised (SAE Level 2) and continues to require driver attention years later.",
+      "resolvedAt": "2020-12-31T23:59:59Z",
+      "evidence": [{
+        "sourceTitle": "List of predictions for autonomous Tesla vehicles by Elon Musk",
+        "sourcePath": "https://en.wikipedia.org/wiki/List_of_predictions_for_autonomous_Tesla_vehicles_by_Elon_Musk",
+        "publisher": "Wikipedia",
+        "isPrimarySource": false
+      }]
+    }
+  },
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://en.wikipedia.org/wiki/List_of_predictions_for_autonomous_Tesla_vehicles_by_Elon_Musk",
+    "sourceType": "interview",
+    "authorHandle": "elonmusk",
+    "exactText": "We're going to be launching unsupervised Full Self-Driving as a paid service in Austin in June.",
+    "publishedAtSource": "2025-01-29T00:00:00Z",
+    "sourceQuote": "launching unsupervised Full Self-Driving as a paid service in Austin in June.",
+    "normalizedClaim": "Tesla launches unsupervised Full Self-Driving as a paid robotaxi service in Austin in June 2025.",
+    "resolutionCriteria": "Tesla public launch announcement or operational robotaxi service in Austin with no safety driver/monitor by June 30, 2025.",
+    "resolutionDate": "2025-06-30",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.95,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "Robotaxi service launched in Austin in June 2025 but with a safety monitor present in the vehicle, not unsupervised.",
+      "resolvedAt": "2025-06-22T00:00:00Z",
+      "evidence": [{
+        "sourceTitle": "Tesla robotaxi launch coverage",
+        "sourcePath": "https://en.wikipedia.org/wiki/List_of_predictions_for_autonomous_Tesla_vehicles_by_Elon_Musk",
+        "publisher": "Wikipedia / contemporaneous reports",
+        "isPrimarySource": false
+      }]
+    }
+  },
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://en.wikipedia.org/wiki/List_of_predictions_for_autonomous_Tesla_vehicles_by_Elon_Musk",
+    "sourceType": "interview",
+    "authorHandle": "elonmusk",
+    "exactText": "The acid test is, can you go to sleep in your car and wake up in your destination and I'm confident that will be available in many cities in the US by the end of this year.",
+    "publishedAtSource": "2025-04-22T00:00:00Z",
+    "sourceQuote": "can you go to sleep in your car and wake up in your destination and I'm confident that will be available in many cities in the US by the end of this year.",
+    "normalizedClaim": "Unsupervised FSD allowing passengers to sleep while the car drives to the destination is available in many U.S. cities by end of 2025.",
+    "resolutionCriteria": "Tesla FSD software release notes or regulatory approval enabling unsupervised sleep-capable operation in multiple U.S. cities by 2025-12-31.",
+    "resolutionDate": "2025-12-31",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "No unsupervised sleep-capable FSD was available in multiple U.S. cities by end of 2025; safety monitors or driver attention requirements remained.",
+      "resolvedAt": "2025-12-31T23:59:59Z",
+      "evidence": [{
+        "sourceTitle": "Tesla FSD status tracking",
+        "sourcePath": "https://en.wikipedia.org/wiki/List_of_predictions_for_autonomous_Tesla_vehicles_by_Elon_Musk",
+        "publisher": "Wikipedia",
+        "isPrimarySource": false
+      }]
+    }
+  },
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://x.com/elonmusk/status/1960812698037518540",
+    "sourceType": "x",
+    "authorHandle": "elonmusk",
+    "exactText": "This slide needs an update, but gives a rough idea of what we’re aiming for with V3 and V4. V3 should be built & tested (maybe flown) by end of this year. V4 is 2027. Probably closer to 150m height and 7500 tons.",
+    "publishedAtSource": "2025-08-27T21:12:32Z",
+    "sourceQuote": "V3 should be built & tested (maybe flown) by end of this year. V4 is 2027.",
+    "normalizedClaim": "SpaceX Starship V3 is built and tested (possibly flown) by end of 2025; V4 arrives in 2027.",
+    "resolutionCriteria": "SpaceX public updates, photos, or flight logs confirming Starship V3 hardware completion/testing by 2025-12-31 and V4 progress by 2027.",
+    "resolutionDate": "2027-12-31",
+    "category": "science-space",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.85
+  },
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://electrek.co/2026/05/18/musk-unsupervised-fsd-widespread-us-end-of-year-smart-mobility-summit/",
+    "sourceType": "interview",
+    "authorHandle": "elonmusk",
+    "exactText": "Musk claimed that Tesla’s unsupervised “Full Self-Driving” will be “widespread in the US by the end of this year”",
+    "publishedAtSource": "2026-05-18T00:00:00Z",
+    "sourceQuote": "will be “widespread in the US by the end of this year”",
+    "normalizedClaim": "Tesla unsupervised Full Self-Driving is widespread across the United States by the end of 2026.",
+    "resolutionCriteria": "Tesla operational data or regulatory filings showing unsupervised FSD robotaxi or consumer service available to a majority of the U.S. population by 2026-12-31.",
+    "resolutionDate": "2026-12-31",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.9
+  },
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://www.thestreet.com/economy/elon-musk-sends-blunt-verdict-on-the-future-of-humanity-and-ai",
+    "sourceType": "interview",
+    "authorHandle": "elonmusk",
+    "exactText": "AI may exceed the sum of all human intelligence “in about five years,” he said, leading to what he called “an age of amazing abundance where anyone can have anything they can think of.”",
+    "publishedAtSource": "2026-07-01T00:00:00Z",
+    "sourceQuote": "AI may exceed the sum of all human intelligence “in about five years,”",
+    "normalizedClaim": "AI exceeds the sum of all human intelligence by approximately 2031.",
+    "resolutionCriteria": "Consensus among major AI labs or quantitative metrics (e.g., effective compute / capability benchmarks) showing AI systems collectively surpassing total human intellectual capacity by ~2031.",
+    "resolutionDate": "2031-12-31",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.7
+  },
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://x.com/elonmusk/status/1794240517875920935",
+    "sourceType": "x",
+    "authorHandle": "elonmusk",
+    "exactText": "Next year",
+    "publishedAtSource": "2024-05-25T05:34:09Z",
+    "sourceQuote": "Next year",
+    "normalizedClaim": "AGI arrives in 2025 (in response to a query about AGI timeline).",
+    "resolutionCriteria": "Widely accepted achievement of AGI (highly autonomous systems outperforming humans at most economically valuable work) by end of 2025, per OpenAI charter definition or equivalent consensus.",
+    "resolutionDate": "2025-12-31",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.8,
+    "resolution": {
+      "outcome": "incorrect",
+      "explanation": "No consensus AGI was achieved or declared by major labs by the end of 2025.",
+      "resolvedAt": "2025-12-31T23:59:59Z",
+      "evidence": [{
+        "sourceTitle": "Ongoing AGI timeline discussions and lab statements",
+        "sourcePath": "https://x.com/elonmusk/status/1794240517875920935",
+        "publisher": "X / contemporaneous reports",
+        "isPrimarySource": true
+      }]
+    }
+  },
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://www.wired.com/story/elon-musk-sure-made-lots-of-predictions-at-davos/",
+    "sourceType": "interview",
+    "authorHandle": "elonmusk",
+    "exactText": "The rate at which AI is progressing, I think we have AI that is smarter than any human this year, and no later than next year.",
+    "publishedAtSource": "2026-01-22T00:00:00Z",
+    "sourceQuote": "we have AI that is smarter than any human this year, and no later than next year.",
+    "normalizedClaim": "AI systems smarter than any individual human exist by the end of 2026 or 2027.",
+    "resolutionCriteria": "Public demonstrations or benchmarks showing an AI system outperforming the best humans across a broad range of cognitive tasks by 2027-12-31.",
+    "resolutionDate": "2027-12-31",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.8
+  },
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://x.com/YahooFinance/status/2094797788282261687",
+    "sourceType": "interview",
+    "authorHandle": "elonmusk",
+    "exactText": "Humanoid robots will be more productive than all humans combined.",
+    "publishedAtSource": "2026-09-01T00:00:00Z",
+    "sourceQuote": "Humanoid robots will be more productive than all humans combined.",
+    "normalizedClaim": "Humanoid robots (including Optimus) become more productive in aggregate than all humans combined within approximately 10 years (by ~2036).",
+    "resolutionCriteria": "Industry production and deployment data showing humanoid robot fleet output (labor-hour equivalents) exceeding total human workforce productivity by ~2036.",
+    "resolutionDate": "2036-12-31",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.7
+  },
+  {
+    "expertSlug": "elon-musk",
+    "sourcePath": "https://www.cbtnews.com/musk-predicts-self-driving-domination/",
+    "sourceType": "interview",
+    "authorHandle": "elonmusk",
+    "exactText": "Five years from now and certainly 10 years from now … probably 90% of all distance driven will be driven by the AI in a self-driving car.",
+    "publishedAtSource": "2026-05-18T00:00:00Z",
+    "sourceQuote": "probably 90% of all distance driven will be driven by the AI in a self-driving car.",
+    "normalizedClaim": "Approximately 90% of all vehicle miles driven in the U.S. (or globally) will be autonomous by around 2031–2036.",
+    "resolutionCriteria": "U.S. Department of Transportation or industry data (e.g., SAE, NHTSA) showing autonomous vehicles accounting for ~90% of vehicle-miles traveled by 2036.",
+    "resolutionDate": "2036-12-31",
+    "category": "ai-tech",
+    "recordType": "prediction",
+    "falsifiabilityScore": 0.75
+  }
+]
