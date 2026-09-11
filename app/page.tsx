@@ -16,7 +16,7 @@ export default async function HomePage() {
         <div className="border-b border-foreground pb-12 lg:pb-16">
           <p className="eyebrow mb-3 flex items-center gap-2 sm:mb-5"><span className="h-px w-8 bg-foreground" />The public prediction record</p>
           <h1 className="editorial max-w-5xl text-[clamp(3rem,9vw,9rem)] font-semibold leading-[0.9] tracking-[-0.06em] text-balance">
-            WHAT THEY SAID.<br />WHAT HAPPENED.
+            PUBLIC PREDICTIONS.<br />PUBLIC OUTCOMES.
           </h1>
           <p className="editorial mt-8 max-w-2xl text-xl leading-snug text-balance sm:text-2xl">
             Project Lighthouse captures the exact statement, the exact deadline, and the outcome — so a track record survives the delete button.

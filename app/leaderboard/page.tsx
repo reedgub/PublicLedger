@@ -36,18 +36,8 @@ export default async function LeaderboardPage() {
   return (
     <div className="container-receipts py-12 sm:py-20">
       <p className="eyebrow">Adjusted rankings / Binary resolutions only</p>
-      <div className="mt-4 grid gap-6 lg:grid-cols-[1fr_430px] lg:items-end">
-        <h1 className="editorial text-6xl font-semibold tracking-[-0.05em] sm:text-8xl">Leaderboard</h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Default rank uses the lower bound of an 80% Wilson confidence interval. At least 5
-          correct/incorrect resolutions are required; fewer than 20 is marked provisional.
-        </p>
-      </div>
+      <h1 className="editorial mt-4 text-6xl font-semibold tracking-[-0.05em] sm:text-8xl">Leaderboard</h1>
       <LeaderboardTable scorecards={eligible} />
-      <p className="mt-5 text-xs text-muted-foreground">
-        Lower Brier scores indicate better calibration. Partial, ambiguous, and void outcomes
-        never enter binary accuracy.
-      </p>
     </div>
   );
 }
