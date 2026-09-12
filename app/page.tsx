@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Database, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { FlagshipReceipt } from "@/components/flagship-receipt";
 import { GlobalSearch } from "@/components/global-search";
 import { PredictionList } from "@/components/prediction-list";
@@ -12,19 +12,15 @@ export default async function HomePage() {
   const data = await getHomepageData();
   return (
     <>
-      <section className="container-receipts pt-12 sm:pt-20">
-        <div className="border-b border-foreground pb-12 lg:pb-16">
-          <p className="eyebrow mb-3 flex items-center gap-2 sm:mb-5"><span className="h-px w-8 bg-foreground" />The public prediction record</p>
-          <h1 className="editorial max-w-5xl text-[clamp(3rem,9vw,9rem)] font-semibold leading-[0.9] tracking-[-0.06em] text-balance">
+      <section className="container-receipts pt-6 sm:pt-10">
+        <div className="border-b border-foreground pb-6 lg:pb-8">
+          <p className="eyebrow mb-2 flex items-center gap-2 sm:mb-3"><span className="h-px w-8 bg-foreground" />The public prediction record</p>
+          <h1 className="editorial max-w-5xl text-[clamp(2.25rem,6.5vw,5.5rem)] font-semibold leading-[0.9] tracking-[-0.05em] text-balance">
             PUBLIC PREDICTIONS.<br />PUBLIC OUTCOMES.
           </h1>
-          <p className="editorial mt-8 max-w-2xl text-xl leading-snug text-balance sm:text-2xl">
+          <p className="editorial mt-4 max-w-2xl text-base leading-snug text-balance sm:mt-5 sm:text-lg">
             See which pundits, CEOs, and forecasters actually got their public predictions right. Every claim linked to the original quote, tied to a real deadline, and scored when it comes due.
           </p>
-          <div className="mt-6 flex gap-5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-            <span className="flex items-center gap-1.5"><Database className="size-3.5" />Source-backed</span>
-            <span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5" />Auditable</span>
-          </div>
         </div>
         {data.published >= 5 && (
           <div className="relative z-20 mx-auto -mt-px max-w-3xl translate-y-1/2"><GlobalSearch /></div>
@@ -32,12 +28,11 @@ export default async function HomePage() {
       </section>
 
       {data.flagship ? (
-        <section className="container-receipts mt-16 sm:mt-24">
-          <SectionHeading index="01" title="Featured receipt" aside={<span className="eyebrow">Latest resolved call</span>} />
-          <div className="mt-6"><FlagshipReceipt prediction={data.flagship} /></div>
+        <section className="container-receipts mt-8 sm:mt-12">
+          <FlagshipReceipt prediction={data.flagship} />
         </section>
       ) : (
-        <section className="container-receipts mt-16 sm:mt-24">
+        <section className="container-receipts mt-8 sm:mt-12">
           <SectionHeading index="01" title="Featured receipt" aside={<span className="eyebrow">Awaiting first resolution</span>} />
           <div className="mt-6"><EmptyState title="No resolved predictions yet" description="The featured receipt slot goes live the moment the first published prediction reaches its deadline and its resolution clears independent review." /></div>
         </section>
