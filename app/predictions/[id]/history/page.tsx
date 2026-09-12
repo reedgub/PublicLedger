@@ -37,15 +37,15 @@ export default async function PredictionHistoryPage({ params }: PageProps<"/pred
   const [prediction, history] = await Promise.all([getPredictionById(id), getPredictionHistory(id)]);
   if (!prediction) notFound();
   return (
-    <div className="container-receipts py-10 sm:py-16">
+    <div className="container-page py-10 sm:py-16">
       <div className="mx-auto max-w-3xl">
         <Link href={`/predictions/${prediction.id}`} className="eyebrow flex items-center gap-1 hover:text-foreground">
-          <ArrowLeft className="size-3" /> Back to receipt
+          <ArrowLeft className="size-3" /> Back to prediction
         </Link>
         <p className="eyebrow mt-6">Audit trail / Prediction {prediction.id.slice(0, 8)}</p>
         <h1 className="editorial mt-3 text-4xl font-semibold tracking-[-0.03em] sm:text-6xl">Full history</h1>
         <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-          Every state change we record for this receipt, in order. Published prediction substance is immutable; if a
+          Every state change we record for this prediction, in order. Published prediction substance is immutable; if a
           correction was needed it appears here with the reason.
         </p>
         <blockquote className="editorial mt-8 border-l-2 border-foreground pl-4 text-lg leading-snug">

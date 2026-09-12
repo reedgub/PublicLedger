@@ -13,10 +13,10 @@ export function ShareButton({ title, text }: { title: string; text: string }) {
       if (navigator.share) await navigator.share({ title, text, url });
       else {
         await navigator.clipboard.writeText(url);
-        toast.success("Receipt link copied");
+        toast.success("Link copied");
       }
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) toast.error("Could not share this Receipt");
+      if (!(error instanceof DOMException && error.name === "AbortError")) toast.error("Could not share this prediction");
     }
   }
   return <Button variant="outline" onClick={share} className="rounded-none border-foreground"><Share2 /> Share</Button>;

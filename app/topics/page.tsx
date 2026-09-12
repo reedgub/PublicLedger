@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default async function TopicsPage() {
   const topics = await getTopics();
   return (
-    <div className="container-receipts py-12 sm:py-20">
+    <div className="container-page py-12 sm:py-20">
       <p className="eyebrow">Current uncertainty / Topic index</p>
       <div className="mt-4 grid gap-6 md:grid-cols-[1fr_380px] md:items-end">
         <h1 className="editorial text-6xl font-semibold tracking-[-0.05em] sm:text-8xl">Topics</h1>

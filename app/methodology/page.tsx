@@ -7,7 +7,7 @@ const sections = [
   ["01", "What counts as a prediction?", "A public statement must describe a future, observable outcome with defensible resolution criteria. Opinions, rhetorical questions, vague futurism, jokes, and claims that need invented precision are rejected."],
   ["02", "Why are some predictions rejected?", "Project Lighthouse prefers a smaller set of defensible records. A claim is rejected when the author is not the speaker, the exact quote cannot be verified, the deadline is unsupported, the normalized meaning is stronger or weaker than the source, or the outcome cannot be measured objectively."],
   ["03", "Why don’t we infer probabilities?", "Words such as likely, probably, and almost certainly remain verbal confidence. A numeric probability is stored only when the source explicitly states one. Calibration and Brier scoring use only those explicit numbers."],
-  ["04", "How is correctness determined?", "Every published Receipt freezes its normalized claim and resolution criteria. At the deadline, evidence is checked in priority order: an exactly equivalent resolved market, authoritative primary evidence, then multiple independent high-quality secondary sources. A separate verifier audits proposed outcomes."],
+  ["04", "How is correctness determined?", "Every published prediction freezes its normalized claim and resolution criteria. At the deadline, evidence is checked in priority order: an exactly equivalent resolved market, authoritative primary evidence, then multiple independent high-quality secondary sources. A separate verifier audits proposed outcomes."],
   ["05", "What do Partial, Ambiguous, and Void mean?", "Partial means a multi-part or threshold claim was only partly satisfied. Ambiguous means available evidence cannot support a defensible binary outcome. Void means the event definition changed materially or the claim became unresolvable. None enters binary accuracy."],
   ["06", "How does leaderboard ranking work?", "Raw accuracy rewards tiny samples. The default leaderboard therefore uses the lower bound of an 80% Wilson confidence interval on Correct and Incorrect outcomes. At least five binary resolutions are required; fewer than twenty is Provisional."],
   ["07", "Why does sample size matter?", "A perfect 2–0 record is not comparable with a long track record. Sample size changes how much confidence a reader should place in an observed accuracy, which is why counts are displayed beside every percentage."],
@@ -17,7 +17,7 @@ const sections = [
 
 export default function MethodologyPage() {
   return (
-    <div className="container-receipts py-12 sm:py-20">
+    <div className="container-page py-12 sm:py-20">
       <div className="grid gap-8 border-b border-foreground pb-12 lg:grid-cols-[1fr_420px] lg:items-end"><div><p className="eyebrow">Methodology / Trust contract</p><h1 className="editorial mt-4 text-6xl font-semibold tracking-[-0.05em] sm:text-8xl">Methodology</h1></div><p className="editorial text-2xl leading-snug">Precision is a feature. The source, normalization, deadline, criteria, evidence, and changes must all remain inspectable.</p></div>
       <div className="mx-auto mt-12 max-w-4xl divide-y divide-border border-y border-foreground">
         {sections.map(([index, title, body]) => <section key={index} className="grid gap-4 py-8 md:grid-cols-[80px_1fr]"><span className="metric text-sm text-muted-foreground">{index}</span><div><h2 className="editorial text-3xl font-semibold">{title}</h2><p className="mt-4 leading-relaxed text-muted-foreground">{body}</p></div></section>)}

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BarChart3, CalendarClock, ReceiptText } from "lucide-react";
+import { BarChart3, CalendarClock, FileText } from "lucide-react";
 import { MarketCard } from "@/components/market-card";
 import { PredictionList } from "@/components/prediction-list";
 import { SectionHeading } from "@/components/section-heading";
@@ -28,7 +28,7 @@ export default async function TopicPage({ params }: PageProps<"/topics/[slug]">)
   const open = predictions.filter((prediction) => ["open", "due", "resolution_pending"].includes(prediction.status));
   const resolved = predictions.filter((prediction) => prediction.resolution);
   return (
-    <div className="container-receipts py-12 sm:py-20">
+    <div className="container-page py-12 sm:py-20">
       <div className="border-b border-foreground pb-10">
         <p className="eyebrow">Topic / {CATEGORIES.find((item) => item.slug === topic.categorySlug)?.name}</p>
         <h1 className="editorial mt-4 max-w-5xl text-5xl font-semibold leading-[0.95] tracking-[-0.05em] sm:text-8xl">{topic.title}</h1>
@@ -40,9 +40,9 @@ export default async function TopicPage({ params }: PageProps<"/topics/[slug]">)
         <div className="py-6 sm:pl-6"><dt className="eyebrow flex items-center gap-2"><CalendarClock className="size-3.5" />Deadline</dt><dd className="metric mt-2 text-xl">{primaryMarket?.endAt ? formatUtcDate(primaryMarket.endAt) : "Event-defined"}</dd></div>
       </dl>
 
-      <section className="mt-16"><SectionHeading index="01" title="Open predictions" aside={<span className="eyebrow flex items-center gap-1"><ReceiptText className="size-3" />{open.length} records</span>} /><div className="mt-5">{open.length ? <PredictionList predictions={open} /> : <EmptyState title="No open Receipts" description="No verified open expert predictions are linked to this topic." />}</div></section>
+      <section className="mt-16"><SectionHeading index="01" title="Open predictions" aside={<span className="eyebrow flex items-center gap-1"><FileText className="size-3" />{open.length} records</span>} /><div className="mt-5">{open.length ? <PredictionList predictions={open} /> : <EmptyState title="No open predictions" description="No verified open expert predictions are linked to this topic." />}</div></section>
       <section className="mt-16"><SectionHeading index="02" title="Expert positions" /><div className="mt-5 border border-dashed p-8 text-sm text-muted-foreground">Project Lighthouse does not assign Yes/No orientation unless an expert claim is naturally binary and the direction is explicit. Linked claims appear in the lists above and below without manufactured positioning.</div></section>
-      <section className="mt-16"><SectionHeading index="03" title="Resolved predictions" /><div className="mt-5">{resolved.length ? <PredictionList predictions={resolved} /> : <EmptyState title="No resolved Receipts" description="Evidence-backed resolutions will appear here when linked predictions reach their deadline." />}</div></section>
+      <section className="mt-16"><SectionHeading index="03" title="Resolved predictions" /><div className="mt-5">{resolved.length ? <PredictionList predictions={resolved} /> : <EmptyState title="No resolved predictions" description="Evidence-backed resolutions will appear here when linked predictions reach their deadline." />}</div></section>
       <section className="mt-16"><SectionHeading index="04" title="Related markets" /><div className="mt-6 grid gap-px bg-foreground sm:grid-cols-2 lg:grid-cols-3">{markets.map((market) => <MarketCard key={market.id} market={market} />)}</div>{!markets.length && <p className="mt-5 text-sm text-muted-foreground">No related markets are currently stored.</p>}</section>
     </div>
   );

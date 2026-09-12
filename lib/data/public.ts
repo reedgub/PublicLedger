@@ -376,8 +376,8 @@ export const getHomepageData = cache(async () => {
     6,
   );
   const markets = storedMarkets.length ? storedMarkets : await fallbackMarkets(6);
-  // The flagship is the resolved Receipt we most want a first-time visitor to
-  // open. Prefer the most recent decisive miss (highest visceral payoff),
+  // The flagship is the resolved prediction we most want a first-time visitor
+  // to open. Prefer the most recent decisive miss (highest visceral payoff),
   // then the most recent hit, then anything resolved at all.
   const flagship =
     resolved.find((prediction) => prediction.resolution?.outcome === "incorrect") ??
