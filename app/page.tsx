@@ -19,7 +19,7 @@ export default async function HomePage() {
             PUBLIC PREDICTIONS.<br />PUBLIC OUTCOMES.
           </h1>
           <p className="editorial mt-8 max-w-2xl text-xl leading-snug text-balance sm:text-2xl">
-            Project Lighthouse captures the exact statement, the exact deadline, and the outcome — so a track record survives the delete button.
+            See which pundits, CEOs, and forecasters actually got their public predictions right. Every claim linked to the original quote, tied to a real deadline, and scored when it comes due.
           </p>
           <div className="mt-6 flex gap-5 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
             <span className="flex items-center gap-1.5"><Database className="size-3.5" />Source-backed</span>
