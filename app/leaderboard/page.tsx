@@ -16,7 +16,7 @@ export default async function LeaderboardPage() {
 
   if (eligible.length === 0) {
     return (
-      <div className="container-receipts py-10 sm:py-14">
+      <div className="container-page py-10 sm:py-14">
         <p className="eyebrow">Leaderboard / Awaiting first ranked track records</p>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           An expert appears on the ranked leaderboard once they have five verified binary resolutions.
@@ -34,7 +34,7 @@ export default async function LeaderboardPage() {
   }
 
   return (
-    <div className="container-receipts py-12 sm:py-20">
+    <div className="container-page py-12 sm:py-20">
       <p className="eyebrow">Adjusted rankings / Binary resolutions only</p>
       <h1 className="editorial mt-4 text-6xl font-semibold tracking-[-0.05em] sm:text-8xl">Leaderboard</h1>
       <LeaderboardTable scorecards={eligible} />

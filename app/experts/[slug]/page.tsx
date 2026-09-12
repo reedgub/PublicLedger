@@ -27,7 +27,7 @@ export default async function ExpertPage({ params }: PageProps<"/experts/[slug]"
   const expert = scorecard.expert;
   const accuracy = scorecard.accuracy === null ? "—" : `${Math.round(scorecard.accuracy * 100)}%`;
   return (
-    <div className="container-receipts py-12 sm:py-20">
+    <div className="container-page py-12 sm:py-20">
       <div className="grid gap-8 border-b border-foreground pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="flex items-start gap-5">
           {expert.avatarUrl ? (

@@ -17,7 +17,7 @@ export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   return (
     <header className="sticky top-0 z-40 border-b border-foreground/80 bg-background/95 backdrop-blur-sm">
-      <div className="container-receipts flex h-14 items-center justify-between">
+      <div className="container-page flex h-14 items-center justify-between">
         <Link href="/" className="flex items-center gap-3" aria-label="Project Lighthouse home">
           <span className="font-mono text-[15px] font-black tracking-[0.14em]">PROJECT LIGHTHOUSE</span>
           <span className="hidden border-l border-border pl-3 font-mono text-[9px] tracking-[0.12em] text-muted-foreground uppercase lg:inline">Public record / v0.1</span>

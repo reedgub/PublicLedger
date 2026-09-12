@@ -1,6 +1,6 @@
 // Read-only JSON snapshot of the public prediction stream.
 //
-// Journalists linking Receipts back to their pieces is the highest-leverage
+// Journalists linking predictions back to their pieces is the highest-leverage
 // growth loop we have — expose the corpus over an unversioned-but-stable
 // endpoint so it's trivial to script against. All rows respect the same
 // visibility rules as the public site (published, non-source_unavailable,

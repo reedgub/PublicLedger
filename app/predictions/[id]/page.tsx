@@ -36,10 +36,10 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
   const sourceUrl = sourceHref(prediction.source.sourceType, prediction.source.canonicalPath);
   const category = CATEGORIES.find((item) => item.slug === prediction.categorySlug)?.name;
   return (
-    <div className="container-receipts py-10 sm:py-16">
+    <div className="container-page py-10 sm:py-16">
       <div className="mx-auto max-w-4xl">
         <div className="mb-4 flex items-center justify-between gap-4"><p className="eyebrow">Record / {prediction.id.slice(0, 8)}</p><ShareButton title={`${prediction.expert.displayName} — Project Lighthouse`} text={prediction.normalizedClaim} /></div>
-        <article className="receipt-edge border-y border-foreground bg-card px-5 py-8 sm:px-12 sm:py-12">
+        <article className="paper-edge border-y border-foreground bg-card px-5 py-8 sm:px-12 sm:py-12">
           <header className="border-b border-dashed border-border pb-10 text-center">
             <p className="font-mono text-sm font-black tracking-[0.24em]">PROJECT LIGHTHOUSE</p>
             <div className="mt-5 flex items-center justify-center gap-2">
@@ -70,7 +70,7 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
           <section className="border-b border-dashed border-border py-9">
             <p className="eyebrow">Original statement</p>
             {prediction.source.deletedAt || prediction.status === "source_unavailable" ? (
-              <div className="mt-4 border border-provisional bg-provisional/5 p-5"><p className="font-semibold uppercase">Source unavailable</p><p className="mt-2 text-sm text-muted-foreground">This source is no longer available through its original platform. This Receipt has been removed from public scoring pending alternate verification.</p></div>
+              <div className="mt-4 border border-provisional bg-provisional/5 p-5"><p className="font-semibold uppercase">Source unavailable</p><p className="mt-2 text-sm text-muted-foreground">This source is no longer available through its original platform. This prediction has been removed from public scoring pending alternate verification.</p></div>
             ) : (
               <blockquote className="editorial mt-4 border-l-2 border-foreground pl-5 text-2xl leading-relaxed">“{prediction.source.exactText ?? prediction.sourceQuote}”</blockquote>
             )}
@@ -81,9 +81,9 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
           </section>
 
           {/*
-            When the Receipt is resolved, put the payoff here — right under the
-            original quote. A reader who shared the link came here to see the
-            outcome, not to scroll past three sections of criteria first.
+            When the prediction is resolved, put the payoff here — right under
+            the original quote. A reader who shared the link came here to see
+            the outcome, not to scroll past three sections of criteria first.
           */}
           {prediction.resolution && (
             <section className="border-b border-dashed border-border py-9">
