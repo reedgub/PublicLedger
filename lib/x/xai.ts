@@ -257,7 +257,13 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
   const url = new URL("responses", env.XAI_BASE_URL.endsWith("/") ? env.XAI_BASE_URL : `${env.XAI_BASE_URL}/`);
   const maxSearchResults = input.maxSearchResults ?? env.XAI_MAX_SEARCH_RESULTS;
   const handle = input.expertHandle.replace(/^@/, "");
-  const xOnly = input.xOnly === true;
+  // Multi-source (web_search + news_search) is gated behind an opt-in until
+  // the exact Grok Agent Tools schema for those tool types is confirmed:
+  // the first daily run with the initial schema returned HTTP 422 for all
+  // 80 experts. Until XAI_ENABLE_MULTI_SOURCE=true is set, run x_search
+  // only — the safe path that has been shipping candidates every day.
+  const multiSourceEnabled = process.env.XAI_ENABLE_MULTI_SOURCE === "true";
+  const xOnly = input.xOnly === true || !multiSourceEnabled;
   const fromDate = input.fromDate.slice(0, 10);
   const toDate = input.toDate.slice(0, 10);
   const xSearchTool = {
