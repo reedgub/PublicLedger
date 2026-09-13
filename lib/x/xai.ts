@@ -1,17 +1,17 @@
 // xAI Agent Tools discovery adapter.
 //
-// Uses the /v1/responses endpoint with the server-side x_search tool to
-// enumerate candidate predictions from a specific expert's X posts in a
-// bounded date window. Returns a structured list the ingestion pipeline can
-// hand to oEmbed verification and then to the existing extraction stages.
-//
-// This replaces the old Live Search (search_parameters on /v1/chat/completions),
-// which xAI deprecated with HTTP 410 in favor of the Agent Tools API.
+// Uses the /v1/responses endpoint with server-side search tools to enumerate
+// candidate predictions from a specific expert. Runs three tools in parallel:
+//   - x_search: posts on X from the expert's own handle
+//   - web_search: blog posts, Substacks, official writings authored by the expert
+//   - news_search: news/interview articles that quote the expert
+// Returns a structured list the ingestion pipeline can hand to source-specific
+// verification (oEmbed for X, HTML fetch for web) and then to extraction.
 //
 // The adapter is offline-safe: with no XAI_API_KEY it throws a friendly error
-// so the CLI can skip discovery cleanly. It never scrapes X, never invents a
-// post URL, and records per-request cost + token usage so budget accounting
-// can enforce weekly caps.
+// so the CLI can skip discovery cleanly. It never fabricates URLs or quotes,
+// and records per-request cost + token usage so budget accounting can enforce
+// weekly caps.
 
 import { z } from "zod";
 import { env, integrations } from "@/lib/env";
@@ -27,9 +27,25 @@ export type XaiDiscoveryInput = {
   maxSearchResults?: number;
   promptVersion?: string;
   runId?: string;
+  /**
+   * When true, only the x_search tool is enabled. Preserves the historical
+   * X-only behavior for callers/tests that expect it. Defaults to false —
+   * the daily job runs the full x+web+news sweep.
+   */
+  xOnly?: boolean;
 };
 
+/**
+ * A prediction candidate returned by discovery. For X posts, postUrl/postId/
+ * handle are populated (postUrl == sourceUrl) and sourceType='x'. For web
+ * or news sources, sourceUrl is a canonical article URL, postUrl/postId are
+ * empty strings, and sourceType is 'writing' (author's own site/Substack) or
+ * 'interview' (published third-party article/transcript).
+ */
 export type XaiCandidate = {
+  sourceType: "x" | "writing" | "interview";
+  sourceUrl: string;
+  /** X-only. Empty string for non-X candidates. */
   postUrl: string;
   postId: string;
   handle: string;
@@ -70,8 +86,8 @@ export class XaiNotConfiguredError extends Error {
 }
 
 const candidateSchema = z.object({
-  post_url: z.string(),
-  post_id: z.string().optional().nullable(),
+  source_type: z.enum(["x", "writing", "interview"]),
+  source_url: z.string(),
   posted_at: z.string().nullable().optional(),
   source_quote: z.string().min(1),
   proposed_normalized_claim: z.string().min(1),
@@ -88,7 +104,7 @@ const discoveryResponseSchema = z.object({
 });
 
 const JSON_SCHEMA = {
-  name: "receipts_x_discovery",
+  name: "receipts_discovery",
   strict: true,
   schema: {
     type: "object",
@@ -98,7 +114,7 @@ const JSON_SCHEMA = {
       saturation_likely: {
         type: "boolean",
         description:
-          "True if x_search likely returned the maximum number of results and more predictions from this expert in this window may still exist.",
+          "True if any search tool likely returned the maximum number of results and more predictions from this expert in this window may still exist.",
       },
       candidates: {
         type: "array",
@@ -107,11 +123,11 @@ const JSON_SCHEMA = {
           type: "object",
           additionalProperties: false,
           required: [
-            "post_url",
+            "source_type",
+            "source_url",
             "source_quote",
             "proposed_normalized_claim",
             "posted_at",
-            "post_id",
             "proposed_resolution_date",
             "proposed_resolution_criteria",
             "explicit_probability",
@@ -119,20 +135,25 @@ const JSON_SCHEMA = {
             "falsifiability_rating",
           ],
           properties: {
-            post_url: {
+            source_type: {
+              type: "string",
+              enum: ["x", "writing", "interview"],
+              description:
+                "x = post on X from the expert's own handle; writing = a piece the expert authored (Substack, personal blog, official essay); interview = a third-party article, transcript, or news piece that quotes the expert directly.",
+            },
+            source_url: {
               type: "string",
               description:
-                "Canonical https://x.com/<handle>/status/<id> URL from a search citation. Never invent; only return URLs surfaced by x_search.",
+                "Canonical URL surfaced by one of the search tools. For source_type=x this MUST be https://x.com/<handle>/status/<id>. For writing/interview it MUST point to a specific article page (not a homepage, category page, or generic domain root). Never invent; only return URLs the tools actually cited.",
             },
-            post_id: { type: ["string", "null"] },
             posted_at: {
               type: ["string", "null"],
-              description: "ISO-8601 timestamp of the post if surfaced by x_search.",
+              description: "ISO-8601 timestamp/date of the source if available.",
             },
             source_quote: {
               type: "string",
               description:
-                "Exact contiguous substring from the X post body containing the prediction. No paraphrasing.",
+                "Exact contiguous substring from the source body containing the prediction. No paraphrasing, no ellipsis, no reformatting.",
             },
             proposed_normalized_claim: {
               type: "string",
@@ -142,13 +163,13 @@ const JSON_SCHEMA = {
             proposed_resolution_date: {
               type: ["string", "null"],
               description:
-                "ISO-8601 date when the prediction becomes resolvable, if the post specifies one.",
+                "ISO-8601 date when the prediction becomes resolvable, if the source specifies one.",
             },
             proposed_resolution_criteria: { type: ["string", "null"] },
             explicit_probability: {
               type: ["number", "null"],
               description:
-                "Fill only if the post literally states a probability. Do not translate hedges into numbers.",
+                "Fill only if the source literally states a probability. Do not translate hedges into numbers.",
             },
             category: { type: ["string", "null"] },
             falsifiability_rating: {
@@ -162,25 +183,40 @@ const JSON_SCHEMA = {
   },
 } as const;
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(xOnly: boolean): string {
+  const surfaceLine = xOnly
+    ? "Use the x_search tool to enumerate PREDICTIONS a specific X account posted in a given date window."
+    : "Use the x_search, web_search, and news_search tools in parallel to enumerate PREDICTIONS the expert made in a given date window across X posts, their own writings (Substack, personal blog, official essays), and news articles / transcribed interviews that quote them directly.";
+  const scopeExamples = xOnly
+    ? "- x_search citations only."
+    : [
+        "- x_search: posts authored by the expert's own handle.",
+        "- web_search: pages the expert authored themselves (their Substack, personal site, gatesnotes-style essay, official blog). Skip aggregators, LinkedIn homepages, and category/section index pages.",
+        "- news_search: news articles or transcribed interviews that contain a direct verbatim quote from the expert making the prediction. The quote you record must be attributed to the expert in the article, not to a paraphrasing journalist.",
+      ].join("\n");
   return [
     "You are a research analyst for Project Lighthouse, a public database of falsifiable expert predictions.",
-    "Use the x_search tool to enumerate PREDICTIONS a specific X account posted in a given date window.",
+    surfaceLine,
     "",
     "Every candidate you return must have three ingredients — no exceptions:",
     "  1. A concrete future outcome (specific person, entity, value, or event — not a vague direction or vibe).",
-    "  2. A resolution date the post either states or clearly implies (an ISO date, a named future event, or a relative phrase like 'by 2027' / 'by the election' / 'within 12 months'). If you can't pin a defensible date, DO NOT return it.",
+    "  2. A resolution date the source either states or clearly implies (an ISO date, a named future event, or a relative phrase like 'by 2027' / 'by the election' / 'within 12 months'). If you can't pin a defensible date, DO NOT return it.",
     "  3. Resolution criteria that name a specific measurable outcome or public record (a specific poll, index, government release, benchmark, court ruling, launch event, financial filing, etc.).",
     "",
+    "Which tool for which candidate:",
+    scopeExamples,
+    "",
     "Hard rules:",
-    "- Only return posts x_search actually surfaces as citations. Never invent URLs, IDs, quotes, or dates.",
-    "- The source_quote MUST be an exact contiguous substring of the post body. If you can't reproduce it exactly, skip the candidate.",
+    "- Only return items the search tools actually surface as citations. Never invent URLs, quotes, or dates.",
+    "- The source_url MUST be a specific article/post page. Reject any URL that is just a domain root, homepage, /blog, /articles, /category, /author, or similar index page.",
+    "- The source_quote MUST be an exact contiguous substring of the source body. If you can't reproduce it exactly, skip the candidate.",
     "- Do not invent numeric probabilities. If the author does not state one, leave explicit_probability null.",
-    "- Skip mood-forecasts (\"everyone will hate X\", \"an era of Y\", \"vibes are shifting\"). Skip opinions, aesthetic judgments, jokes, rhetorical questions, and reposts of others' predictions.",
-    "- Skip replies where the prediction is not stated in the author's own words in this specific post.",
+    "- Skip mood-forecasts (\"everyone will hate X\", \"an era of Y\", \"vibes are shifting\"). Skip opinions, aesthetic judgments, jokes, rhetorical questions, and reposts/paraphrases of others' predictions.",
+    "- For interviews, the direct quote must be the expert speaking, not the journalist summarizing.",
+    "- Skip X mirror sites (nitter.*, twitter-mirror.*, xcancel.*, threadreaderapp.*). For X sources, use canonical https://x.com/<handle>/status/<id> URLs only.",
     "- Prefer a small number of clean predictions over many marginal ones. The default answer is REJECT.",
     "",
-    "If x_search returns the maximum number of results and the window plausibly contains more, set saturation_likely=true so the caller can split the window.",
+    "If any tool returns the maximum number of results and the window plausibly contains more, set saturation_likely=true so the caller can split the window.",
     "Return AT MOST the number of candidates requested. If fewer clearly qualify, return fewer — returning zero is a valid, useful answer.",
     "Respond ONLY with a JSON object matching the schema. No prose, no code fences.",
   ].join("\n");
@@ -189,10 +225,15 @@ function buildSystemPrompt(): string {
 function buildUserPrompt(input: XaiDiscoveryInput): string {
   const handle = input.expertHandle.replace(/^@/, "");
   const cap = input.maxCandidates ?? env.XAI_MAX_CANDIDATES_PER_WINDOW;
+  const surface = input.xOnly
+    ? `posted by @${handle} on X`
+    : `made by ${input.expertDisplayName} (X handle: @${handle}) across X, their own writings, and news/interview articles`;
   return [
-    `Find falsifiable predictions posted by @${handle} (${input.expertDisplayName}) on X.`,
+    `Find falsifiable predictions ${surface}.`,
     `Time window: ${input.fromDate.slice(0, 10)} to ${input.toDate.slice(0, 10)} (UTC).`,
-    `Only return posts authored by @${handle} in that window. Ignore quote-tweets of others unless the author makes a distinct new prediction of their own.`,
+    input.xOnly
+      ? `Only return posts authored by @${handle} in that window. Ignore quote-tweets of others unless the author makes a distinct new prediction of their own.`
+      : `Only return items dated within that window where the prediction is attributable to ${input.expertDisplayName} in their own words (X post by @${handle}, a piece they authored, or a direct quotation from them in a news/interview article).`,
     `Return at most ${cap} of the highest-quality candidates.`,
   ].join("\n");
 }
@@ -216,23 +257,43 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
   const url = new URL("responses", env.XAI_BASE_URL.endsWith("/") ? env.XAI_BASE_URL : `${env.XAI_BASE_URL}/`);
   const maxSearchResults = input.maxSearchResults ?? env.XAI_MAX_SEARCH_RESULTS;
   const handle = input.expertHandle.replace(/^@/, "");
+  const xOnly = input.xOnly === true;
+  const fromDate = input.fromDate.slice(0, 10);
+  const toDate = input.toDate.slice(0, 10);
+  const xSearchTool = {
+    type: "x_search" as const,
+    allowed_x_handles: [handle],
+    fromDate,
+    toDate,
+    maxResults: maxSearchResults,
+    enable_image_understanding: false,
+    enable_video_understanding: false,
+  };
+  // web_search / news_search cover Substacks, blogs, official essays, and
+  // news/interview coverage. We do not restrict allowed_websites here: the
+  // prompt tells the model to reject aggregators and index pages, and the
+  // downstream verifier requires a working URL + exact-substring quote match,
+  // so bad citations get dropped before insertion.
+  const webSearchTool = {
+    type: "web_search" as const,
+    fromDate,
+    toDate,
+    maxResults: maxSearchResults,
+  };
+  const newsSearchTool = {
+    type: "news_search" as const,
+    fromDate,
+    toDate,
+    maxResults: maxSearchResults,
+  };
+  const tools = xOnly ? [xSearchTool] : [xSearchTool, webSearchTool, newsSearchTool];
   const body = {
     model: env.XAI_MODEL,
     input: [
-      { role: "system", content: buildSystemPrompt() },
+      { role: "system", content: buildSystemPrompt(xOnly) },
       { role: "user", content: buildUserPrompt(input) },
     ],
-    tools: [
-      {
-        type: "x_search",
-        allowed_x_handles: [handle],
-        fromDate: input.fromDate.slice(0, 10),
-        toDate: input.toDate.slice(0, 10),
-        maxResults: maxSearchResults,
-        enable_image_understanding: false,
-        enable_video_understanding: false,
-      },
-    ],
+    tools,
     text: { format: { type: "json_schema", ...JSON_SCHEMA } },
   } as const;
 
@@ -417,6 +478,56 @@ function parseDiscoveryContent(text: string): z.infer<typeof discoveryResponseSc
   }
 }
 
+// Hosts we never accept as a web source: X mirror/proxy sites, thread-reader
+// tools, and known aggregators that rehost content without stable URLs. The
+// project rule is "never scrape X" and never trust unofficial mirrors, so
+// candidates carrying these hosts are dropped even if the model claims the
+// underlying quote is exact.
+const BLOCKED_WEB_HOSTS = new Set([
+  "nitter.net",
+  "nitter.privacydev.net",
+  "nitter.cz",
+  "xcancel.com",
+  "twitter-mirror.com",
+  "threadreaderapp.com",
+  "twstalker.com",
+  "publish.twitter.com",
+  "publish.x.com",
+]);
+
+// Path shapes that are almost certainly index/landing pages, not article
+// pages. Rejecting these before the verifier saves a fetch + guarantees the
+// stored source is a real permalink.
+function looksLikeIndexPage(pathname: string): boolean {
+  const trimmed = pathname.replace(/\/+$/, "");
+  if (trimmed === "" || trimmed === "/") return true;
+  // Root-of-section paths with no further segment: /blog, /articles, /news,
+  // /category, /tag, /author, /the-batch. If there's a further path segment
+  // (e.g. /blog/some-slug) we accept it.
+  return /^\/(blog|articles?|news|category|tag|author|about|home|the-batch|posts|essays|writings|opinions?)\/?$/i.test(
+    trimmed,
+  );
+}
+
+function normalizeWebUrl(raw: string): { canonical: string; hostname: string } | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+  const hostname = parsed.hostname.toLowerCase();
+  if (BLOCKED_WEB_HOSTS.has(hostname)) return null;
+  if (looksLikeIndexPage(parsed.pathname)) return null;
+  // Drop fragments and tracking-only search params for dedupe stability. We
+  // keep the query string when it's the article ID (many CMSes rely on it).
+  parsed.hash = "";
+  const drop = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "ref"];
+  for (const key of drop) parsed.searchParams.delete(key);
+  return { canonical: parsed.toString(), hostname };
+}
+
 function normalizeCandidates(
   raw: Array<z.infer<typeof candidateSchema>>,
   expectedHandle: string,
@@ -425,15 +536,39 @@ function normalizeCandidates(
   const seen = new Set<string>();
   const out: XaiCandidate[] = [];
   for (const item of raw) {
-    const ref = canonicalizeXPostUrl(item.post_url);
-    if (!ref) continue;
-    if (ref.handle.toLowerCase() !== expected) continue;
-    if (seen.has(ref.postId)) continue;
-    seen.add(ref.postId);
+    if (item.source_type === "x") {
+      const ref = canonicalizeXPostUrl(item.source_url);
+      if (!ref) continue;
+      if (ref.handle.toLowerCase() !== expected) continue;
+      if (seen.has(ref.canonical)) continue;
+      seen.add(ref.canonical);
+      out.push({
+        sourceType: "x",
+        sourceUrl: ref.canonical,
+        postUrl: ref.canonical,
+        postId: ref.postId,
+        handle: ref.handle,
+        postedAt: item.posted_at ?? null,
+        sourceQuote: item.source_quote,
+        proposedNormalizedClaim: item.proposed_normalized_claim,
+        proposedResolutionDate: item.proposed_resolution_date ?? null,
+        proposedResolutionCriteria: item.proposed_resolution_criteria ?? null,
+        explicitProbability: item.explicit_probability ?? null,
+        category: item.category ?? null,
+        falsifiabilityRating: item.falsifiability_rating ?? null,
+      });
+      continue;
+    }
+    const web = normalizeWebUrl(item.source_url);
+    if (!web) continue;
+    if (seen.has(web.canonical)) continue;
+    seen.add(web.canonical);
     out.push({
-      postUrl: ref.canonical,
-      postId: ref.postId,
-      handle: ref.handle,
+      sourceType: item.source_type,
+      sourceUrl: web.canonical,
+      postUrl: "",
+      postId: "",
+      handle: expected,
       postedAt: item.posted_at ?? null,
       sourceQuote: item.source_quote,
       proposedNormalizedClaim: item.proposed_normalized_claim,

@@ -24,6 +24,8 @@ import { canonicalizeXPostUrl } from "@/lib/x/url";
 import { quoteIsPresent } from "@/lib/x/verify";
 import { XOembedNotFoundError, fetchXOembed } from "@/lib/x/oembed";
 import { XaiNotConfiguredError, fetchXaiDiscovery, type XaiCandidate } from "@/lib/x/xai";
+import { fetchWebArticle, WebFetchError, type WebArticle } from "@/lib/ingestion/web-verify";
+import { HttpError } from "@/lib/http/retry";
 import { createBudgetTracker, type BudgetTracker } from "@/lib/ingestion/budget";
 import { computeNextWindow, type ExpertCheckpoint } from "@/lib/ingestion/checkpoints";
 import { createSaturationQueue } from "@/lib/ingestion/split";
@@ -237,21 +239,93 @@ async function insertOembedSource(
   return { inserted: result[0]?.inserted ?? false };
 }
 
+async function insertWebSource(
+  sql: Sql,
+  candidate: XaiCandidate,
+  article: WebArticle,
+  expertHandle: string,
+): Promise<{ inserted: boolean }> {
+  const canonical = article.canonicalUrl ?? article.finalUrl;
+  const canonicalPath = new URL(canonical).pathname;
+  const hash = createHash("sha256").update(article.bodyText).digest("hex");
+  // Web/interview external_id is the sha256 of the canonical URL — stable,
+  // avoids collisions with X post IDs, and makes the ON CONFLICT clause work
+  // without needing a schema change.
+  const externalId = `web:${createHash("sha256").update(canonical).digest("hex").slice(0, 32)}`;
+  const publishedAt = candidate.postedAt ?? article.publishedAt ?? article.fetchedAt;
+  const metadata = {
+    imported_via: "xai-discovery",
+    xai_candidate: {
+      proposed_normalized_claim: candidate.proposedNormalizedClaim,
+      proposed_resolution_date: candidate.proposedResolutionDate,
+      proposed_resolution_criteria: candidate.proposedResolutionCriteria,
+      explicit_probability: candidate.explicitProbability,
+      category: candidate.category,
+      falsifiability_rating: candidate.falsifiabilityRating,
+      source_quote: candidate.sourceQuote,
+    },
+    web_verify: {
+      final_url: article.finalUrl,
+      canonical_url: article.canonicalUrl,
+      hostname: article.hostname,
+      published_at: article.publishedAt,
+      content_type: article.contentType,
+    },
+  };
+  const result = await sql<{ id: string; inserted: boolean }[]>`
+    insert into public.sources
+      (source_type, external_id, canonical_path, author_external_id, author_handle, published_at,
+       exact_text, content_hash, metadata, fetched_at, last_verified_at,
+       source_verification_level, source_available)
+    values
+      (${candidate.sourceType}, ${externalId}, ${canonicalPath}, null, ${expertHandle}, ${publishedAt},
+       ${article.bodyText}, ${hash}, ${sql.json(metadata as never)}, now(), now(),
+       'xai_web', true)
+    on conflict (source_type, external_id) where external_id is not null do update set
+      canonical_path = excluded.canonical_path,
+      author_handle = excluded.author_handle,
+      published_at = coalesce(public.sources.published_at, excluded.published_at),
+      exact_text = coalesce(public.sources.exact_text, excluded.exact_text),
+      content_hash = coalesce(public.sources.content_hash, excluded.content_hash),
+      metadata = public.sources.metadata || excluded.metadata,
+      last_verified_at = now(),
+      source_verification_level = coalesce(public.sources.source_verification_level, excluded.source_verification_level),
+      source_available = true,
+      deleted_at = null
+    returning id, (xmax = 0) as inserted
+  `;
+  return { inserted: result[0]?.inserted ?? false };
+}
+
 async function verifyOne(
   sql: Sql,
   candidate: XaiCandidate,
   expertHandle: string,
 ): Promise<"verified" | "quote_mismatch" | "gone" | "author_mismatch" | "invalid_url" | "error"> {
-  const ref = canonicalizeXPostUrl(candidate.postUrl);
-  if (!ref) return "invalid_url";
-  if (ref.handle.toLowerCase() !== expertHandle.replace(/^@/, "").toLowerCase()) return "author_mismatch";
+  if (candidate.sourceType === "x") {
+    const ref = canonicalizeXPostUrl(candidate.postUrl);
+    if (!ref) return "invalid_url";
+    if (ref.handle.toLowerCase() !== expertHandle.replace(/^@/, "").toLowerCase()) return "author_mismatch";
+    try {
+      const oembed = await fetchXOembed(candidate.postUrl);
+      if (!quoteIsPresent(candidate.sourceQuote, oembed.bodyText)) return "quote_mismatch";
+      await insertOembedSource(sql, candidate, oembed, expertHandle);
+      return "verified";
+    } catch (error) {
+      if (error instanceof XOembedNotFoundError) return "gone";
+      throw error;
+    }
+  }
+  // Web / interview candidate: fetch article, exact-substring check, insert.
   try {
-    const oembed = await fetchXOembed(candidate.postUrl);
-    if (!quoteIsPresent(candidate.sourceQuote, oembed.bodyText)) return "quote_mismatch";
-    await insertOembedSource(sql, candidate, oembed, expertHandle);
+    const article = await fetchWebArticle(candidate.sourceUrl);
+    if (!article.bodyText || article.bodyText.length < 40) return "gone";
+    if (!quoteIsPresent(candidate.sourceQuote, article.bodyText)) return "quote_mismatch";
+    await insertWebSource(sql, candidate, article, expertHandle);
     return "verified";
   } catch (error) {
-    if (error instanceof XOembedNotFoundError) return "gone";
+    if (error instanceof HttpError) return "gone";
+    if (error instanceof WebFetchError) return error.kind === "network" ? "error" : "gone";
     throw error;
   }
 }
