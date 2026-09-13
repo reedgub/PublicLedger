@@ -186,13 +186,12 @@ const JSON_SCHEMA = {
 function buildSystemPrompt(xOnly: boolean): string {
   const surfaceLine = xOnly
     ? "Use the x_search tool to enumerate PREDICTIONS a specific X account posted in a given date window."
-    : "Use the x_search, web_search, and news_search tools in parallel to enumerate PREDICTIONS the expert made in a given date window across X posts, their own writings (Substack, personal blog, official essays), and news articles / transcribed interviews that quote them directly.";
+    : "Use the x_search and web_search tools in parallel to enumerate PREDICTIONS the expert made in a given date window across X posts, their own writings (Substack, personal blog, official essays), and third-party interviews or news articles that quote them directly.";
   const scopeExamples = xOnly
     ? "- x_search citations only."
     : [
         "- x_search: posts authored by the expert's own handle.",
-        "- web_search: pages the expert authored themselves (their Substack, personal site, gatesnotes-style essay, official blog). Skip aggregators, LinkedIn homepages, and category/section index pages.",
-        "- news_search: news articles or transcribed interviews that contain a direct verbatim quote from the expert making the prediction. The quote you record must be attributed to the expert in the article, not to a paraphrasing journalist.",
+        "- web_search: either (a) pages the expert authored themselves — their Substack, personal site, gatesnotes-style essay, official blog — recorded with source_type='writing'; or (b) third-party articles / transcribed interviews that contain a direct verbatim quote from the expert making the prediction, recorded with source_type='interview'. Skip aggregators, LinkedIn homepages, and category/section index pages. For interviews, the quote you record must be attributed to the expert in the article, not to a paraphrasing journalist.",
       ].join("\n");
   return [
     "You are a research analyst for Project Lighthouse, a public database of falsifiable expert predictions.",
@@ -257,12 +256,12 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
   const url = new URL("responses", env.XAI_BASE_URL.endsWith("/") ? env.XAI_BASE_URL : `${env.XAI_BASE_URL}/`);
   const maxSearchResults = input.maxSearchResults ?? env.XAI_MAX_SEARCH_RESULTS;
   const handle = input.expertHandle.replace(/^@/, "");
-  // Multi-source (web_search + news_search) is gated behind an opt-in until
-  // the exact Grok Agent Tools schema for those tool types is confirmed:
-  // the first daily run with the initial schema returned HTTP 422 for all
-  // 80 experts. Until XAI_ENABLE_MULTI_SOURCE=true is set, run x_search
-  // only — the safe path that has been shipping candidates every day.
-  const multiSourceEnabled = process.env.XAI_ENABLE_MULTI_SOURCE === "true";
+  // Grok Agent Tools API confirms x_search and web_search as valid tool
+  // variants on /v1/responses; news_search is NOT a valid variant (the
+  // first multi-source attempt got HTTP 422 naming that specifically). One
+  // combined web_search covers Substacks, blogs, official essays, AND
+  // interviews / news articles — no separate news tool needed.
+  const multiSourceEnabled = process.env.XAI_ENABLE_MULTI_SOURCE !== "false";
   const xOnly = input.xOnly === true || !multiSourceEnabled;
   const fromDate = input.fromDate.slice(0, 10);
   const toDate = input.toDate.slice(0, 10);
@@ -275,24 +274,17 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
     enable_image_understanding: false,
     enable_video_understanding: false,
   };
-  // web_search / news_search cover Substacks, blogs, official essays, and
-  // news/interview coverage. We do not restrict allowed_websites here: the
-  // prompt tells the model to reject aggregators and index pages, and the
-  // downstream verifier requires a working URL + exact-substring quote match,
-  // so bad citations get dropped before insertion.
+  // web_search intentionally has no allowed_websites list: the prompt
+  // rejects aggregators and index pages, and the downstream verifier
+  // requires a working URL + exact-substring quote match, so bad citations
+  // get dropped before insertion.
   const webSearchTool = {
     type: "web_search" as const,
     fromDate,
     toDate,
     maxResults: maxSearchResults,
   };
-  const newsSearchTool = {
-    type: "news_search" as const,
-    fromDate,
-    toDate,
-    maxResults: maxSearchResults,
-  };
-  const tools = xOnly ? [xSearchTool] : [xSearchTool, webSearchTool, newsSearchTool];
+  const tools = xOnly ? [xSearchTool] : [xSearchTool, webSearchTool];
   const body = {
     model: env.XAI_MODEL,
     input: [

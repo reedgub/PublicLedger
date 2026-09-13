@@ -15,7 +15,7 @@ const envSchema = z.object({
   XAI_API_KEY: z.string().optional(),
   XAI_BASE_URL: z.string().url().default("https://api.x.ai/v1"),
   XAI_MODEL: z.string().default("grok-4-fast-non-reasoning"),
-  XAI_DISCOVERY_PROMPT_VERSION: z.string().default("v2-explicit-deadline"),
+  XAI_DISCOVERY_PROMPT_VERSION: z.string().default("v3-multi-source-web-only"),
   XAI_MAX_SEARCH_RESULTS: z.coerce.number().int().min(1).max(50).default(20),
   XAI_MAX_CANDIDATES_PER_WINDOW: z.coerce.number().int().min(1).max(50).default(10),
   XAI_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.3),
