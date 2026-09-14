@@ -85,6 +85,26 @@ export class XaiNotConfiguredError extends Error {
   }
 }
 
+/**
+ * An auth-shaped rejection from the xAI account (401 unauthorized, 403
+ * permission-denied / out of credits). Runners short-circuit on this: once
+ * one call has been rejected for auth reasons, every subsequent call in the
+ * same run will fail identically, so there is nothing to gain from burning
+ * more API round-trips or writing more failed-run rows to the DB. The
+ * top-level runner surfaces this as a non-zero exit so the daily GitHub
+ * Action fails visibly instead of silently reporting "0 candidates today".
+ */
+export class XaiAuthError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = "XaiAuthError";
+  }
+}
+
+export function isXaiAuthErrorMessage(message: string): boolean {
+  return /^xAI (401|403)\b/.test(message);
+}
+
 const candidateSchema = z.object({
   source_type: z.enum(["x", "writing", "interview"]),
   source_url: z.string(),

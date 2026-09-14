@@ -75,11 +75,34 @@ async function main() {
         cost_usd: Number(summary.totalCostUsd.toFixed(4)),
         hit_soft_budget: summary.hitSoftBudget,
         hit_hard_budget: summary.hitHardBudget,
+        auth_failure: summary.authFailure,
       },
       null,
       2,
     ),
   );
+
+  // Two conditions promote a "successful" run to a visible failure so the
+  // daily GitHub Action lights up red instead of green-with-zero-rows:
+  //   1. An xAI auth rejection (out of credits, revoked key) — we already
+  //      short-circuited the batch, and continuing tomorrow will just hit
+  //      the same wall.
+  //   2. A total wipeout — every attempted expert failed for some other
+  //      reason. Zero candidates over ~80 experts is not a normal day.
+  // Both cases used to exit 0 with a Slack post nobody reads. Now the
+  // Actions email and the check on the ingest-x workflow surface the
+  // failure the same day it happens.
+  const totalWipeout =
+    summary.expertsAttempted > 0 && summary.expertsSucceeded === 0 && !summary.hitHardBudget;
+  if (summary.authFailure || totalWipeout) {
+    const banner = summary.authFailure
+      ? `xAI auth failure (${summary.perExpert.find((r) => r.reason)?.reason ?? "401/403"}). ` +
+        `Top up credits at https://console.x.ai or rotate XAI_API_KEY.`
+      : `Total wipeout: 0 / ${summary.expertsAttempted} experts produced candidates. ` +
+        `Inspect x_discovery_runs.raw for the underlying error.`;
+    console.error(`\n[31mDaily ingestion failed:[0m ${banner}\n`);
+    fatalError = fatalError ?? banner;
+  }
 
   if (!flags.skipExtraction && !flags.dryRun) {
     console.log(JSON.stringify({ stage: "extraction_start" }));
@@ -119,6 +142,10 @@ async function main() {
     extraction,
     error: fatalError,
   });
+
+  if (fatalError) {
+    process.exitCode = 1;
+  }
 }
 
 main()
