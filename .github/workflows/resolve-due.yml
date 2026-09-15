@@ -20,7 +20,11 @@ concurrency:
 jobs:
   resolve:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Each OpenAI proposer + verifier call can take up to 60s × 5 retries.
+    # With concurrency=2 and a 15-prediction sweep, the first run hit the old
+    # 20-minute cap. 45 gives headroom for occasional deep-research stragglers
+    # without letting a wedged run linger forever.
+    timeout-minutes: 45
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
