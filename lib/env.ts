@@ -15,9 +15,19 @@ const envSchema = z.object({
   XAI_API_KEY: z.string().optional(),
   XAI_BASE_URL: z.string().url().default("https://api.x.ai/v1"),
   XAI_MODEL: z.string().default("grok-4-fast-non-reasoning"),
-  XAI_DISCOVERY_PROMPT_VERSION: z.string().default("v3-multi-source-web-only"),
-  XAI_MAX_SEARCH_RESULTS: z.coerce.number().int().min(1).max(50).default(20),
-  XAI_MAX_CANDIDATES_PER_WINDOW: z.coerce.number().int().min(1).max(50).default(10),
+  XAI_DISCOVERY_PROMPT_VERSION: z.string().default("v4-multi-source-cost-capped"),
+  // maxResults per tool call. Grok's Agent Tools bills per response, and
+  // costs scale with both tool-call count and result payload size (each
+  // returned source pushes ~1–2 KB of tokens into the next round). The
+  // 20-per-call default made a 2-day 80-expert sweep cost $7.60. Dropping
+  // to 5 cuts the returned-result payload ~4× and, together with the prompt
+  // guidance below, gets the model to make fewer parallel tool calls.
+  XAI_MAX_SEARCH_RESULTS: z.coerce.number().int().min(1).max(50).default(5),
+  // How many predictions the model is asked to return per window. Cutting
+  // this from 10 to 5 telegraphs to the model that it does not need to hunt
+  // exhaustively — the daily volume from a single expert is almost never
+  // more than 2–3 real predictions anyway.
+  XAI_MAX_CANDIDATES_PER_WINDOW: z.coerce.number().int().min(1).max(50).default(5),
   XAI_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.3),
   XAI_PRICE_OUTPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.5),
   XAI_PRICE_PER_SEARCH_SOURCE_USD: z.coerce.number().nonnegative().default(0.025),
