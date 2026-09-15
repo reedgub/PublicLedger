@@ -19,9 +19,9 @@ export default async function LeaderboardPage() {
       <div className="container-page py-10 sm:py-14">
         <p className="eyebrow">Leaderboard / Awaiting first ranked track records</p>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          An expert appears on the ranked leaderboard once they have five verified binary resolutions.
-          Until then, this is the discovery roster the ingestion pipeline draws from — real handles,
-          real profiles, zero fabricated numbers.
+          An expert appears here once they have at least one published prediction or take. Until then,
+          this is the discovery roster the ingestion pipeline draws from — real handles, real profiles,
+          zero fabricated numbers.
         </p>
         <div className="mt-8">
           <RosterPreview

@@ -378,7 +378,14 @@ select
   )::integer as probabilistic_predictions,
   avg(power(p.explicit_probability - case when r.outcome = 'correct' then 1 else 0 end, 2))
     filter (where r.outcome in ('correct','incorrect') and p.explicit_probability is not null) as brier_score,
-  count(r.id) filter (where r.outcome in ('correct','incorrect')) >= 5 as leaderboard_eligible,
+  (
+    count(p.id) > 0
+    or exists (
+      select 1 from public.predictions t
+      where t.expert_id = e.id and t.published_at is not null
+        and t.status <> 'source_unavailable' and t.record_type = 'take'
+    )
+  ) as leaderboard_eligible,
   count(r.id) filter (where r.outcome in ('correct','incorrect')) < 20 as provisional,
   (select count(*)::integer from public.predictions t
      where t.expert_id = e.id and t.published_at is not null
