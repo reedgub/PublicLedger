@@ -10,10 +10,15 @@ type DueRow = { id: string; normalized_claim: string; prediction_date: string; r
 
 export async function resolveDue(): Promise<{ due: number; proposed: number; approved: number; errors: number; skipped: boolean }> {
   const sql = getDatabase();
+  // Takes are never scored (imputation-carrying claims stay display-only), so
+  // pulling them into the OpenAI proposer wastes budget AND then trips the
+  // DB integrity check that forbids scoring_eligible=true resolutions on
+  // takes. Restrict this sweep to record_type='prediction' at the source.
   const due = await sql<DueRow[]>`
     select id, normalized_claim, prediction_date::text, resolution_date::text, resolution_criteria
     from public.predictions where published_at is not null and status in ('open','due','resolution_pending')
       and resolution_date is not null and resolution_date <= now()
+      and record_type = 'prediction'
     order by resolution_date asc limit 100
   `;
   for (const prediction of due) await sql`update public.predictions set status = 'resolution_pending' where id = ${prediction.id} and status in ('open','due')`;
