@@ -23,7 +23,7 @@ import { getDatabase } from "@/lib/db/postgres";
 import { canonicalizeXPostUrl } from "@/lib/x/url";
 import { quoteIsPresent } from "@/lib/x/verify";
 import { XOembedNotFoundError, fetchXOembed } from "@/lib/x/oembed";
-import { XaiNotConfiguredError, fetchXaiDiscovery, type XaiCandidate } from "@/lib/x/xai";
+import { XaiNotConfiguredError, fetchXaiDiscovery, isXaiAuthErrorMessage, type XaiCandidate } from "@/lib/x/xai";
 import { fetchWebArticle, WebFetchError, type WebArticle } from "@/lib/ingestion/web-verify";
 import { HttpError } from "@/lib/http/retry";
 import { createBudgetTracker, type BudgetTracker } from "@/lib/ingestion/budget";
@@ -61,8 +61,17 @@ export type RunSummary = {
   totalCostUsd: number;
   hitSoftBudget: boolean;
   hitHardBudget: boolean;
+  // True when at least one request tripped the auth gate (401/403 from xAI).
+  // The runner short-circuits the rest of the batch when this happens and
+  // the top-level script exits non-zero — a silent "0 candidates" run was
+  // masking days of the account being out of credits.
+  authFailure: boolean;
   perExpert: ExpertResult[];
 };
+
+// Shared state so a single 401/403 response can stop the rest of the batch
+// from wasting requests against a dry account.
+type AuthGate = { tripped: boolean; reason: string | null };
 
 type ExpertRow = {
   id: string;
@@ -336,7 +345,17 @@ async function runOneExpert(
   options: RunOptions,
   ingestionRunId: string | null,
   tracker: BudgetTracker,
+  authGate: AuthGate,
 ): Promise<ExpertResult> {
+  // Skip everything if the account has already been rejected — no point
+  // burning more round-trips against a dry key.
+  if (authGate.tripped) {
+    return {
+      expertId: expert.id, handle: expert.x_handle,
+      windowsQueried: 0, candidatesReturned: 0, candidatesVerified: 0, candidatesInserted: 0,
+      costUsd: 0, status: "failed", reason: `auth_skipped: ${authGate.reason ?? "prior xAI auth failure"}`,
+    };
+  }
   const now = options.now ?? new Date();
   const checkpoint = await loadCheckpoint(sql, expert.id);
   const rootWindow = computeNextWindow(checkpoint, { now, backfillDays: options.backfillDays });
@@ -441,6 +460,19 @@ async function runOneExpert(
         inputTokens: 0, outputTokens: 0, reasoningTokens: 0,
         costUsd: 0, requestId: null, raw: { error: lastError },
       });
+      // An auth-shaped rejection (401 unauthorized, 403 permission-denied /
+      // out-of-credits) is always terminal for the whole batch: the account
+      // itself is the problem, not this specific window. Trip the shared
+      // gate so every remaining expert short-circuits instead of writing
+      // dozens more identical "failed" rows.
+      const isAuth =
+        (error instanceof HttpError && (error.status === 401 || error.status === 403)) ||
+        isXaiAuthErrorMessage(lastError);
+      if (isAuth) {
+        authGate.tripped = true;
+        authGate.reason = lastError;
+        break;
+      }
     }
   }
 
@@ -528,6 +560,7 @@ export async function runXaiWeekly(options: RunOptions = {}): Promise<RunSummary
   const limit = pLimit(concurrency);
   const perExpert: ExpertResult[] = [];
   let expertsSucceeded = 0;
+  const authGate: AuthGate = { tripped: false, reason: null };
 
   await Promise.all(
     experts.map((expert) =>
@@ -540,12 +573,19 @@ export async function runXaiWeekly(options: RunOptions = {}): Promise<RunSummary
           });
           return;
         }
-        const result = await runOneExpert(sql, expert, options, ingestionRunId, tracker);
+        const result = await runOneExpert(sql, expert, options, ingestionRunId, tracker, authGate);
         perExpert.push(result);
         if (result.status === "succeeded") expertsSucceeded += 1;
       }),
     ),
   );
+
+  if (authGate.tripped) {
+    console.error(
+      `xAI auth failed (${authGate.reason ?? "401/403"}). Every remaining expert was skipped. ` +
+      `Top up the account at https://console.x.ai or rotate XAI_API_KEY, then re-run the workflow.`,
+    );
+  }
 
   const totalCandidatesReturned = perExpert.reduce((sum, r) => sum + r.candidatesReturned, 0);
   const totalCandidatesInserted = perExpert.reduce((sum, r) => sum + r.candidatesInserted, 0);
@@ -578,6 +618,7 @@ export async function runXaiWeekly(options: RunOptions = {}): Promise<RunSummary
     totalCostUsd,
     hitSoftBudget: !snap.underSoft,
     hitHardBudget: !snap.underHard,
+    authFailure: authGate.tripped,
     perExpert,
   };
 }

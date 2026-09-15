@@ -85,6 +85,26 @@ export class XaiNotConfiguredError extends Error {
   }
 }
 
+/**
+ * An auth-shaped rejection from the xAI account (401 unauthorized, 403
+ * permission-denied / out of credits). Runners short-circuit on this: once
+ * one call has been rejected for auth reasons, every subsequent call in the
+ * same run will fail identically, so there is nothing to gain from burning
+ * more API round-trips or writing more failed-run rows to the DB. The
+ * top-level runner surfaces this as a non-zero exit so the daily GitHub
+ * Action fails visibly instead of silently reporting "0 candidates today".
+ */
+export class XaiAuthError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = "XaiAuthError";
+  }
+}
+
+export function isXaiAuthErrorMessage(message: string): boolean {
+  return /^xAI (401|403)\b/.test(message);
+}
+
 const candidateSchema = z.object({
   source_type: z.enum(["x", "writing", "interview"]),
   source_url: z.string(),
@@ -204,6 +224,10 @@ function buildSystemPrompt(xOnly: boolean): string {
     "",
     "Which tool for which candidate:",
     scopeExamples,
+    "",
+    "Cost discipline (as important as the accuracy rules):",
+    "- Make at most ONE x_search call and ONE web_search call per request. Never call the same tool multiple times with variant phrasings — a single well-chosen query is the whole budget.",
+    "- If the first pass returns nothing usable, return an empty candidates array. Do not keep searching in the hope of finding something.",
     "",
     "Hard rules:",
     "- Only return items the search tools actually surface as citations. Never invent URLs, quotes, or dates.",
@@ -332,18 +356,27 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
 
   const usageBits = extractUsage(payload);
   const searchCalls = countSearchCalls(payload);
+  // Prefer xAI's own billed cost when reported (Agent Tools always reports
+  // it on /v1/responses). The token+search local formula is only accurate
+  // for the deprecated Live Search path and undercounted the real bill by
+  // ~4× when web_search became active, letting the budget tracker sail
+  // right past its own weekly caps.
+  const costUsd =
+    usageBits.xaiReportedCostUsd > 0
+      ? usageBits.xaiReportedCostUsd
+      : estimateCost({
+          input_tokens: usageBits.inputTokens,
+          output_tokens: usageBits.outputTokens,
+          reasoning_tokens: usageBits.reasoningTokens,
+          num_sources_used: searchCalls,
+        });
   const usage: XaiUsage = {
     model: payload.model ?? env.XAI_MODEL,
     inputTokens: usageBits.inputTokens,
     outputTokens: usageBits.outputTokens,
     reasoningTokens: usageBits.reasoningTokens,
     xSearchToolCalls: searchCalls,
-    costUsd: estimateCost({
-      input_tokens: usageBits.inputTokens,
-      output_tokens: usageBits.outputTokens,
-      reasoning_tokens: usageBits.reasoningTokens,
-      num_sources_used: searchCalls,
-    }),
+    costUsd,
     requestId: payload.id ?? null,
   };
 
@@ -402,9 +435,24 @@ type XaiRawResponse = {
     prompt_tokens?: number;
     completion_tokens?: number;
     reasoning_tokens?: number;
+    // Legacy Live Search field. Always 0 on /v1/responses (Agent Tools). Ignored.
     num_sources_used?: number;
+    // xAI's own billed cost for this response, in units of 1e-10 USD.
+    // Ground truth for cost — matches the console.x.ai dashboard exactly.
+    cost_in_usd_ticks?: number;
     output_tokens_details?: { reasoning_tokens?: number };
     completion_tokens_details?: { reasoning_tokens?: number };
+    // Per-tool call counters. This is the correct source for "how many
+    // times did the model use a server-side tool" on the Agent Tools API.
+    server_side_tool_usage_details?: {
+      x_search_calls?: number;
+      web_search_calls?: number;
+      file_search_calls?: number;
+      document_search_calls?: number;
+      code_interpreter_calls?: number;
+      mcp_calls?: number;
+      image_generation_calls?: number;
+    };
   };
   citations?: string[];
 };
@@ -413,8 +461,17 @@ function extractUsage(payload: XaiRawResponse): {
   inputTokens: number;
   outputTokens: number;
   reasoningTokens: number;
+  // xAI's own billed cost for this response, if reported. Zero means "not
+  // reported" — the caller falls back to the token-based estimate.
+  xaiReportedCostUsd: number;
 } {
   const u = payload.usage ?? {};
+  // cost_in_usd_ticks is denominated in 1e-10 USD; divide to get dollars.
+  // xAI reports this on every /v1/responses reply — it is what the console
+  // dashboard bills against, so we prefer it over any local guess.
+  const reportedTicks = u.cost_in_usd_ticks;
+  const xaiReportedCostUsd =
+    typeof reportedTicks === "number" && reportedTicks > 0 ? reportedTicks / 1e10 : 0;
   return {
     inputTokens: u.input_tokens ?? u.prompt_tokens ?? 0,
     outputTokens: u.output_tokens ?? u.completion_tokens ?? 0,
@@ -423,11 +480,30 @@ function extractUsage(payload: XaiRawResponse): {
       u.completion_tokens_details?.reasoning_tokens ??
       u.reasoning_tokens ??
       0,
+    xaiReportedCostUsd,
   };
 }
 
+// Real per-response tool-call count. On /v1/responses (Agent Tools API) the
+// authoritative counter lives under usage.server_side_tool_usage_details;
+// legacy top-level fields (num_sources_used, citations) are always 0/empty
+// on this endpoint and were the reason our recorded cost undercounted xAI's
+// dashboard by ~4× before this change.
 function countSearchCalls(payload: XaiRawResponse): number {
-  if (typeof payload.usage?.num_sources_used === "number") return payload.usage.num_sources_used;
+  const d = payload.usage?.server_side_tool_usage_details;
+  if (d) {
+    return (
+      (d.x_search_calls ?? 0) +
+      (d.web_search_calls ?? 0) +
+      (d.file_search_calls ?? 0) +
+      (d.document_search_calls ?? 0) +
+      (d.mcp_calls ?? 0)
+    );
+  }
+  // Fall back to older heuristics for endpoints that don't report the new field.
+  if (typeof payload.usage?.num_sources_used === "number" && payload.usage.num_sources_used > 0) {
+    return payload.usage.num_sources_used;
+  }
   if (Array.isArray(payload.citations)) return payload.citations.length;
   if (Array.isArray(payload.output)) {
     return payload.output.filter(
