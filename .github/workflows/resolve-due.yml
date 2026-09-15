@@ -1,0 +1,45 @@
+name: Resolve due predictions (daily)
+
+# Sweeps predictions whose resolution_date has passed and moves them from
+# "open" into "resolved" (correct/incorrect/partial/ambiguous/void) via the
+# OpenAI proposer + verifier pipeline. Auto-approves rows that clear the
+# confidence and evidence thresholds; the rest are marked
+# resolution_pending for admin review.
+
+on:
+  # Every day at 13:00 UTC, an hour after the ingestion cron so newly
+  # inserted predictions with past deadlines get swept in the same day.
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: resolve-due
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+      OPENAI_VERIFIER_MODEL: ${{ secrets.OPENAI_VERIFIER_MODEL }}
+      SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
+      NEXT_PUBLIC_SITE_ORIGIN: ${{ secrets.NEXT_PUBLIC_SITE_ORIGIN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Resolve due predictions
+        run: pnpm seed:resolve

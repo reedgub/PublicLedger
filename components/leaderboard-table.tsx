@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { CATEGORIES } from "@/lib/constants";
 import { track } from "@/lib/analytics/client";
 import type { ExpertScorecard } from "@/types/domain";
@@ -88,7 +87,6 @@ export function LeaderboardTable({ scorecards }: { scorecards: ExpertScorecard[]
                     <span className="block">{row.expert.displayName}</span>
                     <span className="metric text-[9px] font-normal text-muted-foreground">{row.expert.xHandle ? `@${row.expert.xHandle}` : row.expert.headline}</span>
                   </Link>
-                  {row.provisional && <Badge variant="outline" className="mt-2 rounded-none px-1 text-[8px] text-provisional">Provisional</Badge>}
                 </td>
                 <td className="px-3 py-4 text-right align-top">
                   <span className="metric text-2xl leading-none">{percentage(row.accuracy)}</span>
@@ -111,7 +109,6 @@ export function LeaderboardTable({ scorecards }: { scorecards: ExpertScorecard[]
           <Link key={row.expert.id} href={`/experts/${row.expert.slug}`} className="border border-foreground bg-card p-4">
             <div className="flex items-start justify-between">
               <span className="metric text-muted-foreground">#{index + 1}</span>
-              {row.provisional && <Badge variant="outline" className="rounded-none text-[8px] text-provisional">Provisional</Badge>}
             </div>
             <h2 className="editorial mt-3 text-2xl font-semibold">{row.expert.displayName}</h2>
             <div className="mt-4 flex items-baseline gap-4 border-t pt-3">
