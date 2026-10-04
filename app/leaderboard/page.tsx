@@ -18,7 +18,8 @@ export default async function LeaderboardPage() {
     return (
       <div className="container-page py-10 sm:py-14">
         <p className="eyebrow">Leaderboard / Awaiting first ranked track records</p>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        <h1 className="display-1 mt-4">Leaderboard</h1>
+        <p className="lede mt-6 max-w-2xl">
           An expert appears here once they have at least one published prediction or take. Until then,
           this is the discovery roster the ingestion pipeline draws from — real handles, real profiles,
           zero fabricated numbers.
@@ -36,7 +37,7 @@ export default async function LeaderboardPage() {
   return (
     <div className="container-page py-12 sm:py-20">
       <p className="eyebrow">Adjusted rankings / Binary resolutions only</p>
-      <h1 className="editorial mt-4 text-6xl font-semibold tracking-[-0.05em] sm:text-8xl">Leaderboard</h1>
+      <h1 className="display-1 mt-4">Leaderboard</h1>
       <LeaderboardTable scorecards={eligible} />
     </div>
   );

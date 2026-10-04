@@ -69,7 +69,7 @@ export async function postIngestionSummary(summary: SlackIngestionSummary): Prom
   const blocks: unknown[] = [
     {
       type: "header",
-      text: { type: "plain_text", text: `${headerIcon} Project Lighthouse — ${summary.jobLabel}`, emoji: true },
+      text: { type: "plain_text", text: `${headerIcon} PublicLedger — ${summary.jobLabel}`, emoji: true },
     },
     { type: "section", fields },
   ];
@@ -105,7 +105,7 @@ export async function postIngestionSummary(summary: SlackIngestionSummary): Prom
     await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: `Project Lighthouse — ${summary.jobLabel}: ${ext?.published ?? 0} published, ${ing.candidatesInserted} new sources, ${money(ing.costUsd)}`, blocks }),
+      body: JSON.stringify({ text: `PublicLedger — ${summary.jobLabel}: ${ext?.published ?? 0} published, ${ing.candidatesInserted} new sources, ${money(ing.costUsd)}`, blocks }),
     });
   } catch {
     // Slack failures never break the ingestion run.

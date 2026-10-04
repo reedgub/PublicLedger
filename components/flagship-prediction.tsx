@@ -24,31 +24,31 @@ export function FlagshipPrediction({ prediction }: { prediction: Prediction }) {
   return (
     <Link
       href={`/predictions/${prediction.id}`}
-      className="group block border-y border-foreground bg-card px-5 py-7 transition hover:bg-muted sm:px-10 sm:py-10"
+      className="group block rounded-[20px] border border-border bg-muted px-6 py-8 transition-colors hover:bg-secondary sm:px-12 sm:py-12"
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="eyebrow flex items-center gap-2"><span className="h-px w-6 bg-foreground" />{prediction.resolution ? "Resolved prediction" : "Open prediction"}</p>
+        <p className="eyebrow flex items-center gap-2"><span className="hatch text-foreground" />{prediction.resolution ? "Resolved prediction" : "Open prediction"}</p>
         <StatusBadge status={outcome} />
       </div>
-      <p className="editorial mt-5 text-2xl font-semibold leading-[1.1] tracking-[-0.02em] sm:text-4xl">
+      <p className="editorial mt-8 text-3xl leading-[1.08] sm:text-5xl">
         &ldquo;{prediction.sourceQuote}&rdquo;
       </p>
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span className="font-semibold text-foreground">{prediction.expert.displayName}</span>
+        <span className="font-medium text-foreground">{prediction.expert.displayName}</span>
         {prediction.source.authorHandle && <span className="metric">@{prediction.source.authorHandle}</span>}
         <span className="metric">{formatUtcDate(prediction.predictionDate)}</span>
         {category && <span>· {category}</span>}
       </div>
       {prediction.resolution && (
-        <div className="mt-7 border-t border-dashed border-border pt-5">
+        <div className="mt-10 border-t border-border pt-8">
           <p className="eyebrow">The verdict</p>
-          <p className="editorial mt-2 text-2xl font-semibold leading-[1.15] tracking-[-0.02em] sm:text-3xl">{verdict}</p>
+          <p className="editorial mt-3 text-3xl leading-[1.1] sm:text-4xl">{verdict}</p>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">{prediction.resolution.explanation}</p>
         </div>
       )}
-      <div className="mt-6 flex items-center justify-between border-t border-foreground pt-3 text-[10px] tracking-[0.14em] uppercase">
+      <div className="mt-10 flex items-center justify-between border-t border-border pt-5 font-mono text-[11px] tracking-[0.04em] uppercase text-muted-foreground">
         <span>Source · deadline · audit trail</span>
-        <ArrowUpRight className="size-4 opacity-40 group-hover:opacity-100" />
+        <span className="flex size-9 items-center justify-center rounded-[10px] bg-foreground text-background"><ArrowUpRight className="size-4" /></span>
       </div>
     </Link>
   );

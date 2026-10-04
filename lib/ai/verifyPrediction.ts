@@ -27,7 +27,7 @@ export async function verifyPrediction(input: {
         }),
       },
     ],
-    text: { format: zodTextFormat(predictionVerifierSchema, "receipts_prediction_verifier") },
+    text: { format: zodTextFormat(predictionVerifierSchema, "publicledger_prediction_verifier") },
   });
   if (!response.output_parsed) throw new Error("OpenAI returned no parsed verifier output.");
   return { result: response.output_parsed, model: env.OPENAI_VERIFIER_MODEL };

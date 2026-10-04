@@ -1,8 +1,8 @@
 @AGENTS.md
 
-# Project Lighthouse handoff
+# PublicLedger handoff
 
-Project Lighthouse (repo directory: `receipts/`, historical brand: "Receipts") is a source-backed public database of falsifiable predictions. Treat the original source, attribution, frozen claim, deadline, resolution criteria, evidence, and audit history as integrity-critical data.
+PublicLedger (formerly "Project Lighthouse" and, before that, "Receipts") is a source-backed public database of falsifiable predictions. Treat the original source, attribution, frozen claim, deadline, resolution criteria, evidence, and audit history as integrity-critical data.
 
 ## Start here
 

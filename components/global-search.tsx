@@ -57,11 +57,11 @@ export function GlobalSearch({ compact = false }: { compact?: boolean }) {
         onFocus={() => setFocused(true)}
         onBlur={() => window.setTimeout(() => setFocused(false), 150)}
         placeholder="Search an expert, claim, topic, or market…"
-        className={`${compact ? "h-10 pl-10 text-sm" : "h-14 border-foreground bg-card pl-12 text-base shadow-none"} rounded-none`}
+        className={`${compact ? "h-10 pl-10 text-sm" : "h-14 border-foreground/20 bg-card pl-12 text-base shadow-none"} rounded-[14px]`}
       />
       {loading && <LoaderCircle className="absolute right-4 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
       {open && (
-        <div id={`${id}-results`} role="listbox" className="absolute z-30 mt-1 w-full border border-foreground bg-card shadow-[6px_6px_0_#11110f]">
+        <div id={`${id}-results`} role="listbox" className="absolute z-30 mt-1 w-full border border-foreground/20 bg-card rounded-[14px] shadow-[0_24px_60px_rgba(0,0,0,0.6)] overflow-hidden">
           {results.length ? results.map((result) => (
             <Link key={`${result.type}-${result.id}`} href={result.href} role="option" className="group flex items-center justify-between gap-4 border-b px-4 py-3 last:border-0 hover:bg-muted">
               <span className="min-w-0">

@@ -39,7 +39,7 @@ type SubstackItem = {
   contentEncoded: string;
 };
 
-const USER_AGENT = "ProjectLighthouse/0.1 (+https://projectlighthouse.dev)";
+const USER_AGENT = "PublicLedger/0.1 (+https://publicledger.dev)";
 
 async function fetchRss(feedUrl: string): Promise<SubstackItem[]> {
   const response = await fetch(feedUrl, {

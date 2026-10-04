@@ -13,7 +13,7 @@ export default async function TopicsPage() {
     <div className="container-page py-12 sm:py-20">
       <p className="eyebrow">Current uncertainty / Topic index</p>
       <div className="mt-4 grid gap-6 md:grid-cols-[1fr_380px] md:items-end">
-        <h1 className="editorial text-6xl font-semibold tracking-[-0.05em] sm:text-8xl">Topics</h1>
+        <h1 className="display-1">Topics</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
           High-interest public questions normalized from markets and linked to predictions only when the outcome
           definition and timeframe match.
@@ -24,7 +24,7 @@ export default async function TopicsPage() {
         <TopicsBrowser topics={topics} />
       ) : (
         <div className="mt-10 border border-dashed border-border bg-card/60 px-6 py-16 text-center">
-          <p className="editorial text-2xl font-semibold">No active topics yet</p>
+          <p className="editorial text-2xl">No active topics yet</p>
           <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
             Topics are normalized from live Polymarket events. They will appear here once{" "}
             <code className="metric">pnpm seed:polymarket</code> runs against a network that can reach{" "}

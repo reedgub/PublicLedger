@@ -45,9 +45,9 @@ export function LeaderboardTable({ scorecards }: { scorecards: ExpertScorecard[]
 
   return (
     <>
-      <div className="mt-8 flex gap-2 overflow-x-auto border-y border-foreground py-3">
-        <button onClick={() => { setCategory("all"); track("leaderboard_filter", { category: "all" }); }} className={`metric shrink-0 border px-3 py-2 text-[9px] uppercase ${category === "all" ? "border-foreground bg-foreground text-background" : "bg-card"}`}>All categories</button>
-        {CATEGORIES.map((item) => <button key={item.slug} onClick={() => { setCategory(item.slug); track("leaderboard_filter", { category: item.slug }); }} className={`metric shrink-0 border px-3 py-2 text-[9px] uppercase ${category === item.slug ? "border-foreground bg-foreground text-background" : "bg-card"}`}>{item.shortName}</button>)}
+      <div className="mt-8 flex gap-2 overflow-x-auto border-y border-border py-3">
+        <button onClick={() => { setCategory("all"); track("leaderboard_filter", { category: "all" }); }} className={`metric shrink-0 rounded-[10px] border px-3.5 py-2 text-[11px] uppercase tracking-[0.04em] transition-colors ${category === "all" ? "border-transparent bg-foreground text-background" : "bg-card hover:bg-muted"}`}>All categories</button>
+        {CATEGORIES.map((item) => <button key={item.slug} onClick={() => { setCategory(item.slug); track("leaderboard_filter", { category: item.slug }); }} className={`metric shrink-0 rounded-[10px] border px-3.5 py-2 text-[11px] uppercase tracking-[0.04em] transition-colors ${category === item.slug ? "border-transparent bg-foreground text-background" : "bg-card hover:bg-muted"}`}>{item.shortName}</button>)}
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2 border-b border-border pb-3">
@@ -57,7 +57,7 @@ export function LeaderboardTable({ scorecards }: { scorecards: ExpertScorecard[]
             key={option.key}
             onClick={() => { setSort(option.key); track("leaderboard_sort", { sort: option.key }); }}
             title={option.description}
-            className={`metric shrink-0 border px-3 py-2 text-[9px] uppercase ${sort === option.key ? "border-foreground bg-foreground text-background" : "bg-card"}`}
+            className={`metric shrink-0 rounded-[10px] border px-3.5 py-2 text-[11px] uppercase tracking-[0.04em] transition-colors ${sort === option.key ? "border-transparent bg-foreground text-background" : "bg-card hover:bg-muted"}`}
           >
             {option.label}
           </button>
@@ -65,9 +65,9 @@ export function LeaderboardTable({ scorecards }: { scorecards: ExpertScorecard[]
         <span className="eyebrow ml-auto text-muted-foreground">{active.description}</span>
       </div>
 
-      <div className="mt-5 hidden overflow-x-auto border border-foreground md:block">
+      <div className="mt-5 hidden overflow-x-auto rounded-[20px] border border-border md:block">
         <table className="w-full min-w-[1000px] border-collapse text-left text-xs">
-          <thead className="border-b border-foreground bg-muted">
+          <thead className="border-b border-foreground/20 bg-muted">
             <tr>
               <th className="eyebrow px-3 py-3">Rank</th>
               <th className="eyebrow px-3 py-3">Expert</th>
@@ -106,11 +106,11 @@ export function LeaderboardTable({ scorecards }: { scorecards: ExpertScorecard[]
 
       <div className="mt-5 grid gap-3 md:hidden">
         {sorted.map((row, index) => (
-          <Link key={row.expert.id} href={`/experts/${row.expert.slug}`} className="border border-foreground bg-card p-4">
+          <Link key={row.expert.id} href={`/experts/${row.expert.slug}`} className="rounded-[14px] border border-border bg-card p-4">
             <div className="flex items-start justify-between">
               <span className="metric text-muted-foreground">#{index + 1}</span>
             </div>
-            <h2 className="editorial mt-3 text-2xl font-semibold">{row.expert.displayName}</h2>
+            <h2 className="editorial mt-3 text-2xl">{row.expert.displayName}</h2>
             <div className="mt-4 flex items-baseline gap-4 border-t pt-3">
               <span className="metric text-5xl leading-none">{percentage(row.accuracy)}</span>
               <span className="eyebrow">{row.correctPredictions}/{row.resolvedPredictions} · Adj {decimal(row.wilsonRankScore)}</span>

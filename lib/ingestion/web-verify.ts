@@ -56,7 +56,7 @@ export class WebFetchError extends Error {
 const MAX_BYTES = 3_000_000; // 3 MB — enough for any legitimate article page.
 const REQUEST_TIMEOUT_MS = 20_000;
 const USER_AGENT =
-  "ProjectLighthouseBot/0.1 (+https://projectlighthouse.dev; contact via GitHub issues)";
+  "PublicLedgerBot/0.1 (+https://publicledger.dev; contact via GitHub issues)";
 
 export async function fetchWebArticle(url: string): Promise<WebArticle> {
   return withRetry(

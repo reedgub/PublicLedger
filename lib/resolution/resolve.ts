@@ -25,7 +25,7 @@ Only correct and incorrect can be scoring eligible. Include direct evidence URLs
       { role: "user", content: JSON.stringify(input) },
     ],
     tools: [{ type: "web_search", external_web_access: true, search_context_size: "high" }],
-    text: { format: zodTextFormat(resolutionProposalSchema, "receipts_resolution_proposal") },
+    text: { format: zodTextFormat(resolutionProposalSchema, "publicledger_resolution_proposal") },
   });
   if (!response.output_parsed) throw new Error("OpenAI returned no parsed resolution proposal.");
   return response.output_parsed;
@@ -43,7 +43,7 @@ export async function verifyResolution(input: {
       { role: "user", content: JSON.stringify(input) },
     ],
     tools: [{ type: "web_search", external_web_access: true, search_context_size: "high" }],
-    text: { format: zodTextFormat(resolutionVerifierSchema, "receipts_resolution_verifier") },
+    text: { format: zodTextFormat(resolutionVerifierSchema, "publicledger_resolution_verifier") },
   });
   if (!response.output_parsed) throw new Error("OpenAI returned no parsed resolution verification.");
   return response.output_parsed;

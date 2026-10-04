@@ -39,7 +39,7 @@ function parseFlags(argv: string[]): Flags {
 async function main() {
   const flags = parseFlags(process.argv.slice(2));
   const startedAt = Date.now();
-  const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://projectlighthouse.dev";
+  const siteOrigin = process.env.NEXT_PUBLIC_SITE_ORIGIN || "https://publicledger.dev";
   let extraction: ProcessingSummary | null = null;
   let fatalError: string | null = null;
 

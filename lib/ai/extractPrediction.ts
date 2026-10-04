@@ -3,7 +3,7 @@ import { env } from "@/lib/env";
 import { getOpenAIClient } from "@/lib/ai/client";
 import { extractionResponseSchema, type ExtractionResponse } from "@/lib/ai/schemas";
 
-export const EXTRACTION_SYSTEM_PROMPT = `You extract forward-looking claims from public statements for Project Lighthouse, a public track-record database.
+export const EXTRACTION_SYSTEM_PROMPT = `You extract forward-looking claims from public statements for PublicLedger, a public track-record database.
 
 Every claim you return has a record_type. There are exactly two:
 
@@ -58,7 +58,7 @@ export async function extractPredictions(input: {
         content: `Author: ${input.authorName}${input.authorHandle ? ` (@${input.authorHandle})` : ""}\nSource timestamp (UTC): ${sourceTimestamp}\n\nSource text:\n${input.sourceText}`,
       },
     ],
-    text: { format: zodTextFormat(extractionResponseSchema, "receipts_prediction_extraction") },
+    text: { format: zodTextFormat(extractionResponseSchema, "publicledger_prediction_extraction") },
   });
   if (!response.output_parsed) throw new Error("OpenAI returned no parsed extraction output.");
   return { result: response.output_parsed, model: env.OPENAI_MODEL };

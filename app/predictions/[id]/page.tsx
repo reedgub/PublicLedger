@@ -38,17 +38,17 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
   return (
     <div className="container-page py-10 sm:py-16">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-4 flex items-center justify-between gap-4"><p className="eyebrow">Record / {prediction.id.slice(0, 8)}</p><ShareButton title={`${prediction.expert.displayName} — Project Lighthouse`} text={prediction.normalizedClaim} /></div>
-        <article className="paper-edge border-y border-foreground bg-card px-5 py-8 sm:px-12 sm:py-12">
+        <div className="mb-4 flex items-center justify-between gap-4"><p className="eyebrow">Record / {prediction.id.slice(0, 8)}</p><ShareButton title={`${prediction.expert.displayName} — PublicLedger`} text={prediction.normalizedClaim} /></div>
+        <article className="paper-edge border-y border-foreground/20 bg-card px-5 py-8 sm:px-12 sm:py-12">
           <header className="border-b border-dashed border-border pb-10 text-center">
-            <p className="font-mono text-sm font-black tracking-[0.24em]">PROJECT LIGHTHOUSE</p>
+            <p className="font-mono text-sm font-black tracking-[0.24em]">PUBLICLEDGER</p>
             <div className="mt-5 flex items-center justify-center gap-2">
               {prediction.recordType === "take" && (
                 <span className="border border-provisional px-2 py-1 font-mono text-[9px] text-provisional uppercase tracking-[0.14em]">Take</span>
               )}
               <StatusBadge status={displayStatus} />
             </div>
-            <h1 className="editorial mx-auto mt-7 max-w-3xl text-4xl font-semibold leading-[1.03] tracking-[-0.035em] text-balance sm:text-6xl">{prediction.normalizedClaim}</h1>
+            <h1 className="editorial mx-auto mt-7 max-w-3xl text-4xl leading-[1.03] tracking-[-0.035em] text-balance sm:text-6xl">{prediction.normalizedClaim}</h1>
             {prediction.recordType === "take" && prediction.imputationNote && (
               <p className="mx-auto mt-6 max-w-2xl border border-provisional/40 bg-provisional/5 p-3 text-left text-xs leading-relaxed text-muted-foreground">
                 <span className="eyebrow mb-1 block text-provisional">Editor&apos;s note</span>
@@ -72,7 +72,7 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
             {prediction.source.deletedAt || prediction.status === "source_unavailable" ? (
               <div className="mt-4 border border-provisional bg-provisional/5 p-5"><p className="font-semibold uppercase">Source unavailable</p><p className="mt-2 text-sm text-muted-foreground">This source is no longer available through its original platform. This prediction has been removed from public scoring pending alternate verification.</p></div>
             ) : (
-              <blockquote className="editorial mt-4 border-l-2 border-foreground pl-5 text-2xl leading-relaxed">“{prediction.source.exactText ?? prediction.sourceQuote}”</blockquote>
+              <blockquote className="editorial mt-4 border-l-2 border-foreground/20 pl-5 text-2xl leading-relaxed">“{prediction.source.exactText ?? prediction.sourceQuote}”</blockquote>
             )}
             <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <span>{prediction.expert.displayName}</span>{prediction.source.authorHandle && <span className="metric">@{prediction.source.authorHandle}</span>}<span className="metric">{formatUtcDateTime(prediction.source.publishedAt)}</span>
@@ -93,7 +93,7 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
           )}
 
           <section className="grid border-b border-dashed border-border md:grid-cols-2">
-            <div className="py-9 md:border-r md:pr-8"><p className="eyebrow">Normalized claim</p><p className="editorial mt-4 text-2xl font-semibold leading-snug">{prediction.normalizedClaim}</p><p className="mt-4 text-xs text-muted-foreground">A falsifiable interpretation, separate from the exact source text.</p></div>
+            <div className="py-9 md:border-r md:pr-8"><p className="eyebrow">Normalized claim</p><p className="editorial mt-4 text-2xl leading-snug">{prediction.normalizedClaim}</p><p className="mt-4 text-xs text-muted-foreground">A falsifiable interpretation, separate from the exact source text.</p></div>
             <div className="py-9 md:pl-8"><p className="eyebrow">Resolution criteria</p><p className="mt-4 text-sm leading-relaxed">{prediction.resolutionCriteria}</p></div>
           </section>
 

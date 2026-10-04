@@ -124,7 +124,7 @@ const discoveryResponseSchema = z.object({
 });
 
 const JSON_SCHEMA = {
-  name: "receipts_discovery",
+  name: "publicledger_discovery",
   strict: true,
   schema: {
     type: "object",
@@ -214,7 +214,7 @@ function buildSystemPrompt(xOnly: boolean): string {
         "- web_search: either (a) pages the expert authored themselves — their Substack, personal site, gatesnotes-style essay, official blog — recorded with source_type='writing'; or (b) third-party articles / transcribed interviews that contain a direct verbatim quote from the expert making the prediction, recorded with source_type='interview'. Skip aggregators, LinkedIn homepages, and category/section index pages. For interviews, the quote you record must be attributed to the expert in the article, not to a paraphrasing journalist.",
       ].join("\n");
   return [
-    "You are a research analyst for Project Lighthouse, a public database of falsifiable expert predictions.",
+    "You are a research analyst for PublicLedger, a public database of falsifiable expert predictions.",
     surfaceLine,
     "",
     "Every candidate you return must have three ingredients — no exceptions:",
@@ -331,7 +331,7 @@ export async function fetchXaiDiscovery(input: XaiDiscoveryInput): Promise<XaiDi
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${env.XAI_API_KEY}`,
-            "User-Agent": "ProjectLighthouse/0.1 (+https://projectlighthouse.dev)",
+            "User-Agent": "PublicLedger/0.1 (+https://publicledger.dev)",
           },
           body: JSON.stringify(body),
           signal: controller.signal,
