@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, CalendarClock, FileCheck2, Lock, Quote } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { FlagshipPrediction } from "@/components/flagship-prediction";
 import { GlobalSearch } from "@/components/global-search";
 import { MarketCard } from "@/components/market-card";
@@ -11,7 +11,13 @@ import { HeroField } from "@/components/brand/hero-field";
 import { PixelButton } from "@/components/brand/pixel-button";
 import { SectionLabel } from "@/components/brand/section-label";
 import { CountUp } from "@/components/motion/count-up";
+import { BeamGrid } from "@/components/motion/beam-grid";
 import { HeroParallax } from "@/components/motion/hero-parallax";
+import { Magnetic } from "@/components/motion/magnetic";
+import { Marquee } from "@/components/motion/marquee";
+import { RecordStory } from "@/components/motion/record-story";
+import { SplitReveal } from "@/components/motion/split-reveal";
+import { SpotlightCard } from "@/components/motion/spotlight-card";
 import { Reveal } from "@/components/motion/reveal";
 import { ScaleIn } from "@/components/motion/scale-in";
 import { ScrollWords } from "@/components/motion/scroll-words";
@@ -19,13 +25,6 @@ import { getHomepageData } from "@/lib/data/public";
 import { METHODOLOGY_SECTIONS } from "@/lib/methodology";
 
 const TICKER = ["Pundits", "CEOs", "Economists", "Forecasters"];
-
-const ANATOMY = [
-  { icon: Quote, title: "Exact quote", body: "Every record keeps the speaker's original words, verbatim, linked to the source they were published in." },
-  { icon: Lock, title: "Frozen claim", body: "The normalized claim and its resolution criteria are locked at publication. Corrections are explicit and audited." },
-  { icon: CalendarClock, title: "Hard deadline", body: "Each prediction carries the date it comes due, so nobody gets to move the goalposts after the fact." },
-  { icon: FileCheck2, title: "Evidence-backed verdict", body: "Outcomes are resolved against cited evidence and independently reviewed before they reach a scorecard." },
-];
 
 const PRINCIPLES = [
   ["No invented numbers", "A probability is recorded only when the speaker states one. “Likely” stays a word, never a percentage."],
@@ -56,17 +55,15 @@ export default async function HomePage() {
             </span>
           </div>
           <div className="grid gap-10 pt-24 lg:grid-cols-[1fr_380px] lg:items-end">
-            <h1 className="display-1 animate-rise max-w-4xl text-balance" style={{ animationDelay: "80ms" }}>
-              Public predictions. Public outcomes.
-            </h1>
+            <SplitReveal as="h1" immediate delay={0.15} text="Public predictions. Public outcomes." className="display-1 max-w-4xl text-balance" />
             <div className="animate-rise relative" style={{ animationDelay: "180ms" }}>
               <div aria-hidden="true" className="pointer-events-none absolute -inset-x-16 -inset-y-14 -z-10 bg-[radial-gradient(closest-side,rgba(6,6,6,0.92),rgba(6,6,6,0.7)_55%,transparent)] blur-md" />
               <p className="text-[17px] leading-[1.65] tracking-[0.01em] text-white [text-shadow:0_1px_18px_rgba(6,6,6,0.9)]">
                 See which pundits, CEOs, and forecasters actually got their public predictions right — every claim linked to its original quote, tied to a real deadline, and scored when it comes due.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
-                <PixelButton href="/leaderboard">See the leaderboard</PixelButton>
-                <PixelButton href="/methodology" variant="ghost">How it works</PixelButton>
+                <Magnetic><PixelButton href="/leaderboard" className="sheen">See the leaderboard</PixelButton></Magnetic>
+                <Magnetic><PixelButton href="/methodology" variant="ghost">How it works</PixelButton></Magnetic>
               </div>
             </div>
           </div>
@@ -82,29 +79,33 @@ export default async function HomePage() {
           className="display-2 max-w-5xl text-balance"
           text="A prediction is only worth something if you can check it later. We keep the receipt — the exact quote, the frozen claim, the deadline, and the verdict — so the record outlives the news cycle."
         />
-        <div className="mt-20 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {ANATOMY.map(({ icon: Icon, title, body }, index) => (
-            <Reveal key={title} delay={index * 0.09} className="h-full">
-            <article className="flex h-full min-h-[220px] flex-col rounded-[20px] border border-white/10 bg-card p-7 sm:min-h-[280px]">
-              <span className="flex size-11 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.06]"><Icon className="size-5" /></span>
-              <h3 className="mt-auto font-mono text-lg font-medium tracking-[0.02em]">{title}</h3>
-              <p className="mt-3 text-[15px] leading-relaxed font-light text-white/65">{body}</p>
-            </article>
-            </Reveal>
-          ))}
-        </div>
       </section>
+
+      {/* Roster marquee */}
+      {data.rosterNames.length > 0 && (
+        <section className="pt-28 sm:pt-36" aria-label="On the record">
+          <p className="container-page font-mono text-[11px] uppercase tracking-[0.04em] text-white/45">On the record · {data.expertCount} public figures tracked</p>
+          <Marquee items={data.rosterNames.slice(0, Math.ceil(data.rosterNames.length / 2))} speed={70} className="mt-6 text-[28px] tracking-[-0.03em] text-white/80 sm:text-[40px]" />
+          <Marquee items={data.rosterNames.slice(Math.ceil(data.rosterNames.length / 2))} speed={80} reverse className="mt-3 text-[28px] tracking-[-0.03em] text-white/35 sm:text-[40px]" />
+        </section>
+      )}
+
+      {/* Pinned story */}
+      <div className="pt-16 sm:pt-24">
+        <RecordStory />
+      </div>
 
       {/* Statistics */}
       <section className="container-page pt-32 sm:pt-44">
         <Reveal className="grid gap-10 lg:grid-cols-[1fr_1fr] lg:items-end">
           <div>
             <SectionLabel>Statistics</SectionLabel>
-            <h2 className="display-2 mt-5 max-w-xl text-balance">The record, by the numbers</h2>
+            <SplitReveal text="The record, by the numbers" className="display-2 mt-5 max-w-xl text-balance" />
           </div>
           <p className="lede max-w-md lg:justify-self-end">Counts come straight from the published database. Nothing is rounded up, estimated, or back-filled.</p>
         </Reveal>
-        <Reveal className="mt-14 grid overflow-hidden rounded-[20px] border border-white/10 sm:grid-cols-2 lg:grid-cols-4">
+        <Reveal className="relative mt-14 grid overflow-hidden rounded-[20px] border border-white/10 sm:grid-cols-2 lg:grid-cols-4">
+          <BeamGrid />
           {stats.map((stat, index) => (
             <div key={stat.label} className={`grid-field flex min-h-[230px] flex-col justify-between bg-card p-7 ${index > 0 ? "border-t border-white/10 sm:border-t-0 sm:border-l" : ""} ${index === 2 ? "sm:border-t lg:border-t-0 sm:border-l-0 lg:border-l" : ""} ${index === 3 ? "sm:border-t lg:border-t-0" : ""}`}>
               <span className="metric text-[11px] uppercase text-white/50">{String(index + 1).padStart(2, "0")}</span>
@@ -124,7 +125,7 @@ export default async function HomePage() {
             <Reveal className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-end">
               <div>
                 <SectionLabel>Featured record</SectionLabel>
-                <h2 className="display-2 mt-5 max-w-xl text-balance">What one prediction looks like</h2>
+                <SplitReveal text="What one prediction looks like" className="display-2 mt-5 max-w-xl text-balance" />
               </div>
               <p className="lede max-w-md lg:justify-self-end">The quote, the speaker, the date it was made, and — once it comes due — the verdict and the evidence behind it.</p>
             </Reveal>
@@ -168,7 +169,7 @@ export default async function HomePage() {
           <Reveal className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-end">
             <div>
               <SectionLabel>Live market context</SectionLabel>
-              <h2 className="display-2 mt-5 max-w-xl text-balance">What the crowd is pricing right now</h2>
+              <SplitReveal text="What the crowd is pricing right now" className="display-2 mt-5 max-w-xl text-balance" />
             </div>
             <p className="lede max-w-md lg:justify-self-end">Prediction-market prices give context on open questions. They are informational only — never an expert&apos;s prediction, and never a score.</p>
           </Reveal>
@@ -215,16 +216,18 @@ export default async function HomePage() {
       <section className="container-page pt-32 sm:pt-44">
         <Reveal>
           <SectionLabel>Our approach</SectionLabel>
-          <h2 className="display-2 mt-5 max-w-2xl text-balance">Built to be checked, not trusted</h2>
+          <SplitReveal text="Built to be checked, not trusted" className="display-2 mt-5 max-w-2xl text-balance" />
         </Reveal>
         <div className="mt-14 grid gap-3 md:grid-cols-3">
           {PRINCIPLES.map(([title, body], index) => (
             <Reveal key={title} delay={index * 0.1} className="h-full">
-            <article className="h-full rounded-[20px] border border-white/10 bg-card p-7">
+            <SpotlightCard>
+            <article className="relative h-full rounded-[20px] border border-white/10 bg-card p-7">
               <span className="metric text-[11px] text-white/50">{String(index + 1).padStart(2, "0")}</span>
               <h3 className="mt-16 text-[27px] leading-[1.2]">{title}</h3>
               <p className="mt-3 text-[15px] leading-relaxed font-light text-white/65">{body}</p>
             </article>
+            </SpotlightCard>
             </Reveal>
           ))}
         </div>
@@ -234,7 +237,7 @@ export default async function HomePage() {
       <section className="container-page grid gap-12 pt-32 sm:pt-44 lg:grid-cols-[1fr_1.4fr]">
         <Reveal>
           <SectionLabel>FAQ</SectionLabel>
-          <h2 className="display-2 mt-5 text-balance">Common questions</h2>
+          <SplitReveal text="Common questions" className="display-2 mt-5 text-balance" />
           <p className="lede mt-5 max-w-sm">How predictions get in, how they&apos;re scored, and what we refuse to guess. Can&apos;t find an answer?</p>
           <PixelButton href="/methodology" variant="ghost" className="mt-7">Read the methodology</PixelButton>
         </Reveal>

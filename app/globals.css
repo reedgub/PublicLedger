@@ -173,3 +173,23 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-drift, .animate-ticker, .animate-rise, .group\/pixel:hover .pixel-mark rect { animation: none !important; }
 }
+
+/* Infinite marquee. */
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.animate-marquee { animation: marquee 60s linear infinite; width: max-content; }
+
+/* Beams travelling along hairlines. */
+@keyframes beam-h { from { transform: translateX(-160px); } to { transform: translateX(1400px); } }
+@keyframes beam-v { from { transform: translateY(-96px); } to { transform: translateY(260px); } }
+.beam-h { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent); animation: beam-h 7s cubic-bezier(0.6, 0, 0.4, 1) infinite; }
+.beam-v { background: linear-gradient(180deg, transparent, rgba(255,255,255,0.8), transparent); animation: beam-v 5.5s cubic-bezier(0.6, 0, 0.4, 1) infinite; }
+
+/* Shimmer sweep across the primary button. */
+@keyframes sheen { 0%, 70% { transform: translateX(-120%) skewX(-20deg); } 100% { transform: translateX(220%) skewX(-20deg); } }
+.sheen { position: relative; overflow: hidden; }
+.sheen::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent); animation: sheen 4.5s ease-in-out infinite; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee, .beam-h, .beam-v, .sheen::after { animation: none !important; }
+  .beam-h, .beam-v { display: none; }
+}
