@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Methodology", description: "The meth
 
 const sections = [
   ["01", "What counts as a prediction?", "A public statement must describe a future, observable outcome with defensible resolution criteria. Opinions, rhetorical questions, vague futurism, jokes, and claims that need invented precision are rejected."],
-  ["02", "Why are some predictions rejected?", "Project Lighthouse prefers a smaller set of defensible records. A claim is rejected when the author is not the speaker, the exact quote cannot be verified, the deadline is unsupported, the normalized meaning is stronger or weaker than the source, or the outcome cannot be measured objectively."],
+  ["02", "Why are some predictions rejected?", "PublicLedger prefers a smaller set of defensible records. A claim is rejected when the author is not the speaker, the exact quote cannot be verified, the deadline is unsupported, the normalized meaning is stronger or weaker than the source, or the outcome cannot be measured objectively."],
   ["03", "Why don’t we infer probabilities?", "Words such as likely, probably, and almost certainly remain verbal confidence. A numeric probability is stored only when the source explicitly states one. Calibration and Brier scoring use only those explicit numbers."],
   ["04", "How is correctness determined?", "Every published prediction freezes its normalized claim and resolution criteria. At the deadline, evidence is checked in priority order: an exactly equivalent resolved market, authoritative primary evidence, then multiple independent high-quality secondary sources. A separate verifier audits proposed outcomes."],
   ["05", "What do Partial, Ambiguous, and Void mean?", "Partial means a multi-part or threshold claim was only partly satisfied. Ambiguous means available evidence cannot support a defensible binary outcome. Void means the event definition changed materially or the claim became unresolvable. None enters binary accuracy."],
@@ -22,7 +22,7 @@ export default function MethodologyPage() {
       <div className="mx-auto mt-12 max-w-4xl divide-y divide-border border-y border-foreground">
         {sections.map(([index, title, body]) => <section key={index} className="grid gap-4 py-8 md:grid-cols-[80px_1fr]"><span className="metric text-sm text-muted-foreground">{index}</span><div><h2 className="editorial text-3xl font-semibold">{title}</h2><p className="mt-4 leading-relaxed text-muted-foreground">{body}</p></div></section>)}
       </div>
-      <div className="mx-auto mt-10 max-w-4xl border border-foreground bg-card p-6"><p className="eyebrow">Core principle</p><p className="editorial mt-3 text-3xl font-semibold">Project Lighthouse does not say an expert is trustworthy. It shows the source-backed track record so readers can evaluate it.</p><Link href="/submit" className="mt-5 inline-block text-sm font-semibold underline underline-offset-4">Submit a source for review</Link></div>
+      <div className="mx-auto mt-10 max-w-4xl border border-foreground bg-card p-6"><p className="eyebrow">Core principle</p><p className="editorial mt-3 text-3xl font-semibold">PublicLedger does not say an expert is trustworthy. It shows the source-backed track record so readers can evaluate it.</p><Link href="/submit" className="mt-5 inline-block text-sm font-semibold underline underline-offset-4">Submit a source for review</Link></div>
     </div>
   );
 }

@@ -45,8 +45,8 @@ export const AUTO_PUBLICATION_THRESHOLDS = {
   verifierConfidence: 0.95,
 } as const;
 
-export const SITE_NAME = "Project Lighthouse";
+export const SITE_NAME = "PublicLedger";
 export const SITE_TAGLINE = "The public record of what pundits actually said.";
 export const SITE_DESCRIPTION =
   "The public, source-backed record of what influential people predicted — with the exact quote, the deadline, and the outcome, captured before anyone can quietly delete it.";
-export const SITE_ORIGIN_DEFAULT = "https://projectlighthouse.dev";
+export const SITE_ORIGIN_DEFAULT = "https://publicledger.dev";

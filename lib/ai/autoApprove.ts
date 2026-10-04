@@ -22,7 +22,7 @@ export const autoApprovalSchema = z.object({
 
 export type AutoApprovalResult = z.infer<typeof autoApprovalSchema>;
 
-const JUDGE_SYSTEM_PROMPT = `You are the final quality reviewer for Project Lighthouse, a public prediction-tracking site.
+const JUDGE_SYSTEM_PROMPT = `You are the final quality reviewer for PublicLedger, a public prediction-tracking site.
 Your job is to decide whether a candidate is ready for public display, or should be rejected.
 
 Approve when ALL of these hold:
@@ -92,7 +92,7 @@ export async function judgeCandidate(input: JudgeInput): Promise<AutoApprovalRes
       { role: "system", content: JUDGE_SYSTEM_PROMPT },
       { role: "user", content: userContent },
     ],
-    text: { format: zodTextFormat(autoApprovalSchema, "receipts_auto_approval") },
+    text: { format: zodTextFormat(autoApprovalSchema, "publicledger_auto_approval") },
   });
   if (!response.output_parsed) throw new Error("Auto-approver returned no parsed output.");
   return response.output_parsed;

@@ -18,8 +18,8 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-foreground/80 bg-background/95 backdrop-blur-sm">
       <div className="container-page flex h-14 items-center justify-between">
-        <Link href="/" className="flex items-center gap-3" aria-label="Project Lighthouse home">
-          <span className="font-mono text-[15px] font-black tracking-[0.14em]">PROJECT LIGHTHOUSE</span>
+        <Link href="/" className="flex items-center gap-3" aria-label="PublicLedger home">
+          <span className="font-mono text-[15px] font-black tracking-[0.14em]">PUBLICLEDGER</span>
           <span className="hidden border-l border-border pl-3 font-mono text-[9px] tracking-[0.12em] text-muted-foreground uppercase lg:inline">Public record / v0.1</span>
         </Link>
         <nav className="hidden items-center gap-7 md:flex" aria-label="Primary navigation">
@@ -38,7 +38,7 @@ export function SiteHeader() {
           </Button>
           <SheetContent className="w-[88%] bg-background p-0" side="right">
             <SheetHeader className="border-b border-foreground px-5 py-5 text-left">
-              <SheetTitle className="font-mono text-sm font-black tracking-[0.2em]">PROJECT LIGHTHOUSE</SheetTitle>
+              <SheetTitle className="font-mono text-sm font-black tracking-[0.2em]">PUBLICLEDGER</SheetTitle>
               <SheetDescription>Don&apos;t trust the title. Check the track record.</SheetDescription>
             </SheetHeader>
             <nav className="flex flex-col" aria-label="Mobile navigation">

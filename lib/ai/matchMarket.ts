@@ -21,7 +21,7 @@ export async function verifyMarketMatch(input: {
       },
       { role: "user", content: JSON.stringify(input) },
     ],
-    text: { format: zodTextFormat(marketMatchSchema, "receipts_market_match") },
+    text: { format: zodTextFormat(marketMatchSchema, "publicledger_market_match") },
   });
   if (!response.output_parsed) throw new Error("OpenAI returned no parsed market match.");
   return response.output_parsed;

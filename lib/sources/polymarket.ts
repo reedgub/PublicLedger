@@ -62,7 +62,7 @@ async function fetchMarketSet(params: URLSearchParams): Promise<GammaMarket[]> {
   const url = new URL("/markets", GAMMA_ORIGIN);
   url.search = params.toString();
   const response = await fetchJson<GammaMarket[] | { data?: GammaMarket[] }>(url, {
-    headers: { Accept: "application/json", "User-Agent": "ProjectLighthouse/0.1 (+https://projectlighthouse.dev)" },
+    headers: { Accept: "application/json", "User-Agent": "PublicLedger/0.1 (+https://publicledger.dev)" },
     next: { revalidate: 3600 },
   });
   return Array.isArray(response) ? response : response.data ?? [];

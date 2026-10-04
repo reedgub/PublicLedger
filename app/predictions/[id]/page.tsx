@@ -38,10 +38,10 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
   return (
     <div className="container-page py-10 sm:py-16">
       <div className="mx-auto max-w-4xl">
-        <div className="mb-4 flex items-center justify-between gap-4"><p className="eyebrow">Record / {prediction.id.slice(0, 8)}</p><ShareButton title={`${prediction.expert.displayName} — Project Lighthouse`} text={prediction.normalizedClaim} /></div>
+        <div className="mb-4 flex items-center justify-between gap-4"><p className="eyebrow">Record / {prediction.id.slice(0, 8)}</p><ShareButton title={`${prediction.expert.displayName} — PublicLedger`} text={prediction.normalizedClaim} /></div>
         <article className="paper-edge border-y border-foreground bg-card px-5 py-8 sm:px-12 sm:py-12">
           <header className="border-b border-dashed border-border pb-10 text-center">
-            <p className="font-mono text-sm font-black tracking-[0.24em]">PROJECT LIGHTHOUSE</p>
+            <p className="font-mono text-sm font-black tracking-[0.24em]">PUBLICLEDGER</p>
             <div className="mt-5 flex items-center justify-center gap-2">
               {prediction.recordType === "take" && (
                 <span className="border border-provisional px-2 py-1 font-mono text-[9px] text-provisional uppercase tracking-[0.14em]">Take</span>

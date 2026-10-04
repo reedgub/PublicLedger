@@ -23,14 +23,14 @@ export function register() {
     const proto = globalThis.Headers.prototype;
     const originalSet = proto.set;
     const originalAppend = proto.append;
-    if (!(proto as { __receiptsPatched?: boolean }).__receiptsPatched) {
+    if (!(proto as { __publicLedgerPatched?: boolean }).__publicLedgerPatched) {
       proto.set = function (name: string, value: string) {
         return originalSet.call(this, name, asciiSafe(value));
       };
       proto.append = function (name: string, value: string) {
         return originalAppend.call(this, name, asciiSafe(value));
       };
-      (proto as { __receiptsPatched?: boolean }).__receiptsPatched = true;
+      (proto as { __publicLedgerPatched?: boolean }).__publicLedgerPatched = true;
     }
   }
 

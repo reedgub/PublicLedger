@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { getPredictionById } from "@/lib/data/public";
 
-export const alt = "A verified public prediction on Project Lighthouse";
+export const alt = "A verified public prediction on PublicLedger";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -19,7 +19,7 @@ const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
 export default async function PredictionOpenGraphImage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const prediction = await getPredictionById(id);
-  const expert = prediction?.expert.displayName ?? "Project Lighthouse";
+  const expert = prediction?.expert.displayName ?? "PublicLedger";
   const claim = prediction?.normalizedClaim ?? "A source-backed public prediction record.";
   const status = prediction?.resolution?.outcome ?? prediction?.status ?? "record";
   const colors = STATUS_COLORS[status] ?? STATUS_COLORS.open;
@@ -27,7 +27,7 @@ export default async function PredictionOpenGraphImage({ params }: { params: Pro
     <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#ebe7dc", color: "#151515", padding: "46px" }}>
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#fffdf7", borderTop: "5px solid #151515", borderBottom: "5px solid #151515", padding: "42px 58px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 19, letterSpacing: 4, fontWeight: 800 }}>
-          <span>PROJECT LIGHTHOUSE</span>
+          <span>PUBLICLEDGER</span>
           <span style={{ background: colors.bg, color: colors.fg, padding: "8px 16px", letterSpacing: 3 }}>{status.toUpperCase().replace(/_/g, " ")}</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", borderTop: "2px dashed #888", borderBottom: "2px dashed #888", margin: "28px 0", padding: "28px 0" }}>
