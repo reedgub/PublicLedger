@@ -49,7 +49,7 @@ export function ExpertProfileTabs({ predictions }: { predictions: Prediction[] }
 
   return (
     <Tabs defaultValue="overview" className="mt-10">
-      <div className="overflow-x-auto border-y border-foreground py-2">
+      <div className="overflow-x-auto border-y border-border py-2">
         <TabsList variant="line" className="h-10 gap-5">
           {tabs.map(([value, label]) => <TabsTrigger key={value} value={value} className="rounded-none px-1 font-mono text-[10px] tracking-[0.08em] uppercase">{label}</TabsTrigger>)}
         </TabsList>
@@ -61,10 +61,10 @@ export function ExpertProfileTabs({ predictions }: { predictions: Prediction[] }
       </div>
       <TabsContent value="overview" className="mt-8">
         <div className="grid gap-12 lg:grid-cols-2">
-          <section><h2 className="editorial mb-4 text-3xl font-semibold">Latest calls</h2>{list(filtered.slice(0, 8), "No verified predictions yet")}</section>
+          <section><h2 className="editorial mb-4 text-3xl">Latest calls</h2>{list(filtered.slice(0, 8), "No verified predictions yet")}</section>
           <div className="space-y-12">
-            <section><h2 className="editorial mb-4 text-3xl font-semibold">Notable hits</h2>{list(resolved.filter((prediction) => prediction.resolution?.outcome === "correct").slice(0, 4), "No resolved hits yet")}</section>
-            <section><h2 className="editorial mb-4 text-3xl font-semibold">Largest misses</h2>{list(resolved.filter((prediction) => prediction.resolution?.outcome === "incorrect").slice(0, 4), "No resolved misses yet")}</section>
+            <section><h2 className="editorial mb-4 text-3xl">Notable hits</h2>{list(resolved.filter((prediction) => prediction.resolution?.outcome === "correct").slice(0, 4), "No resolved hits yet")}</section>
+            <section><h2 className="editorial mb-4 text-3xl">Largest misses</h2>{list(resolved.filter((prediction) => prediction.resolution?.outcome === "incorrect").slice(0, 4), "No resolved misses yet")}</section>
           </div>
         </div>
       </TabsContent>
@@ -76,7 +76,7 @@ export function ExpertProfileTabs({ predictions }: { predictions: Prediction[] }
       </TabsContent>
       <TabsContent value="calibration" className="mt-8"><CalibrationChart observations={observations} /></TabsContent>
       <TabsContent value="topics" className="mt-8">
-        {topics.length ? <div className="grid gap-px bg-foreground sm:grid-cols-2">{topics.map((topic) => <a key={topic.id} href={`/topics/${topic.slug}`} className="bg-card p-5 hover:bg-muted"><span className="eyebrow">{topic.categorySlug}</span><h3 className="editorial mt-3 text-2xl font-semibold">{topic.title}</h3></a>)}</div> : <EmptyState title="No linked topics" description="Topics are linked only when the prediction and event are a high-confidence semantic match." />}
+        {topics.length ? <div className="grid gap-px overflow-hidden rounded-[20px] border bg-border sm:grid-cols-2">{topics.map((topic) => <a key={topic.id} href={`/topics/${topic.slug}`} className="bg-card p-5 hover:bg-muted"><span className="eyebrow">{topic.categorySlug}</span><h3 className="editorial mt-3 text-2xl">{topic.title}</h3></a>)}</div> : <EmptyState title="No linked topics" description="Topics are linked only when the prediction and event are a high-confidence semantic match." />}
       </TabsContent>
     </Tabs>
   );

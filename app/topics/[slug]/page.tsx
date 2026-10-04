@@ -29,12 +29,12 @@ export default async function TopicPage({ params }: PageProps<"/topics/[slug]">)
   const resolved = predictions.filter((prediction) => prediction.resolution);
   return (
     <div className="container-page py-12 sm:py-20">
-      <div className="border-b border-foreground pb-10">
+      <div className="border-b border-foreground/20 pb-10">
         <p className="eyebrow">Topic / {CATEGORIES.find((item) => item.slug === topic.categorySlug)?.name}</p>
-        <h1 className="editorial mt-4 max-w-5xl text-5xl font-semibold leading-[0.95] tracking-[-0.05em] sm:text-8xl">{topic.title}</h1>
+        <h1 className="display-1 mt-4 max-w-5xl text-balance">{topic.title}</h1>
         {topic.description && <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground">{topic.description}</p>}
       </div>
-      <dl className="grid border-b border-foreground sm:grid-cols-3">
+      <dl className="grid border-b border-foreground/20 sm:grid-cols-3">
         <div className="border-b py-6 sm:border-r sm:border-b-0"><dt className="eyebrow flex items-center gap-2"><BarChart3 className="size-3.5" />Market probability</dt><dd className="metric mt-2 text-5xl tracking-[-0.08em]">{primaryMarket?.yesProbability == null ? "—" : `${Math.round(primaryMarket.yesProbability * 100)}%`}</dd></div>
         <div className="border-b py-6 sm:border-r sm:border-b-0 sm:pl-6"><dt className="eyebrow">Market volume</dt><dd className="metric mt-2 text-3xl">{money(primaryMarket?.volume ?? null)}</dd></div>
         <div className="py-6 sm:pl-6"><dt className="eyebrow flex items-center gap-2"><CalendarClock className="size-3.5" />Deadline</dt><dd className="metric mt-2 text-xl">{primaryMarket?.endAt ? formatUtcDate(primaryMarket.endAt) : "Event-defined"}</dd></div>

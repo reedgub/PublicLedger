@@ -11,7 +11,7 @@ const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
   partial: { bg: "#78350f", fg: "#fffbeb" },
   ambiguous: { bg: "#3f3f46", fg: "#fafafa" },
   void: { bg: "#3f3f46", fg: "#fafafa" },
-  open: { bg: "#151515", fg: "#fffdf7" },
+  open: { bg: "#ffffff", fg: "#060606" },
   due: { bg: "#78350f", fg: "#fffbeb" },
   resolution_pending: { bg: "#78350f", fg: "#fffbeb" },
 };
@@ -24,10 +24,10 @@ export default async function PredictionOpenGraphImage({ params }: { params: Pro
   const status = prediction?.resolution?.outcome ?? prediction?.status ?? "record";
   const colors = STATUS_COLORS[status] ?? STATUS_COLORS.open;
   return new ImageResponse(
-    <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#ebe7dc", color: "#151515", padding: "46px" }}>
-      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#fffdf7", borderTop: "5px solid #151515", borderBottom: "5px solid #151515", padding: "42px 58px" }}>
+    <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#060606", color: "#ffffff", padding: "46px" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 28, padding: "42px 58px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 19, letterSpacing: 4, fontWeight: 800 }}>
-          <span>PUBLICLEDGER</span>
+          <span>publicledger</span>
           <span style={{ background: colors.bg, color: colors.fg, padding: "8px 16px", letterSpacing: 3 }}>{status.toUpperCase().replace(/_/g, " ")}</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", borderTop: "2px dashed #888", borderBottom: "2px dashed #888", margin: "28px 0", padding: "28px 0" }}>

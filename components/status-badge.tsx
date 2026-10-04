@@ -11,5 +11,5 @@ export function StatusBadge({ status }: { status: PredictionStatus | ResolutionO
   const color = status === "correct" ? "border-correct/40 bg-correct/10 text-correct"
     : status === "incorrect" ? "border-incorrect/40 bg-incorrect/10 text-incorrect"
       : "border-border bg-muted text-foreground";
-  return <Badge variant="outline" className={`metric rounded-none px-2 py-0.5 text-[9px] tracking-[0.12em] uppercase ${color}`}>{labels[status]}</Badge>;
+  return <Badge variant="outline" className={`metric rounded-full px-2.5 py-0.5 text-[10px] tracking-[0.06em] uppercase ${color}`}>{labels[status]}</Badge>;
 }

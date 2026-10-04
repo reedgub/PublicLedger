@@ -28,7 +28,7 @@ export default async function ExpertPage({ params }: PageProps<"/experts/[slug]"
   const accuracy = scorecard.accuracy === null ? "—" : `${Math.round(scorecard.accuracy * 100)}%`;
   return (
     <div className="container-page py-12 sm:py-20">
-      <div className="grid gap-8 border-b border-foreground pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
+      <div className="grid gap-8 border-b border-foreground/20 pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="flex items-start gap-5">
           {expert.avatarUrl ? (
             <Image
@@ -36,31 +36,31 @@ export default async function ExpertPage({ params }: PageProps<"/experts/[slug]"
               alt=""
               width={80}
               height={80}
-              className="size-16 shrink-0 border border-foreground bg-card object-cover sm:size-20"
+              className="size-16 shrink-0 border border-foreground/20 bg-card object-cover sm:size-20"
             />
           ) : (
-            <div className="metric flex size-16 shrink-0 items-center justify-center border border-foreground bg-card text-xl font-bold sm:size-20">
+            <div className="metric flex size-16 shrink-0 items-center justify-center border border-foreground/20 bg-card text-xl font-bold sm:size-20">
               {expert.displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}
             </div>
           )}
           <div>
             <p className="eyebrow">Expert record</p>
-            <h1 className="editorial mt-2 text-5xl font-semibold tracking-[-0.04em] sm:text-7xl">{expert.displayName}</h1>
+            <h1 className="display-2 mt-3 sm:text-6xl">{expert.displayName}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               {expert.xHandle && <span className="metric">@{expert.xHandle}</span>}
-              {expert.sourceStatus === "verified" ? <Badge variant="outline" className="rounded-none text-[9px] uppercase"><BadgeCheck className="size-3" />Identity verified</Badge> : <Badge variant="outline" className="rounded-none text-[9px] uppercase">{expert.sourceStatus}</Badge>}
+              {expert.sourceStatus === "verified" ? <Badge variant="outline" className="rounded-full text-[9px] uppercase"><BadgeCheck className="size-3" />Identity verified</Badge> : <Badge variant="outline" className="rounded-full text-[9px] uppercase">{expert.sourceStatus}</Badge>}
               <span>{expert.headline}</span>
             </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="outline" className="rounded-none">{CATEGORIES.find((item) => item.slug === expert.primaryCategorySlug)?.name}</Badge>
+          <Badge variant="outline" className="rounded-full">{CATEGORIES.find((item) => item.slug === expert.primaryCategorySlug)?.name}</Badge>
           {expert.sourceStatus === "verified" && expert.xHandle && <Link href={`https://x.com/${expert.xHandle}`} target="_blank" rel="noopener noreferrer" className="metric flex items-center gap-1 text-[10px] uppercase hover:underline">Source profile <ArrowUpRight className="size-3" /></Link>}
         </div>
       </div>
 
-      <dl className="grid border-b border-foreground sm:grid-cols-2 lg:grid-cols-5">
-        <div className="border-b py-7 sm:border-r lg:border-b-0"><dt className="eyebrow">Accuracy</dt><dd className="metric mt-2 text-5xl font-semibold tracking-[-0.08em]">{accuracy}</dd></div>
+      <dl className="grid border-b border-foreground/20 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="border-b py-7 sm:border-r lg:border-b-0"><dt className="eyebrow">Accuracy</dt><dd className="metric mt-2 text-5xl tracking-[-0.06em]">{accuracy}</dd></div>
         <div className="border-b py-7 sm:pl-6 lg:border-b-0"><dt className="eyebrow">Resolved</dt><dd className="metric mt-2 text-3xl">{scorecard.correctPredictions} / {scorecard.resolvedPredictions}</dd><dd className="eyebrow mt-1">Correct / resolved</dd></div>
         <div className="border-b py-7 sm:border-r lg:border-y-0 lg:border-l lg:pl-6"><dt className="eyebrow">Predictions</dt><dd className="metric mt-2 text-3xl">{scorecard.totalPredictions}</dd><dd className="eyebrow mt-1">Scored</dd></div>
         <div className="border-b py-7 sm:pl-6 lg:border-y-0 lg:border-r lg:border-l"><dt className="eyebrow">Takes</dt><dd className="metric mt-2 text-3xl">{scorecard.totalTakes}</dd><dd className="eyebrow mt-1">Displayed, not scored</dd></div>

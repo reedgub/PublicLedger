@@ -29,7 +29,7 @@ export default async function XIngestionStatusPage() {
     return (
       <>
         <p className="eyebrow">Sources / X discovery</p>
-        <h1 className="editorial mt-3 text-5xl font-semibold">X ingestion</h1>
+        <h1 className="editorial mt-3 text-5xl">X ingestion</h1>
         <p className="mt-6 max-w-prose text-sm text-muted-foreground">
           Add <code>XAI_API_KEY</code> to enable xAI-driven X discovery. Discovery runs use the server-side{" "}
           <code>x_search</code> tool and verify each candidate against publish.x.com/oembed before insertion. No X
@@ -53,7 +53,7 @@ export default async function XIngestionStatusPage() {
   return (
     <>
       <p className="eyebrow">Sources / X discovery (xAI)</p>
-      <h1 className="editorial mt-3 text-5xl font-semibold">X ingestion</h1>
+      <h1 className="editorial mt-3 text-5xl">X ingestion</h1>
       <p className="mt-4 max-w-prose text-sm text-muted-foreground">
         Weekly window-checkpointed discovery using xAI&apos;s server-side <code>x_search</code>. Each candidate is
         confirmed against <code>publish.x.com/oembed</code> and the source quote must be an exact substring of the
@@ -75,7 +75,7 @@ export default async function XIngestionStatusPage() {
         </div>
       </dl>
 
-      <h2 className="editorial mt-12 text-3xl font-semibold">Per-expert checkpoints</h2>
+      <h2 className="editorial mt-12 text-3xl">Per-expert checkpoints</h2>
       <div className="mt-4 overflow-x-auto border">
         <table className="w-full min-w-[820px] text-left text-xs">
           <thead className="bg-muted">
@@ -107,7 +107,7 @@ export default async function XIngestionStatusPage() {
         </table>
       </div>
 
-      <h2 className="editorial mt-12 text-3xl font-semibold">Recent discovery runs</h2>
+      <h2 className="editorial mt-12 text-3xl">Recent discovery runs</h2>
       <div className="mt-4 overflow-x-auto border">
         <table className="w-full min-w-[900px] text-left text-xs">
           <thead className="bg-muted">

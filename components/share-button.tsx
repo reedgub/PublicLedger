@@ -19,5 +19,5 @@ export function ShareButton({ title, text }: { title: string; text: string }) {
       if (!(error instanceof DOMException && error.name === "AbortError")) toast.error("Could not share this prediction");
     }
   }
-  return <Button variant="outline" onClick={share} className="rounded-none border-foreground"><Share2 /> Share</Button>;
+  return <Button variant="outline" onClick={share} className="rounded-[14px] border-foreground/20"><Share2 /> Share</Button>;
 }

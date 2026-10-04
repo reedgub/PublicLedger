@@ -7,25 +7,25 @@ import type { Prediction } from "@/types/domain";
 
 export function PredictionList({ predictions }: { predictions: Prediction[] }) {
   return (
-    <div className="border-t border-foreground">
+    <div className="divide-y divide-border overflow-hidden rounded-[20px] border border-border bg-card">
       {predictions.map((prediction) => {
         const status = prediction.resolution?.outcome ?? prediction.status;
         return (
-          <Link key={prediction.id} href={`/predictions/${prediction.id}`} className="group grid gap-3 border-b border-border py-5 sm:grid-cols-[150px_1fr_auto] sm:items-start">
+          <Link key={prediction.id} href={`/predictions/${prediction.id}`} className="group grid gap-3 px-5 py-6 transition-colors hover:bg-muted sm:grid-cols-[150px_1fr_auto] sm:items-start sm:px-7">
             <div>
-              <p className="font-semibold">{prediction.expert.displayName}</p>
+              <p className="font-medium">{prediction.expert.displayName}</p>
               <p className="metric mt-1 text-[10px] text-muted-foreground">{formatUtcDate(prediction.predictionDate)}</p>
             </div>
             <div>
-              <p className="editorial text-xl font-medium leading-snug group-hover:underline group-hover:underline-offset-4">{prediction.normalizedClaim}</p>
+              <p className="editorial text-xl leading-snug">{prediction.normalizedClaim}</p>
               <p className="eyebrow mt-2">{CATEGORIES.find((item) => item.slug === prediction.categorySlug)?.shortName}</p>
             </div>
             <div className="flex items-center gap-3 sm:justify-end">
               {prediction.recordType === "take" && (
-                <span className="border border-provisional px-1.5 py-1 font-mono text-[8px] text-provisional uppercase tracking-[0.14em]">Take</span>
+                <span className="rounded-full border border-provisional/40 px-2 py-0.5 font-mono text-[9px] text-provisional uppercase tracking-[0.08em]">Take</span>
               )}
               <StatusBadge status={status} />
-              <ArrowUpRight className="size-4 opacity-40 group-hover:opacity-100" />
+              <span className="flex size-8 items-center justify-center rounded-[10px] border border-border transition-colors group-hover:bg-foreground group-hover:text-background"><ArrowUpRight className="size-4" /></span>
             </div>
           </Link>
         );

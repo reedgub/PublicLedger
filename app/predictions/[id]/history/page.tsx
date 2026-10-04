@@ -43,12 +43,12 @@ export default async function PredictionHistoryPage({ params }: PageProps<"/pred
           <ArrowLeft className="size-3" /> Back to prediction
         </Link>
         <p className="eyebrow mt-6">Audit trail / Prediction {prediction.id.slice(0, 8)}</p>
-        <h1 className="editorial mt-3 text-4xl font-semibold tracking-[-0.03em] sm:text-6xl">Full history</h1>
+        <h1 className="editorial mt-3 text-4xl tracking-[-0.03em] sm:text-6xl">Full history</h1>
         <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
           Every state change we record for this prediction, in order. Published prediction substance is immutable; if a
           correction was needed it appears here with the reason.
         </p>
-        <blockquote className="editorial mt-8 border-l-2 border-foreground pl-4 text-lg leading-snug">
+        <blockquote className="editorial mt-8 border-l-2 border-foreground/20 pl-4 text-lg leading-snug">
           &ldquo;{prediction.normalizedClaim}&rdquo;
           <span className="eyebrow mt-2 block">{prediction.expert.displayName}</span>
         </blockquote>

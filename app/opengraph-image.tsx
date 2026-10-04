@@ -6,14 +6,14 @@ export const contentType = "image/png";
 
 export default function OpenGraphImage() {
   return new ImageResponse(
-    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#f4f1e8", color: "#151515", padding: "64px", border: "18px solid #151515" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22, letterSpacing: 4, fontWeight: 800 }}><span>PUBLICLEDGER</span><span>PUBLIC RECORD</span></div>
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#060606", color: "#ffffff", padding: "64px", border: "18px solid #ffffff" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22, letterSpacing: 4, fontWeight: 800 }}><span>publicledger</span><span>PUBLIC RECORD</span></div>
       <div style={{ display: "flex", flexDirection: "column", maxWidth: 980 }}>
         <div style={{ fontSize: 96, lineHeight: 0.95, fontWeight: 700, letterSpacing: -3 }}>PUBLIC PREDICTIONS.</div>
         <div style={{ fontSize: 96, lineHeight: 0.95, fontWeight: 700, letterSpacing: -3 }}>PUBLIC OUTCOMES.</div>
-        <div style={{ marginTop: 28, fontSize: 26, lineHeight: 1.3, color: "#4a4a4a" }}>Source-backed. Frozen criteria. Auditable outcomes.</div>
+        <div style={{ marginTop: 28, fontSize: 26, lineHeight: 1.3, color: "#a3a3a3" }}>Source-backed. Frozen criteria. Auditable outcomes.</div>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "3px solid #151515", paddingTop: 20, fontSize: 20 }}><span>publicledger.dev</span><span>Check the track record.</span></div>
+      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: 20, fontSize: 20 }}><span>publicledger.dev</span><span>Check the track record.</span></div>
     </div>,
     size,
   );

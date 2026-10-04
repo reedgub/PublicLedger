@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
+import { SectionLabel } from "@/components/brand/section-label";
 
-export function SectionHeading({ index, title, aside }: { index: string; title: string; aside?: ReactNode }) {
+export function SectionHeading({ index, title, aside, label }: { index: string; title: string; aside?: ReactNode; label?: string }) {
   return (
     <div className="rule-title">
-      <div className="flex items-baseline gap-3">
-        <span className="metric text-[10px] text-muted-foreground">{index}</span>
-        <h2 className="editorial text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h2>
+      <div>
+        <SectionLabel>{label ? `${index} / ${label}` : index}</SectionLabel>
+        <h2 className="display-2 mt-5 text-balance">{title}</h2>
       </div>
       {aside && <div className="pb-1">{aside}</div>}
     </div>

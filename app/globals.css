@@ -26,39 +26,72 @@
   --color-correct: var(--correct);
   --color-incorrect: var(--incorrect);
   --color-provisional: var(--provisional);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-editorial: var(--font-newsreader);
-  --font-heading: var(--font-newsreader);
-  --radius-sm: 0.125rem;
-  --radius-md: 0.1875rem;
-  --radius-lg: 0.25rem;
-  --radius-xl: 0.375rem;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-editorial: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 }
 
+/*
+ * PublicLedger design tokens.
+ * Near-black canvas (#060606), raised surfaces at #0d0d0d / #1a1a1a, and
+ * white at fixed alphas for text and hairlines. Light sections flip the
+ * same tokens with `.surface-light`.
+ */
 :root {
-  --background: #f7f5ef;
-  --foreground: #11110f;
-  --card: #fbfaf6;
-  --card-foreground: #11110f;
-  --popover: #fbfaf6;
-  --popover-foreground: #11110f;
-  --primary: #11110f;
-  --primary-foreground: #fbfaf6;
-  --secondary: #ebe8df;
-  --secondary-foreground: #11110f;
-  --muted: #eeece5;
-  --muted-foreground: #68665e;
-  --accent: #e4e0d6;
-  --accent-foreground: #11110f;
-  --destructive: #a52b2b;
-  --border: #cec9bd;
-  --input: #bcb7aa;
-  --ring: #11110f;
-  --correct: #16754a;
-  --incorrect: #b42318;
-  --provisional: #9a6500;
-  --radius: 0.25rem;
+  --background: #060606;
+  --foreground: #ffffff;
+  --card: #0d0d0d;
+  --card-foreground: #ffffff;
+  --popover: #0d0d0d;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #0d0d0d;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #141414;
+  --muted-foreground: rgba(255, 255, 255, 0.6);
+  --accent: #1f1f1f;
+  --accent-foreground: #ffffff;
+  --destructive: #ff5a4f;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.2);
+  --ring: #ffffff;
+  --correct: #3ddc84;
+  --incorrect: #ff5a4f;
+  --provisional: #f5b544;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+.surface-light {
+  --background: #ffffff;
+  --foreground: #060606;
+  --card: #ffffff;
+  --card-foreground: #060606;
+  --popover: #ffffff;
+  --popover-foreground: #060606;
+  --primary: #060606;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f2f2;
+  --secondary-foreground: #060606;
+  --muted: #f5f5f5;
+  --muted-foreground: rgba(6, 6, 6, 0.6);
+  --accent: #e5e5e5;
+  --accent-foreground: #060606;
+  --border: rgba(6, 6, 6, 0.1);
+  --input: rgba(6, 6, 6, 0.2);
+  --ring: #060606;
+  --correct: #11834d;
+  --incorrect: #d4291f;
+  --provisional: #a76a00;
+  color-scheme: light;
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 @layer base {
@@ -66,24 +99,77 @@
   html { @apply scroll-smooth font-sans; }
   body {
     @apply bg-background text-foreground;
-    background-image: linear-gradient(to right, rgba(17, 17, 15, 0.018) 1px, transparent 1px);
-    background-size: 24px 100%;
+    font-feature-settings: "ss01", "cv11";
+    letter-spacing: 0.01em;
   }
-  ::selection { background: #11110f; color: #f7f5ef; }
+  h1, h2, h3, h4 { font-variation-settings: "opsz" 32; letter-spacing: -0.03em; font-weight: 400; }
+  ::selection { background: #ffffff; color: #060606; }
   a, button, input, textarea, select { @apply focus-visible:outline-2 focus-visible:outline-offset-2; }
 }
 
 @layer utilities {
-  .container-page { @apply mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8; }
-  .editorial { font-family: var(--font-newsreader), Georgia, serif; }
+  .container-page { @apply mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10; }
+
+  /* Display type: Inter at its display optical size, regular weight, tight tracking. */
+  .editorial { font-family: var(--font-inter), ui-sans-serif, sans-serif; font-variation-settings: "opsz" 32; letter-spacing: -0.03em; }
+  .display-1 { font-variation-settings: "opsz" 32; font-size: clamp(3rem, 8.4vw, 6.25rem); line-height: 1; letter-spacing: -0.03em; font-weight: 400; }
+  .display-2 { font-variation-settings: "opsz" 32; font-size: clamp(2.25rem, 4.2vw, 3rem); line-height: 1; letter-spacing: -0.03em; font-weight: 400; }
+  .lede { font-size: 1rem; line-height: 1.7; letter-spacing: 0.02em; font-weight: 300; color: var(--muted-foreground); }
+
   .metric { font-family: var(--font-geist-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
-  .eyebrow { @apply font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground; }
-  .rule-title { @apply flex items-end justify-between gap-4 border-b border-foreground pb-2; }
-  .paper-edge {
-    background-image: radial-gradient(circle at 0 7px, transparent 5px, var(--card) 5.5px), radial-gradient(circle at 100% 7px, transparent 5px, var(--card) 5.5px);
-    background-position: left top, right top;
-    background-size: 8px 14px;
-    background-repeat: repeat-y;
+  .eyebrow { @apply font-mono text-[11px] font-normal tracking-[0.04em] uppercase text-muted-foreground; }
+  .rule-title { @apply flex flex-wrap items-end justify-between gap-4; }
+
+  /* Diagonal hatch mark that precedes section labels. */
+  .hatch {
+    display: inline-block;
+    width: 34px;
+    height: 7px;
+    background-image: repeating-linear-gradient(-48deg, currentColor 0 1.2px, transparent 1.2px 4.4px);
+    opacity: 0.9;
   }
+
+  /* Frosted panel used for the nav and floating chrome. */
+  .glass {
+    background-color: color-mix(in srgb, var(--background) 62%, transparent);
+    -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(15px);
+  }
+
+  /* Faint square grid used behind the hero and dashboard panels. */
+  .grid-field {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .surface-light .grid-field, .surface-light.grid-field {
+    background-image:
+      linear-gradient(to right, rgba(6, 6, 6, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(6, 6, 6, 0.05) 1px, transparent 1px);
+  }
+
   .text-balance { text-wrap: balance; }
+}
+
+/* Pixel cells in the button mark light up in sequence on hover. */
+@keyframes pixel-blink { 0%, 100% { opacity: 0.18; } 50% { opacity: 1; } }
+.pixel-mark rect { opacity: 0.18; }
+.pixel-mark rect[data-on] { opacity: 1; }
+.group\/pixel:hover .pixel-mark rect { animation: pixel-blink 0.9s steps(2, jump-none) infinite; animation-delay: calc(var(--i) * 45ms); }
+
+/* Slow drift for the hero's dithered light field. */
+@keyframes drift { 0% { transform: translate3d(-4%, -2%, 0) scale(1); } 50% { transform: translate3d(4%, 3%, 0) scale(1.08); } 100% { transform: translate3d(-4%, -2%, 0) scale(1); } }
+.animate-drift { animation: drift 22s ease-in-out infinite; }
+
+/* Word carousel in the hero. */
+@keyframes ticker { 0%, 20% { transform: translateY(0); } 25%, 45% { transform: translateY(-25%); } 50%, 70% { transform: translateY(-50%); } 75%, 95% { transform: translateY(-75%); } 100% { transform: translateY(0); } }
+.animate-ticker { animation: ticker 10s cubic-bezier(0.7, 0, 0.3, 1) infinite; }
+
+/* Rise-in used on first paint, mirroring Framer's appear effect. */
+@keyframes rise { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+.animate-rise { animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-drift, .animate-ticker, .animate-rise, .group\/pixel:hover .pixel-mark rect { animation: none !important; }
 }
