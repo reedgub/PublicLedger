@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PixelButton } from "@/components/brand/pixel-button";
 import { Wordmark } from "@/components/brand/wordmark";
+import { ScrollProgress } from "@/components/motion/scroll-progress";
 
 const links = [
   ["Topics", "/topics"],
@@ -25,7 +26,7 @@ export function SiteHeader() {
         </Link>
         <nav className="hidden items-center gap-8 md:flex" aria-label="Primary navigation">
           {links.map(([label, href]) => (
-            <Link key={href} href={href} className="text-[15px] font-medium text-white/80 transition-colors hover:text-white">
+            <Link key={href} href={href} className="text-[13px] font-medium tracking-[0.06em] uppercase text-white/75 transition-colors hover:text-white">
               {label}
             </Link>
           ))}
@@ -47,7 +48,7 @@ export function SiteHeader() {
             </SheetHeader>
             <nav className="flex flex-col" aria-label="Mobile navigation">
               {[...links, ["Submit a source", "/submit"] as const].map(([label, href], index) => (
-                <Link key={href} href={href} onClick={() => setMobileOpen(false)} className="editorial flex items-center justify-between border-b border-white/10 px-5 py-5 text-3xl">
+                <Link key={href} href={href} onClick={() => setMobileOpen(false)} className="editorial flex items-center justify-between border-b border-white/10 px-5 py-5 text-2xl uppercase">
                   <span>{label}</span><span className="metric text-xs text-muted-foreground">0{index + 1}</span>
                 </Link>
               ))}
@@ -55,6 +56,7 @@ export function SiteHeader() {
           </SheetContent>
         </Sheet>
       </div>
+      <ScrollProgress />
     </header>
   );
 }

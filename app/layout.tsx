@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { AnalyticsProvider } from "@/components/analytics-provider";
+import { MotionProvider } from "@/components/motion/motion-provider";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/constants";
 import "./globals.css";
 
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
+        <MotionProvider>
         <TooltipProvider>
           <SiteHeader />
           <main className="flex-1">{children}</main>
@@ -35,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <AnalyticsProvider />
           <Toaster position="bottom-right" theme="dark" />
         </TooltipProvider>
+        </MotionProvider>
       </body>
     </html>
   );
