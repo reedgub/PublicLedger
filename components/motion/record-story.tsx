@@ -46,9 +46,10 @@ export function RecordStory() {
   const verdictRotate = useTransform(s3, [0.2, 1], [-18, -6]);
   const evidenceOpacity = useTransform(s3, [0.6, 1], [0, 1]);
   const progressHeight = useTransform(scrollYProgress, [0, 0.85], ["0%", "100%"]);
+  const cueOpacity = useTransform(scrollYProgress, [0.75, 0.88], [1, 0]);
 
   return (
-    <section ref={ref} className="relative h-[420vh]" aria-label="How a record is made">
+    <section ref={ref} className="relative h-[280vh]" aria-label="How a record is made">
       <div className="sticky top-0 flex h-[100svh] items-center overflow-hidden">
         <div className="container-page grid w-full items-center gap-10 pt-[72px] lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
           {/* Steps */}
@@ -82,6 +83,15 @@ export function RecordStory() {
                 })}
               </ol>
             </div>
+            <motion.p
+              className="mt-10 flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.04em] text-white/45"
+              style={{ opacity: cueOpacity }}
+            >
+              <span className="relative flex h-5 w-3 justify-center rounded-full border border-white/30">
+                <span className="animate-scroll-cue mt-1 block size-1 rounded-full bg-white" />
+              </span>
+              Keep scrolling · step {active + 1} of {STEPS.length}
+            </motion.p>
           </div>
 
           {/* Illustrative record */}
