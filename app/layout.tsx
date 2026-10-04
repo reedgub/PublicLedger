@@ -6,7 +6,6 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { AnalyticsProvider } from "@/components/analytics-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
-import { SmoothScroll } from "@/components/motion/smooth-scroll";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/constants";
 import "./globals.css";
 
@@ -35,7 +34,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <SiteHeader />
           <main className="flex-1">{children}</main>
           <SiteFooter />
-          <SmoothScroll />
           <AnalyticsProvider />
           <Toaster position="bottom-right" theme="dark" />
         </TooltipProvider>
