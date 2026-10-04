@@ -16,7 +16,7 @@ export function Wordmark({ className }: { className?: string }) {
   return (
     <span className={cn("flex items-center gap-2.5", className)}>
       <LedgerMark />
-      <span className="text-[19px] font-medium tracking-[-0.04em] lowercase">publicledger</span>
+      <span className="text-[19px] font-medium tracking-[-0.035em]">PublicLedger</span>
     </span>
   );
 }

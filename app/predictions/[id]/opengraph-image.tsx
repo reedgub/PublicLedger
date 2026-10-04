@@ -26,8 +26,8 @@ export default async function PredictionOpenGraphImage({ params }: { params: Pro
   return new ImageResponse(
     <div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center", background: "#060606", color: "#ffffff", padding: "46px" }}>
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#0d0d0d", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 28, padding: "42px 58px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 19, letterSpacing: 4, fontWeight: 800 }}>
-          <span>publicledger</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 19, letterSpacing: 1, fontWeight: 800 }}>
+          <span>PublicLedger</span>
           <span style={{ background: colors.bg, color: colors.fg, padding: "8px 16px", letterSpacing: 3 }}>{status.toUpperCase().replace(/_/g, " ")}</span>
         </div>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", borderTop: "2px dashed #888", borderBottom: "2px dashed #888", margin: "28px 0", padding: "28px 0" }}>

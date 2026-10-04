@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { ExpertAvatar } from "@/components/expert-avatar";
 import { Search, ArrowUpRight, BadgeCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -30,19 +30,7 @@ export function ExpertDirectory({ experts }: { experts: Expert[] }) {
         {filtered.map((expert) => (
           <Link key={expert.id} href={`/experts/${expert.slug}`} className="group min-h-48 bg-card p-5 hover:bg-muted">
             <div className="flex items-start justify-between gap-4">
-              {expert.avatarUrl ? (
-                <Image
-                  src={expert.avatarUrl}
-                  alt=""
-                  width={44}
-                  height={44}
-                  className="size-11 rounded-[12px] border border-border bg-card object-cover"
-                />
-              ) : (
-                <span className="metric flex size-11 items-center justify-center border border-foreground/20 text-sm font-semibold">
-                  {expert.displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}
-                </span>
-              )}
+              <ExpertAvatar expert={expert} size={44} />
               <ArrowUpRight className="size-4 opacity-40 group-hover:opacity-100" />
             </div>
             <h2 className="editorial mt-8 text-2xl group-hover:underline group-hover:underline-offset-4">{expert.displayName}</h2>

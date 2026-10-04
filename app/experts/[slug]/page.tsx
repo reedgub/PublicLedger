@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
+import { ExpertAvatar } from "@/components/expert-avatar";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, BadgeCheck } from "lucide-react";
 import { ExpertProfileTabs } from "@/components/expert-profile-tabs";
@@ -30,19 +30,7 @@ export default async function ExpertPage({ params }: PageProps<"/experts/[slug]"
     <div className="container-page py-12 sm:py-20">
       <div className="grid gap-8 border-b border-foreground/20 pb-10 lg:grid-cols-[1fr_auto] lg:items-end">
         <div className="flex items-start gap-5">
-          {expert.avatarUrl ? (
-            <Image
-              src={expert.avatarUrl}
-              alt=""
-              width={80}
-              height={80}
-              className="size-16 shrink-0 border border-foreground/20 bg-card object-cover sm:size-20"
-            />
-          ) : (
-            <div className="metric flex size-16 shrink-0 items-center justify-center border border-foreground/20 bg-card text-xl font-bold sm:size-20">
-              {expert.displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}
-            </div>
-          )}
+          <ExpertAvatar expert={expert} size={80} />
           <div>
             <p className="eyebrow">Expert record</p>
             <h1 className="display-2 mt-3 sm:text-6xl">{expert.displayName}</h1>

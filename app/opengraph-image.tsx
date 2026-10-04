@@ -7,7 +7,7 @@ export const contentType = "image/png";
 export default function OpenGraphImage() {
   return new ImageResponse(
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#060606", color: "#ffffff", padding: "64px", border: "18px solid #ffffff" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22, letterSpacing: 4, fontWeight: 800 }}><span>publicledger</span><span>PUBLIC RECORD</span></div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 22, letterSpacing: 1, fontWeight: 800 }}><span>PublicLedger</span><span>PUBLIC RECORD</span></div>
       <div style={{ display: "flex", flexDirection: "column", maxWidth: 980 }}>
         <div style={{ fontSize: 96, lineHeight: 0.95, fontWeight: 700, letterSpacing: -3 }}>PUBLIC PREDICTIONS.</div>
         <div style={{ fontSize: 96, lineHeight: 0.95, fontWeight: 700, letterSpacing: -3 }}>PUBLIC OUTCOMES.</div>

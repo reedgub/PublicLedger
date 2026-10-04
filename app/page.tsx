@@ -10,6 +10,11 @@ import { EmptyState } from "@/components/empty-state";
 import { HeroField } from "@/components/brand/hero-field";
 import { PixelButton } from "@/components/brand/pixel-button";
 import { SectionLabel } from "@/components/brand/section-label";
+import { CountUp } from "@/components/motion/count-up";
+import { HeroParallax } from "@/components/motion/hero-parallax";
+import { Reveal } from "@/components/motion/reveal";
+import { ScaleIn } from "@/components/motion/scale-in";
+import { ScrollWords } from "@/components/motion/scroll-words";
 import { getHomepageData } from "@/lib/data/public";
 import { METHODOLOGY_SECTIONS } from "@/lib/methodology";
 
@@ -40,8 +45,7 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero */}
-      <section className="relative -mt-[72px] overflow-hidden pt-[72px]">
-        <HeroField />
+      <HeroParallax className="relative -mt-[72px] overflow-hidden pt-[72px]" backdrop={<HeroField />}>
         <div className="container-page relative flex min-h-[calc(100svh-72px)] flex-col justify-end pt-24 pb-14 sm:pb-20">
           <div className="animate-rise mb-auto flex h-[34px] items-center gap-4 overflow-hidden" aria-label="Who we track">
             <span className="hatch text-white" aria-hidden="true" />
@@ -55,8 +59,9 @@ export default async function HomePage() {
             <h1 className="display-1 animate-rise max-w-4xl text-balance" style={{ animationDelay: "80ms" }}>
               Public predictions. Public outcomes.
             </h1>
-            <div className="animate-rise" style={{ animationDelay: "180ms" }}>
-              <p className="lede text-white/80">
+            <div className="animate-rise relative" style={{ animationDelay: "180ms" }}>
+              <div aria-hidden="true" className="pointer-events-none absolute -inset-x-16 -inset-y-14 -z-10 bg-[radial-gradient(closest-side,rgba(6,6,6,0.92),rgba(6,6,6,0.7)_55%,transparent)] blur-md" />
+              <p className="text-[17px] leading-[1.65] tracking-[0.01em] text-white [text-shadow:0_1px_18px_rgba(6,6,6,0.9)]">
                 See which pundits, CEOs, and forecasters actually got their public predictions right — every claim linked to its original quote, tied to a real deadline, and scored when it comes due.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
@@ -69,67 +74,69 @@ export default async function HomePage() {
             <div id="search" className="animate-rise mt-12 max-w-3xl" style={{ animationDelay: "260ms" }}><GlobalSearch /></div>
           )}
         </div>
-      </section>
+      </HeroParallax>
 
       {/* Statement + anatomy */}
       <section className="container-page pt-32 sm:pt-44">
-        <p className="display-2 max-w-5xl text-balance">
-          <span>A prediction is only worth something if you can check it later. </span>
-          <span className="text-white/35">We keep the receipt — the exact quote, the frozen claim, the deadline, and the verdict — so the record outlives the news cycle.</span>
-        </p>
+        <ScrollWords
+          className="display-2 max-w-5xl text-balance"
+          text="A prediction is only worth something if you can check it later. We keep the receipt — the exact quote, the frozen claim, the deadline, and the verdict — so the record outlives the news cycle."
+        />
         <div className="mt-20 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {ANATOMY.map(({ icon: Icon, title, body }) => (
-            <article key={title} className="flex min-h-[220px] flex-col rounded-[20px] sm:min-h-[280px] border border-white/10 bg-card p-7">
+          {ANATOMY.map(({ icon: Icon, title, body }, index) => (
+            <Reveal key={title} delay={index * 0.09} className="h-full">
+            <article className="flex h-full min-h-[220px] flex-col rounded-[20px] border border-white/10 bg-card p-7 sm:min-h-[280px]">
               <span className="flex size-11 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.06]"><Icon className="size-5" /></span>
               <h3 className="mt-auto font-mono text-lg font-medium tracking-[0.02em]">{title}</h3>
               <p className="mt-3 text-[15px] leading-relaxed font-light text-white/65">{body}</p>
             </article>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* Statistics */}
       <section className="container-page pt-32 sm:pt-44">
-        <div className="grid gap-10 lg:grid-cols-[1fr_1fr] lg:items-end">
+        <Reveal className="grid gap-10 lg:grid-cols-[1fr_1fr] lg:items-end">
           <div>
             <SectionLabel>Statistics</SectionLabel>
             <h2 className="display-2 mt-5 max-w-xl text-balance">The record, by the numbers</h2>
           </div>
           <p className="lede max-w-md lg:justify-self-end">Counts come straight from the published database. Nothing is rounded up, estimated, or back-filled.</p>
-        </div>
-        <div className="mt-14 grid overflow-hidden rounded-[20px] border border-white/10 sm:grid-cols-2 lg:grid-cols-4">
+        </Reveal>
+        <Reveal className="mt-14 grid overflow-hidden rounded-[20px] border border-white/10 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (
             <div key={stat.label} className={`grid-field flex min-h-[230px] flex-col justify-between bg-card p-7 ${index > 0 ? "border-t border-white/10 sm:border-t-0 sm:border-l" : ""} ${index === 2 ? "sm:border-t lg:border-t-0 sm:border-l-0 lg:border-l" : ""} ${index === 3 ? "sm:border-t lg:border-t-0" : ""}`}>
               <span className="metric text-[11px] uppercase text-white/50">{String(index + 1).padStart(2, "0")}</span>
               <div>
-                <p className="text-[64px] leading-none tracking-[-0.05em]" style={{ fontVariationSettings: '"opsz" 32' }}>{new Intl.NumberFormat("en-US").format(stat.value)}</p>
+                <p className="text-[64px] leading-none tracking-[-0.05em]" style={{ fontVariationSettings: '"opsz" 32' }}><CountUp value={stat.value} /></p>
                 <p className="mt-4 max-w-[220px] text-sm leading-relaxed font-light text-white/65">{stat.label}</p>
               </div>
             </div>
           ))}
-        </div>
+        </Reveal>
       </section>
 
       {/* Featured record + track records on a light surface */}
       <section className="mt-32 px-3 sm:mt-44 sm:px-4">
-        <div className="surface-light rounded-[20px] py-24 sm:py-32">
+        <ScaleIn className="surface-light overflow-hidden py-24 sm:py-32">
           <div className="container-page">
-            <div className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-end">
+            <Reveal className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-end">
               <div>
                 <SectionLabel>Featured record</SectionLabel>
                 <h2 className="display-2 mt-5 max-w-xl text-balance">What one prediction looks like</h2>
               </div>
               <p className="lede max-w-md lg:justify-self-end">The quote, the speaker, the date it was made, and — once it comes due — the verdict and the evidence behind it.</p>
-            </div>
-            <div className="mt-12">
+            </Reveal>
+            <Reveal className="mt-12" delay={0.1}>
               {data.flagship ? (
                 <FlagshipPrediction prediction={data.flagship} />
               ) : (
                 <EmptyState title="No resolved predictions yet" description="This slot goes live the moment the first published prediction reaches its deadline and its resolution clears independent review." />
               )}
-            </div>
+            </Reveal>
 
-            <div className="mt-28">
+            <Reveal className="mt-28">
               <SectionHeading index="01" label="Leaderboard" title="Top track records" aside={<Link href="/leaderboard" className="eyebrow flex items-center gap-1 hover:text-foreground">Full leaderboard <ArrowUpRight className="size-3" /></Link>} />
               {data.scorecards.length ? (
                 <div className="mt-10 divide-y divide-border overflow-hidden rounded-[20px] border border-border">
@@ -150,49 +157,49 @@ export default async function HomePage() {
                   description="An expert needs at least five verified binary resolutions before appearing on the leaderboard. Until then, this is the roster the extraction pipeline draws from — real handles, real profiles, zero fabricated numbers."
                 />
               )}
-            </div>
+            </Reveal>
           </div>
-        </div>
+        </ScaleIn>
       </section>
 
       {/* Live market context, presented as a product panel */}
       {data.markets.length > 0 && (
         <section className="container-page pt-32 sm:pt-44">
-          <div className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-end">
+          <Reveal className="grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-end">
             <div>
               <SectionLabel>Live market context</SectionLabel>
               <h2 className="display-2 mt-5 max-w-xl text-balance">What the crowd is pricing right now</h2>
             </div>
             <p className="lede max-w-md lg:justify-self-end">Prediction-market prices give context on open questions. They are informational only — never an expert&apos;s prediction, and never a score.</p>
-          </div>
-          <div className="grid-field mt-12 rounded-[20px] border border-white/10 bg-[#0a0a0a] p-3 sm:p-4">
+          </Reveal>
+          <Reveal delay={0.1} className="grid-field mt-12 rounded-[20px] border border-white/10 bg-[#0a0a0a] p-3 sm:p-4">
             <div className="flex items-center justify-between px-2 pb-4 pt-1 sm:px-3">
               <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.04em] text-white/60"><span className="size-1.5 rounded-full bg-correct" />Polymarket feed</span>
               <span className="font-mono text-[11px] uppercase tracking-[0.04em] text-white/40">Informational</span>
             </div>
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {data.markets.map((market) => <MarketCard key={market.id} market={market} />)}
+              {data.markets.map((market, index) => <Reveal key={market.id} delay={0.15 + index * 0.06} y={24} className="h-full"><MarketCard market={market} /></Reveal>)}
             </div>
-          </div>
+          </Reveal>
         </section>
       )}
 
       {/* Feeds */}
       <section className="container-page grid gap-20 pt-32 sm:pt-44 lg:grid-cols-2 lg:gap-12">
-        <div>
+        <Reveal>
           <SectionHeading index="02" label="Latest" title="Latest predictions" />
           <div className="mt-10">{data.latest.length ? <PredictionList predictions={data.latest} /> : <EmptyState title="No verified predictions yet" description="Verified predictions will appear after source ingestion, extraction, and independent review pass strict publication thresholds." />}</div>
-        </div>
-        <div>
+        </Reveal>
+        <Reveal delay={0.12}>
           <SectionHeading index="03" label="Resolved" title="Recently resolved" />
           <div className="mt-10">{data.resolved.length ? <PredictionList predictions={data.resolved} /> : <EmptyState title="No resolutions yet" description="Due predictions enter a separate evidence-backed resolution workflow before results become public." />}</div>
-        </div>
+        </Reveal>
       </section>
 
-      <section className="container-page pt-32 sm:pt-44">
+      <Reveal className="container-page pt-32 sm:pt-44">
         <SectionHeading index="04" label="Open" title="Big open calls" />
         <div className="mt-10">{data.open.length ? <PredictionList predictions={data.open} /> : <EmptyState title="No open calls yet" description="Only published, source-faithful predictions appear here." />}</div>
-      </section>
+      </Reveal>
 
       {data.takes.length > 0 && (
         <section className="container-page pt-32 sm:pt-44">
@@ -206,28 +213,32 @@ export default async function HomePage() {
 
       {/* Approach */}
       <section className="container-page pt-32 sm:pt-44">
-        <SectionLabel>Our approach</SectionLabel>
-        <h2 className="display-2 mt-5 max-w-2xl text-balance">Built to be checked, not trusted</h2>
+        <Reveal>
+          <SectionLabel>Our approach</SectionLabel>
+          <h2 className="display-2 mt-5 max-w-2xl text-balance">Built to be checked, not trusted</h2>
+        </Reveal>
         <div className="mt-14 grid gap-3 md:grid-cols-3">
           {PRINCIPLES.map(([title, body], index) => (
-            <article key={title} className="rounded-[20px] border border-white/10 bg-card p-7">
+            <Reveal key={title} delay={index * 0.1} className="h-full">
+            <article className="h-full rounded-[20px] border border-white/10 bg-card p-7">
               <span className="metric text-[11px] text-white/50">{String(index + 1).padStart(2, "0")}</span>
               <h3 className="mt-16 text-[27px] leading-[1.2]">{title}</h3>
               <p className="mt-3 text-[15px] leading-relaxed font-light text-white/65">{body}</p>
             </article>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* FAQ */}
       <section className="container-page grid gap-12 pt-32 sm:pt-44 lg:grid-cols-[1fr_1.4fr]">
-        <div>
+        <Reveal>
           <SectionLabel>FAQ</SectionLabel>
           <h2 className="display-2 mt-5 text-balance">Common questions</h2>
           <p className="lede mt-5 max-w-sm">How predictions get in, how they&apos;re scored, and what we refuse to guess. Can&apos;t find an answer?</p>
           <PixelButton href="/methodology" variant="ghost" className="mt-7">Read the methodology</PixelButton>
-        </div>
-        <div className="divide-y divide-white/10 border-y border-white/10">
+        </Reveal>
+        <Reveal delay={0.1} className="divide-y divide-white/10 border-y border-white/10">
           {METHODOLOGY_SECTIONS.slice(0, 6).map(([index, question, answer]) => (
             <details key={index} className="group py-6">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-xl tracking-[-0.02em] [&::-webkit-details-marker]:hidden">
@@ -237,7 +248,7 @@ export default async function HomePage() {
               <p className="mt-4 max-w-2xl text-[15px] leading-relaxed font-light text-white/65">{answer}</p>
             </details>
           ))}
-        </div>
+        </Reveal>
       </section>
     </>
   );
