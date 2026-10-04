@@ -1,6 +1,8 @@
 // Hero backdrop: a slow-drifting light bloom seen through a dot screen and a
 // faint square grid, fading to the page background at the bottom. Pure
-// CSS/SVG so it costs nothing to load.
+// CSS/SVG so it costs nothing to load. A cursor-following light sits on top.
+import { CursorSpotlight } from "@/components/motion/cursor-spotlight";
+
 export function HeroField() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden bg-[#060606]">
@@ -21,6 +23,7 @@ export function HeroField() {
         <filter id="hero-noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" /></filter>
         <rect width="100%" height="100%" filter="url(#hero-noise)" />
       </svg>
+      <CursorSpotlight />
       <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-b from-transparent to-[#060606]" />
     </div>
   );

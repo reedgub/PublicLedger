@@ -395,6 +395,7 @@ export const getHomepageData = cache(async () => {
     flagship,
     rosterPreview: scorecards.slice(0, 12),
     expertCount: scorecards.length,
+    rosterNames: scorecards.map((scorecard) => scorecard.expert.displayName),
   };
 });
 
