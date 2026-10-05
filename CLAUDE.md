@@ -41,10 +41,11 @@ The visual design is final and documented in `DESIGN.md`. Read it before buildin
 - Public data access: `lib/data/public.ts`
 - Privileged data access and authorization: `lib/data/admin.ts`, `lib/auth/admin.ts`
 - Schema, RLS, views, triggers, and search: `supabase/migrations/`
-- X and Polymarket adapters: `lib/sources/`
+- X, feed/sitemap, podcast and Polymarket adapters: `lib/sources/`
+- Low-cost cascade (screen → extract → batch verify), spend caps, coverage, backfill estimates: `lib/pipeline/`, `lib/llm/`
 - OpenAI extraction and independent verification: `lib/ai/`
 - Deterministic validation, deduplication, and promotion: `lib/predictions/`
-- Ingestion and resolution commands: `scripts/`
+- Ingestion and resolution commands: `scripts/` (`ingest-daily.ts`, `backfill.ts`, `process-cascade.ts`, `verify-batch.ts` are the default path; `ingest-x-weekly.ts` is the legacy xAI path)
 - Real expert discovery roster: `seed/experts.ts`
 - Unit and browser coverage: `**/*.test.ts`, `tests/e2e/`
 

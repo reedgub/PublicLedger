@@ -33,6 +33,48 @@ const envSchema = z.object({
   XAI_PRICE_PER_SEARCH_SOURCE_USD: z.coerce.number().nonnegative().default(0.025),
   X_INGESTION_WEEKLY_SOFT_BUDGET_USD: z.coerce.number().nonnegative().default(3),
   X_INGESTION_WEEKLY_HARD_BUDGET_USD: z.coerce.number().nonnegative().default(5),
+  // ---- Low-cost cascade pipeline -------------------------------------------
+  // Stage 1/2 run on open-weight models behind any OpenAI-compatible endpoint:
+  // a hosted provider (DeepInfra, Together, Groq, Fireworks, OpenRouter) or
+  // your own vLLM/Ollama server. Swap providers by changing the base URL.
+  // Model ids differ per provider — check your provider's model list.
+  OPEN_MODEL_BASE_URL: z.string().url().default("https://api.deepinfra.com/v1/openai"),
+  OPEN_MODEL_API_KEY: z.string().optional(),
+  OPEN_MODEL_SCREEN_MODEL: z.string().default("meta-llama/Meta-Llama-3.1-8B-Instruct"),
+  OPEN_MODEL_EXTRACT_MODEL: z.string().default("Qwen/Qwen3-32B"),
+  // Per-million-token prices, used for spend accounting and --estimate only.
+  // Defaults are rough; set them from your provider's pricing page.
+  OPEN_MODEL_SCREEN_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.03),
+  OPEN_MODEL_SCREEN_PRICE_OUTPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.05),
+  OPEN_MODEL_EXTRACT_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.1),
+  OPEN_MODEL_EXTRACT_PRICE_OUTPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.3),
+  OPEN_MODEL_CONCURRENCY: z.coerce.number().int().min(1).max(64).default(8),
+  // Stage 3: one frontier verification call per surviving candidate. "batch"
+  // uses the OpenAI Batch API (~50% cheaper, results within 24h); "sync" is
+  // for small volumes or local debugging.
+  VERIFIER_MODE: z.enum(["batch", "sync"]).default("batch"),
+  CASCADE_VERIFIER_MODEL: z.string().default("gpt-5-mini"),
+  OPENAI_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.25),
+  OPENAI_PRICE_OUTPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(2),
+  OPENAI_BATCH_DISCOUNT: z.coerce.number().min(0).max(1).default(0.5),
+  // Official X API pay-per-use read price per returned post. Verify against
+  // the X developer console before trusting --estimate output.
+  X_PRICE_PER_POST_READ_USD: z.coerce.number().nonnegative().default(0.005),
+  X_PRICE_PER_REQUEST_USD: z.coerce.number().nonnegative().default(0),
+  // Podcast transcription through any OpenAI-compatible /audio/transcriptions
+  // endpoint (Groq, DeepInfra, or a self-hosted faster-whisper server).
+  TRANSCRIBE_BASE_URL: z.string().url().default("https://api.groq.com/openai/v1"),
+  TRANSCRIBE_API_KEY: z.string().optional(),
+  TRANSCRIBE_MODEL: z.string().default("whisper-large-v3-turbo"),
+  TRANSCRIBE_PRICE_PER_HOUR_USD: z.coerce.number().nonnegative().default(0.04),
+  // Hard caps, enforced from public.pipeline_spend before every paid call.
+  DAILY_BUDGET_USD: z.coerce.number().nonnegative().default(2),
+  BACKFILL_BUDGET_USD: z.coerce.number().nonnegative().default(25),
+  RESOLUTION_DAILY_BUDGET_USD: z.coerce.number().nonnegative().default(1),
+  // OpenAI web_search tool price per call (spend accounting only).
+  RESOLUTION_SEARCH_CALL_USD: z.coerce.number().nonnegative().default(0.01),
+  RESOLUTION_MAX_PER_RUN: z.coerce.number().int().positive().default(100),
+  CASCADE_MAX_SOURCES_PER_RUN: z.coerce.number().int().positive().default(5000),
   AUTO_APPROVE_MODE: z.enum(["on", "off"]).default("on"),
   ADMIN_EMAILS: z.string().default(""),
   CRON_SECRET: z.string().optional(),
@@ -78,6 +120,32 @@ export const env = envSchema.parse({
   XAI_PRICE_PER_SEARCH_SOURCE_USD: raw(process.env.XAI_PRICE_PER_SEARCH_SOURCE_USD),
   X_INGESTION_WEEKLY_SOFT_BUDGET_USD: raw(process.env.X_INGESTION_WEEKLY_SOFT_BUDGET_USD),
   X_INGESTION_WEEKLY_HARD_BUDGET_USD: raw(process.env.X_INGESTION_WEEKLY_HARD_BUDGET_USD),
+  OPEN_MODEL_BASE_URL: raw(process.env.OPEN_MODEL_BASE_URL),
+  OPEN_MODEL_API_KEY: raw(process.env.OPEN_MODEL_API_KEY),
+  OPEN_MODEL_SCREEN_MODEL: raw(process.env.OPEN_MODEL_SCREEN_MODEL),
+  OPEN_MODEL_EXTRACT_MODEL: raw(process.env.OPEN_MODEL_EXTRACT_MODEL),
+  OPEN_MODEL_SCREEN_PRICE_INPUT_PER_MTOK_USD: raw(process.env.OPEN_MODEL_SCREEN_PRICE_INPUT_PER_MTOK_USD),
+  OPEN_MODEL_SCREEN_PRICE_OUTPUT_PER_MTOK_USD: raw(process.env.OPEN_MODEL_SCREEN_PRICE_OUTPUT_PER_MTOK_USD),
+  OPEN_MODEL_EXTRACT_PRICE_INPUT_PER_MTOK_USD: raw(process.env.OPEN_MODEL_EXTRACT_PRICE_INPUT_PER_MTOK_USD),
+  OPEN_MODEL_EXTRACT_PRICE_OUTPUT_PER_MTOK_USD: raw(process.env.OPEN_MODEL_EXTRACT_PRICE_OUTPUT_PER_MTOK_USD),
+  OPEN_MODEL_CONCURRENCY: raw(process.env.OPEN_MODEL_CONCURRENCY),
+  VERIFIER_MODE: raw(process.env.VERIFIER_MODE),
+  CASCADE_VERIFIER_MODEL: raw(process.env.CASCADE_VERIFIER_MODEL),
+  OPENAI_PRICE_INPUT_PER_MTOK_USD: raw(process.env.OPENAI_PRICE_INPUT_PER_MTOK_USD),
+  OPENAI_PRICE_OUTPUT_PER_MTOK_USD: raw(process.env.OPENAI_PRICE_OUTPUT_PER_MTOK_USD),
+  OPENAI_BATCH_DISCOUNT: raw(process.env.OPENAI_BATCH_DISCOUNT),
+  X_PRICE_PER_POST_READ_USD: raw(process.env.X_PRICE_PER_POST_READ_USD),
+  X_PRICE_PER_REQUEST_USD: raw(process.env.X_PRICE_PER_REQUEST_USD),
+  TRANSCRIBE_BASE_URL: raw(process.env.TRANSCRIBE_BASE_URL),
+  TRANSCRIBE_API_KEY: raw(process.env.TRANSCRIBE_API_KEY),
+  TRANSCRIBE_MODEL: raw(process.env.TRANSCRIBE_MODEL),
+  TRANSCRIBE_PRICE_PER_HOUR_USD: raw(process.env.TRANSCRIBE_PRICE_PER_HOUR_USD),
+  DAILY_BUDGET_USD: raw(process.env.DAILY_BUDGET_USD),
+  BACKFILL_BUDGET_USD: raw(process.env.BACKFILL_BUDGET_USD),
+  RESOLUTION_DAILY_BUDGET_USD: raw(process.env.RESOLUTION_DAILY_BUDGET_USD),
+  RESOLUTION_SEARCH_CALL_USD: raw(process.env.RESOLUTION_SEARCH_CALL_USD),
+  RESOLUTION_MAX_PER_RUN: raw(process.env.RESOLUTION_MAX_PER_RUN),
+  CASCADE_MAX_SOURCES_PER_RUN: raw(process.env.CASCADE_MAX_SOURCES_PER_RUN),
   AUTO_APPROVE_MODE: raw(process.env.AUTO_APPROVE_MODE),
   ADMIN_EMAILS: raw(process.env.ADMIN_EMAILS),
   CRON_SECRET: raw(process.env.CRON_SECRET),
@@ -121,6 +189,8 @@ export const integrations = {
   x: Boolean(env.X_BEARER_TOKEN),
   xFullArchive: Boolean(env.X_BEARER_TOKEN) && env.X_FULL_ARCHIVE_ENABLED === "true",
   xai: Boolean(env.XAI_API_KEY),
+  openModel: Boolean(env.OPEN_MODEL_API_KEY),
+  transcribe: Boolean(env.TRANSCRIBE_API_KEY),
   polymarket: true,
 } as const;
 

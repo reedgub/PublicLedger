@@ -140,6 +140,7 @@ function mapPrediction(row: Row): Prediction {
     markets: marketRelations.filter((market) => market.id),
     recordType: row.record_type === "take" ? "take" : "prediction",
     imputationNote: stringOrNull(row.imputation_note),
+    captureMode: row.capture_mode === "backfill" ? "backfill" : "live",
   };
 }
 

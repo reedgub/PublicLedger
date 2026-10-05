@@ -1,0 +1,38 @@
+name: Refresh published X sources (weekly)
+
+# Compliance: re-checks the posts behind published predictions (100 ids per
+# request) and quarantines any that were deleted or edited. Weekly, because
+# every read is billed; REFRESH_LIMIT caps reads per run.
+
+on:
+  schedule:
+    - cron: "41 9 * * 1"
+  workflow_dispatch: {}
+
+concurrency:
+  group: refresh-sources
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
+      X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      REFRESH_LIMIT: ${{ vars.REFRESH_LIMIT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm refresh:x

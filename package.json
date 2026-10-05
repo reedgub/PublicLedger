@@ -29,7 +29,19 @@
     "refresh:x": "tsx scripts/refresh-x-sources.ts",
     "readiness": "tsx scripts/launch-readiness.ts",
     "import:seed-predictions": "tsx scripts/import-seed-predictions.ts",
-    "seed:substack": "tsx scripts/seed-substack.ts"
+    "seed:substack": "tsx scripts/seed-substack.ts",
+    "ingest:daily": "tsx scripts/ingest-daily.ts",
+    "backfill": "tsx scripts/backfill.ts",
+    "cascade": "tsx scripts/process-cascade.ts",
+    "verify:collect": "tsx scripts/verify-batch.ts collect",
+    "verify:submit": "tsx scripts/verify-batch.ts submit",
+    "verify:sync": "tsx scripts/verify-batch.ts sync",
+    "sources:add": "tsx scripts/expert-sources.ts add",
+    "sources:list": "tsx scripts/expert-sources.ts list",
+    "sources:disable": "tsx scripts/expert-sources.ts disable",
+    "spend": "tsx scripts/spend-report.ts",
+    "export:training": "tsx scripts/export-training-data.ts",
+    "discover:experts": "tsx scripts/discover-experts.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

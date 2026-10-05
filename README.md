@@ -61,6 +61,8 @@ Start with `.env.example`. The important groups are:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`: database, auth, server-only mutation access, and CLI ingestion.
 - `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_VERIFIER_MODEL`: structured extraction and the independent second pass. Keep extractor and verifier logically independent even if they use the same model family.
 - `X_BEARER_TOKEN`, `X_FULL_ARCHIVE_ENABLED`: official X API access. Full-archive search requires an eligible X API plan.
+- `OPEN_MODEL_*`, `TRANSCRIBE_*`, `VERIFIER_MODE`, `CASCADE_VERIFIER_MODEL`: the low-cost cascade (see below). `*_PRICE_*` values drive spend accounting and `--estimate`; set them from your provider dashboards.
+- `DAILY_BUDGET_USD`, `BACKFILL_BUDGET_USD`, `RESOLUTION_DAILY_BUDGET_USD`: hard spend caps.
 - `ADMIN_EMAILS`: comma-separated allowlist for magic-link admin access. The first successful allowlisted login is recorded in `app_admins`.
 - `CRON_SECRET`: bearer secret for `POST /api/cron/polymarket`.
 - `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST`: optional, privacy-conscious product analytics. The app is a no-op when absent.
@@ -91,7 +93,48 @@ pnpm seed
 
 Use `X_FULL_ARCHIVE_ENABLED=true` only when your X API access supports it. Otherwise the seed uses recent search and leaves unavailable history unfilled rather than substituting scraped data. Bound cost and runtime with `SEED_MAX_POSTS_PER_EXPERT`, `SEED_MAX_OPENAI_ITEMS`, and `SEED_CONCURRENCY`.
 
-### X discovery via xAI (no X Bearer Token)
+## Low-cost ingestion pipeline (daily + historical backfill)
+
+The default pipeline reads everything cheaply and only spends money on text that survives cheaper filters:
+
+| Stage | What runs | Cost |
+| --- | --- | --- |
+| Collect | Official X API (timelines daily, one merged full-archive query per month for backfill), RSS/Atom feeds, sitemaps, podcast RSS + Whisper | X reads are billed per post; feeds/sitemaps are free |
+| 0 | Regex heuristic + passage selection for long documents (`lib/pipeline/chunk.ts`) | free |
+| 1 | Small open model screens ~20 items per call, tuned for recall (`lib/pipeline/screen.ts`) | ~free |
+| 2 | Open-weight extraction with the production prompt + outcome-blindness rules (`lib/pipeline/extract.ts`) | cents per thousand units |
+| — | Deterministic checks: exact-substring quote, dates, dedupe (`lib/predictions/`) | free |
+| 3 | ONE frontier verification call per candidate via the OpenAI Batch API (`lib/pipeline/verify.ts`) | ~50% of normal price |
+
+Open models run behind any OpenAI-compatible endpoint (`OPEN_MODEL_BASE_URL`): DeepInfra, Together, Groq, Fireworks, OpenRouter, or your own vLLM/Ollama server. Without `OPEN_MODEL_API_KEY`, screening is skipped (heuristic only) and extraction falls back to `OPENAI_MODEL`.
+
+Every paid call is booked in `pipeline_spend`, and hard caps are enforced before each call: `DAILY_BUDGET_USD` (rolling 24h), `RESOLUTION_DAILY_BUDGET_USD`, and `BACKFILL_BUDGET_USD` (a **lifetime** cap across all backfill runs — raise it to continue). `pnpm spend` prints where the money went and the cost per published prediction.
+
+```bash
+pnpm ingest:daily                 # collect finished batches → timelines/feeds/podcasts → cascade → submit batch
+pnpm backfill --estimate --years 2   # forecast cost from X counts (no post reads)
+pnpm backfill --years 2 --budget 20  # collect + process, resumable; rerun to continue
+pnpm backfill --years 5 --experts sama,LHSummers --sources x,writing,podcast
+pnpm verify:collect               # apply finished verification batches (also runs at the start of ingest:daily)
+pnpm sources:add --expert larry-summers --kind sitemap --url https://example.substack.com/sitemap.xml
+pnpm discover:experts --wikidata --score   # suggest new experts; approve with --approve <handle> --slug --category
+pnpm export:training              # labelled JSONL for fine-tuning the cheap stages
+pnpm spend
+```
+
+Backfill integrity rules:
+
+- **Scan whole months, never "notable" posts.** Months are visited 12–36 months old first (resolvable now), then the last year, then older history, interleaved across experts. Every month's status is stored in `ingestion_coverage` and exposed (aggregate only) via `expert_coverage_summary`.
+- **Outcome blindness.** Extraction sees only the source and its timestamp; the verifier rejects `hindsight_leak` (claims or criteria that use information unknowable on the source date).
+- **Provenance.** `sources.discovered_at` and `ingestion_mode`, and `predictions.capture_mode`, are protected by triggers. Backfilled predictions show an "Archive capture" badge and never get market links (no historical snapshots exist).
+- **Speaker attribution.** Feed/sitemap articles whose byline names someone else are skipped. Podcast transcripts have no speaker labels, so candidates from shows where the expert is not the registered host always go to admin review.
+- **Compliance.** `pnpm refresh:x` (weekly workflow) re-checks posts behind published predictions 100 ids per request and quarantines deleted or edited ones.
+
+Resolution is also cheaper: one web-search proposal per prediction, then every cited excerpt is checked against the live page (`lib/resolution/evidence.ts`) and only confirmed evidence is shown, counted toward auto-resolution, or passed to the verifier (which no longer runs its own web search).
+
+Workflows: `ingest-daily.yml` (daily), `backfill.yml` (manual, `estimate` defaults to true), `refresh-sources.yml` (weekly), `resolve-due.yml` (daily). Add repo secrets `X_BEARER_TOKEN`, `OPEN_MODEL_API_KEY`, `TRANSCRIBE_API_KEY`, `OPENAI_API_KEY`, plus the existing database secrets; optional repo variables override models, endpoints, prices, and budgets.
+
+### X discovery via xAI (legacy, manual)
 
 When `XAI_API_KEY` is set, weekly X discovery runs through xAI's server-side `x_search` tool instead of the paid X API. Each candidate URL is then verified via `publish.x.com/oembed` (free, unauthenticated), and its `source_quote` must be an exact substring of the oEmbed body before it enters the extraction pipeline. Nothing is ever scraped.
 
@@ -108,7 +151,7 @@ pnpm ingest:x:weekly --dry-run
 
 Cost is enforced against `X_INGESTION_WEEKLY_SOFT_BUDGET_USD` (warn, keep going) and `X_INGESTION_WEEKLY_HARD_BUDGET_USD` (stop). Every request is recorded in `x_discovery_runs` with model, tokens, `x_search` tool calls, and dollar cost; each expert's `ingestion_checkpoints` row advances only on success. Saturated windows (xAI returns the max number of results and reports the window may still hold more) are automatically split in half and re-queried, bounded so a pathological account cannot burn the budget.
 
-The GitHub Actions workflow `.github/workflows/ingest-x.yml` runs `pnpm ingest:x:weekly` every day at 12:00 UTC. It requires the following repo secrets: `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `XAI_API_KEY`, `OPENAI_API_KEY`, `SUBMISSION_HASH_SALT`, and optional overrides for model IDs and budget caps. Add `SLACK_WEBHOOK_URL` and `NEXT_PUBLIC_SITE_ORIGIN` to route per-run summaries into Slack.
+The GitHub Actions workflow `.github/workflows/ingest-x.yml` runs `pnpm ingest:x:weekly` on manual dispatch only (superseded by `ingest-daily.yml`). It requires the following repo secrets: `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `XAI_API_KEY`, `OPENAI_API_KEY`, `SUBMISSION_HASH_SALT`, and optional overrides for model IDs and budget caps. Add `SLACK_WEBHOOK_URL` and `NEXT_PUBLIC_SITE_ORIGIN` to route per-run summaries into Slack.
 
 ## Admin and operations
 
