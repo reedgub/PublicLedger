@@ -13,6 +13,7 @@ This repository is a from-scratch MVP implementation of the supplied product and
 - Public Polymarket Gamma API ingestion with hourly snapshots
 - Wilson lower-bound leaderboard ranking, accuracy, Brier score, and calibration data
 - Vitest unit/contract tests and Playwright desktop/mobile browser tests
+- Locked design system (dark canvas, Inter display type, Geist Mono labels, Motion-based scroll animation). See [`DESIGN.md`](DESIGN.md) before building UI
 
 The public read path is in `lib/data/public.ts`. Privileged reads and writes are separated into `lib/data/admin.ts`, `lib/auth/admin.ts`, server actions, and authenticated route handlers. Published prediction fields are frozen by a database trigger; later source and resolution events are captured separately in the audit log.
 
