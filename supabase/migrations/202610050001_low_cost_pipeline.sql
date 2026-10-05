@@ -24,6 +24,14 @@ alter table public.sources add column if not exists discovered_at timestamptz no
 alter table public.sources drop constraint if exists sources_ingestion_mode_check;
 alter table public.sources add constraint sources_ingestion_mode_check check (ingestion_mode in ('live', 'backfill'));
 
+-- Existing rows: first-seen time is the row's creation time, and anything
+-- stored more than 7 days after it was published was an archive capture
+-- (hand-curated imports and look-back discovery), not a live capture.
+-- Runs before the guard trigger below exists.
+update public.sources set discovered_at = created_at where discovered_at > created_at;
+update public.sources set ingestion_mode = 'backfill'
+  where ingestion_mode = 'live' and created_at > published_at + interval '7 days';
+
 -- discovered_at is the first time PublicLedger saw the source. Upserts must
 -- never move it; enforce that in the database rather than trusting callers.
 create or replace function public.guard_source_discovered_at()
@@ -42,6 +50,11 @@ for each row execute function public.guard_source_discovered_at();
 alter table public.predictions add column if not exists capture_mode text not null default 'live';
 alter table public.predictions drop constraint if exists predictions_capture_mode_check;
 alter table public.predictions add constraint predictions_capture_mode_check check (capture_mode in ('live', 'backfill'));
+
+-- Existing predictions recorded more than 7 days after the statement are
+-- archive captures. Must run before the guard trigger below.
+update public.predictions set capture_mode = 'backfill'
+  where capture_mode = 'live' and created_at > prediction_date + interval '7 days';
 
 -- capture_mode is part of the published record's provenance: once published
 -- it may not be flipped (a backfilled prediction can never become "live").
@@ -68,9 +81,12 @@ alter table public.sources add constraint sources_screen_status_check
 alter table public.sources add column if not exists screen_score numeric;
 alter table public.sources add column if not exists screen_model text;
 alter table public.sources add column if not exists screened_at timestamptz;
--- Existing sources were already handled by the legacy pipeline.
-update public.sources set screen_status = 'extracted', screened_at = coalesce(screened_at, now())
-  where screen_status = 'pending' and exists (select 1 from public.prediction_candidates pc where pc.source_id = sources.id);
+-- Existing sources already handled by the legacy pipeline or imported with
+-- their predictions must not be extracted (and paid for) a second time.
+update public.sources set screen_status = 'extracted', screen_model = coalesce(screen_model, 'legacy'), screened_at = coalesce(screened_at, now())
+  where screen_status = 'pending' and (
+    exists (select 1 from public.prediction_candidates pc where pc.source_id = sources.id)
+    or exists (select 1 from public.predictions p where p.source_id = sources.id));
 create index if not exists sources_screen_pending_idx on public.sources(published_at) where screen_status in ('pending', 'passed');
 create index if not exists sources_expert_idx on public.sources(expert_id);
 
