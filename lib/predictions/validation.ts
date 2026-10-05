@@ -50,3 +50,62 @@ export function validateExtractedPrediction(
   }
   return { valid: errors.length === 0, errors };
 }
+
+// ---- Quote repair ---------------------------------------------------------
+//
+// Models often return a quote that is the right passage with cosmetic drift:
+// curly vs straight quotes, dashes, collapsed whitespace, or Unicode "bold"
+// letters folded to ASCII. When the passage can be located unambiguously
+// after normalising those differences, return the EXACT slice of the source,
+// so the stored quote is still a literal contiguous substring of the source.
+
+function foldChar(char: string): string {
+  return char
+    .normalize("NFKC")
+    .replace(/[‘’‚‛′]/g, "'")
+    .replace(/[“”„‟″]/g, '"')
+    .replace(/[‐-―−]/g, "-")
+    .replace(/…/g, "...")
+    .toLowerCase();
+}
+
+/** Normalised text plus, for each normalised char, the source index it came from. */
+function foldWithMap(text: string): { folded: string; map: number[] } {
+  let folded = "";
+  const map: number[] = [];
+  let lastWasSpace = false;
+  let index = 0;
+  for (const char of text) {
+    const isSpace = /\s/.test(char);
+    if (isSpace) {
+      if (!lastWasSpace && folded.length > 0) {
+        folded += " ";
+        map.push(index);
+      }
+    } else {
+      for (const out of foldChar(char)) {
+        folded += out;
+        map.push(index);
+      }
+    }
+    lastWasSpace = isSpace;
+    index += char.length;
+  }
+  return { folded, map };
+}
+
+/** The exact source passage matching `quote` modulo typography, or null if absent or ambiguous. */
+export function repairSourceQuote(sourceText: string, quote: string): string | null {
+  if (!quote.trim()) return null;
+  if (sourceText.includes(quote)) return quote;
+  const source = foldWithMap(sourceText);
+  const needle = foldWithMap(quote.trim()).folded.trim();
+  if (needle.length < 12) return null;
+  const first = source.folded.indexOf(needle);
+  if (first < 0 || source.folded.indexOf(needle, first + 1) >= 0) return null;
+  const start = source.map[first];
+  const lastIndex = source.map[first + needle.length - 1];
+  // Extend to the end of the last source character (surrogate pairs).
+  const end = lastIndex + (sourceText.codePointAt(lastIndex)! > 0xffff ? 2 : 1);
+  return sourceText.slice(start, end);
+}

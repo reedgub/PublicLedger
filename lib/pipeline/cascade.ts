@@ -12,7 +12,7 @@ import { getDatabase } from "@/lib/db/postgres";
 import { EXTRACTION_SCHEMA_VERSION } from "@/lib/constants";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
-import { validateExtractedPrediction } from "@/lib/predictions/validation";
+import { repairSourceQuote, validateExtractedPrediction } from "@/lib/predictions/validation";
 import { selectUnits, type TextUnit } from "@/lib/pipeline/chunk";
 import { screenItems, SCREEN_PROMPT_VERSION, type ScreenItem } from "@/lib/pipeline/screen";
 import { CASCADE_EXTRACTION_VERSION, estimateExtractionCostUsd, extractionTarget, extractUnit } from "@/lib/pipeline/extract";
@@ -247,7 +247,10 @@ export async function runCascade(options: {
       select normalized_claim, resolution_date::text from public.prediction_candidates
       where expert_id = ${source.expert_id} and status in ('pending', 'review', 'auto_verified') and normalized_claim is not null
     `;
-    for (const candidate of dedupeWithinSource(source.expert_id, collected)) {
+    for (const extracted of dedupeWithinSource(source.expert_id, collected)) {
+      // Replace a typographically drifted quote with the exact source passage.
+      const repaired = repairSourceQuote(source.exact_text, extracted.source_quote);
+      const candidate = repaired && repaired !== extracted.source_quote ? { ...extracted, source_quote: repaired } : extracted;
       const deterministic = validateExtractedPrediction(source.exact_text, source.published_at, candidate);
       const duplicate = deterministic.valid && existing.some((item) => isLikelyDuplicate(
         { expertId: source.expert_id, claim: candidate.normalized_claim, resolutionDate: candidate.resolution_date },
