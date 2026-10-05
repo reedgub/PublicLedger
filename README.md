@@ -126,8 +126,9 @@ Backfill integrity rules:
 
 - **Scan whole months, never "notable" posts.** Months are visited 12–36 months old first (resolvable now), then the last year, then older history, interleaved across experts. Every month's status is stored in `ingestion_coverage` and exposed (aggregate only) via `expert_coverage_summary`.
 - **Outcome blindness.** Extraction sees only the source and its timestamp; the verifier rejects `hindsight_leak` (claims or criteria that use information unknowable on the source date).
+- **No human review queue.** The verifier publishes only `faithful` approvals at ≥ 0.9 confidence with a resolution date; everything else is rejected with its reason kept in `prediction_candidates`. Resolutions that miss the auto thresholds stay unresolved and are retried every 30 days.
 - **Provenance.** `sources.discovered_at` and `ingestion_mode`, and `predictions.capture_mode`, are protected by triggers. Backfilled predictions show an "Archive capture" badge and never get market links (no historical snapshots exist).
-- **Speaker attribution.** Feed/sitemap articles whose byline names someone else are skipped. Podcast transcripts have no speaker labels, so candidates from shows where the expert is not the registered host always go to admin review.
+- **Speaker attribution.** Feed/sitemap articles whose byline names someone else are skipped. Podcast transcripts have no speaker labels, so candidates from shows where the expert is not the registered host are never published (rejected as speaker-uncertain).
 - **Compliance.** `pnpm refresh:x` (weekly workflow) re-checks posts behind published predictions 100 ids per request and quarantines deleted or edited ones.
 
 Resolution is also cheaper: one web-search proposal per prediction, then every cited excerpt is checked against the live page (`lib/resolution/evidence.ts`) and only confirmed evidence is shown, counted toward auto-resolution, or passed to the verifier (which no longer runs its own web search).

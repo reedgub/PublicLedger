@@ -18,9 +18,15 @@ export async function resolveDue(): Promise<{ due: number; proposed: number; app
   // takes. Restrict this sweep to record_type='prediction' at the source.
   const due = await sql<DueRow[]>`
     select id, normalized_claim, prediction_date::text, resolution_date::text, resolution_criteria
-    from public.predictions where published_at is not null and status in ('open','due','resolution_pending')
+    from public.predictions p where published_at is not null and status in ('open','due','resolution_pending')
       and resolution_date is not null and resolution_date <= now()
       and record_type = 'prediction'
+      -- No human approves resolutions. One that missed the auto thresholds
+      -- stays unresolved and is retried monthly, as new evidence appears.
+      and not exists (
+        select 1 from public.resolutions r
+        where r.prediction_id = p.id and r.approved_at is null and r.resolved_at > now() - interval '30 days'
+      )
     order by resolution_date asc limit ${env.RESOLUTION_MAX_PER_RUN}
   `;
   for (const prediction of due) await sql`update public.predictions set status = 'resolution_pending' where id = ${prediction.id} and status in ('open','due')`;
@@ -60,7 +66,7 @@ export async function resolveDue(): Promise<{ due: number; proposed: number; app
         values (${resolution.id}, 'web', ${item.title}, ${item.source_path}, ${item.publisher}, ${item.excerpt}, ${item.is_primary_source})
       `;
       const evidenceCheck = checked.map((item) => ({ url: item.source_path, confirmed: item.confirmed, error: item.checkError }));
-      await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, ${auto ? "resolution_approved" : "resolution_proposed"}, 'system', ${sql.json({ proposal, verifier, evidence_check: evidenceCheck, resolution_schema_version: RESOLUTION_SCHEMA_VERSION } as never)}, ${auto ? "Passed resolution and evidence thresholds." : "Queued for admin review."})`;
+      await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, ${auto ? "resolution_approved" : "resolution_proposed"}, 'system', ${sql.json({ proposal, verifier, evidence_check: evidenceCheck, resolution_schema_version: RESOLUTION_SCHEMA_VERSION } as never)}, ${auto ? "Passed resolution and evidence thresholds." : "Below auto-resolution thresholds; retried in 30 days."})`;
       proposed += 1;
       if (auto) {
         await sql`update public.predictions set status = ${proposal.proposed_outcome === "ambiguous" ? "ambiguous" : proposal.proposed_outcome === "void" ? "void" : "resolved"} where id = ${prediction.id}`;

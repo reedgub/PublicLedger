@@ -138,11 +138,13 @@ describe("stage 2 extraction parsing", () => {
 describe("stage 3 verification", () => {
   const flags = { recordType: "prediction" as const, forceReview: false, hasResolutionDate: true };
 
-  it("publishes only faithful approvals and tiers by confidence", () => {
+  it("publishes only confident faithful approvals and rejects everything else", () => {
     expect(decideCandidate(verdict(), flags)).toEqual({ action: "publish", verificationMode: "auto" });
-    expect(decideCandidate(verdict({ confidence: 0.8 }), flags).action).toBe("review");
-    expect(decideCandidate(verdict({ confidence: 0.5 }), flags).action).toBe("review");
-    expect(decideCandidate(verdict({ verdict: "ambiguous" }), flags).action).toBe("review");
+    expect(decideCandidate(verdict({ confidence: 0.8 }), flags).action).toBe("reject");
+    expect(decideCandidate(verdict({ confidence: 0.5 }), flags).action).toBe("reject");
+    expect(decideCandidate(verdict({ verdict: "ambiguous" }), flags).action).toBe("reject");
+    expect(decideCandidate(verdict({ decision: "review" }), flags).action).toBe("reject");
+    expect(decideCandidate(verdict(), { ...flags, hasResolutionDate: false }).action).toBe("reject");
   });
 
   it("rejects substantive problems and hindsight leaks", () => {
@@ -150,8 +152,8 @@ describe("stage 3 verification", () => {
     expect(decideCandidate(verdict({ decision: "review", verdict: "hindsight_leak", confidence: 0.8 }), flags).action).toBe("reject");
   });
 
-  it("never auto-publishes sources that force review", () => {
-    expect(decideCandidate(verdict(), { ...flags, forceReview: true }).action).toBe("review");
+  it("never publishes sources whose speaker is uncertain", () => {
+    expect(decideCandidate(verdict(), { ...flags, forceReview: true }).action).toBe("reject");
     expect(sourceForcesReview("podcast", {})).toBe(true);
     expect(sourceForcesReview("podcast", { expertIsHost: true })).toBe(false);
     expect(sourceForcesReview("x", {})).toBe(false);

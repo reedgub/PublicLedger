@@ -1,6 +1,6 @@
 // Stage 3 runners: submit pending cascade candidates to the OpenAI Batch API,
 // collect finished batches, or verify synchronously for small volumes. All
-// three converge on applyVerdict(), which owns the publish/reject/review
+// three converge on applyVerdict(), which owns the publish/reject
 // decision and its audit trail.
 
 import { toFile } from "openai";
@@ -77,7 +77,7 @@ async function loadPending(limit: number): Promise<PendingRow[]> {
   `;
 }
 
-export type ApplySummary = { published: number; rejected: number; review: number; duplicates: number; errors: number };
+export type ApplySummary = { published: number; rejected: number; duplicates: number; errors: number };
 
 export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, summary: ApplySummary): Promise<void> {
   const sql = getDatabase();
@@ -96,11 +96,6 @@ export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, sum
     await sql`update public.prediction_candidates set status = 'rejected', reason_rejected = ${`Verifier: ${action.reason}`.slice(0, 500)} where id = ${row.id}`;
     await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction_candidate', ${row.id}, 'prediction_rejected', 'system', ${sql.json({ verdict } as never)}, ${`Cascade verifier: ${action.reason}`.slice(0, 1000)})`;
     summary.rejected += 1;
-    return;
-  }
-  if (action.action === "review") {
-    await sql`update public.prediction_candidates set status = 'review', reason_rejected = ${action.reason.slice(0, 500)} where id = ${row.id}`;
-    summary.review += 1;
     return;
   }
   // Last-moment duplicate check: another candidate may have published since extraction.
@@ -134,8 +129,8 @@ async function handleFailedVerification(row: PendingRow, reason: string) {
   const sql = getDatabase();
   const attempts = (row.raw_extraction.verify_attempts ?? 0) + 1;
   if (attempts >= MAX_VERIFY_ATTEMPTS) {
-    // Fail closed: a human looks at it rather than auto-publishing.
-    await sql`update public.prediction_candidates set status = 'review', verification_batch_id = null, reason_rejected = ${`verifier_error: ${reason}`.slice(0, 500)}, raw_extraction = raw_extraction || ${sql.json({ verify_attempts: attempts } as never)} where id = ${row.id}`;
+    // Fail closed: never publish without a verdict.
+    await sql`update public.prediction_candidates set status = 'rejected', verification_batch_id = null, reason_rejected = ${`verifier_error: ${reason}`.slice(0, 500)}, raw_extraction = raw_extraction || ${sql.json({ verify_attempts: attempts } as never)} where id = ${row.id}`;
   } else {
     await sql`update public.prediction_candidates set verification_batch_id = null, raw_extraction = raw_extraction || ${sql.json({ verify_attempts: attempts } as never)} where id = ${row.id}`;
   }
@@ -144,7 +139,7 @@ async function handleFailedVerification(row: PendingRow, reason: string) {
 // ---- Sync ----------------------------------------------------------------------
 
 export async function verifyPendingSync(options: { guard: BudgetGuard; scope: SpendScope; limit?: number; runId?: string }): Promise<ApplySummary> {
-  const summary: ApplySummary = { published: 0, rejected: 0, review: 0, duplicates: 0, errors: 0 };
+  const summary: ApplySummary = { published: 0, rejected: 0, duplicates: 0, errors: 0 };
   if (!env.OPENAI_API_KEY) return summary;
   const rows = await loadPending(options.limit ?? 500);
   const client = getOpenAIClient();
@@ -223,7 +218,7 @@ export async function submitVerificationBatch(options: { guard: BudgetGuard; sco
 // ---- Batch collect ----------------------------------------------------------------
 
 export async function collectVerificationBatches(options: { scope: SpendScope }): Promise<ApplySummary & { batchesCollected: number; batchesPending: number }> {
-  const summary = { published: 0, rejected: 0, review: 0, duplicates: 0, errors: 0, batchesCollected: 0, batchesPending: 0 };
+  const summary = { published: 0, rejected: 0, duplicates: 0, errors: 0, batchesCollected: 0, batchesPending: 0 };
   if (!env.OPENAI_API_KEY) return summary;
   const sql = getDatabase();
   const client = getOpenAIClient();
