@@ -135,6 +135,10 @@ Resolution is also cheaper: one web-search proposal per prediction, then every c
 
 Workflows: `ingest-daily.yml` (daily), `backfill.yml` (manual, `estimate` defaults to true), `refresh-sources.yml` (weekly), `resolve-due.yml` (daily). Add repo secrets `X_BEARER_TOKEN`, `OPEN_MODEL_API_KEY`, `TRANSCRIBE_API_KEY`, `OPENAI_API_KEY`, plus the existing database secrets; optional repo variables override models, endpoints, prices, and budgets.
 
+### Manual prediction lists
+
+Hand-curated lists go in `seed/manual/*.json` (same row shape as `import:seed-predictions`) and are imported with the **Import manual predictions** workflow or `pnpm import:manual <file>`. Rows are treated as leads, not facts: X posts are re-read through the official API and must come from the expert's own account; web pages are fetched live (robots.txt respected) and only an excerpt around the quote is stored. The quote must appear verbatim in that fetched source, dates come from the source, and probabilities are kept only when the quote states them. Surviving rows then go through the same cascade verifier as everything else, which publishes or rejects them. For third-party articles, only the expert's own quoted words can pass.
+
 ### X discovery via xAI (legacy, manual)
 
 When `XAI_API_KEY` is set, weekly X discovery runs through xAI's server-side `x_search` tool instead of the paid X API. Each candidate URL is then verified via `publish.x.com/oembed` (free, unauthenticated), and its `source_quote` must be an exact substring of the oEmbed body before it enters the extraction pipeline. Nothing is ever scraped.

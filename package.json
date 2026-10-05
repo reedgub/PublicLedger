@@ -29,6 +29,7 @@
     "refresh:x": "tsx scripts/refresh-x-sources.ts",
     "readiness": "tsx scripts/launch-readiness.ts",
     "import:seed-predictions": "tsx scripts/import-seed-predictions.ts",
+    "import:manual": "tsx scripts/import-manual.ts",
     "seed:substack": "tsx scripts/seed-substack.ts",
     "ingest:daily": "tsx scripts/ingest-daily.ts",
     "backfill": "tsx scripts/backfill.ts",

@@ -65,7 +65,7 @@ export async function fetchXPostById(postId: string, expectedHandle?: string): P
   }>(
     `/2/tweets/${postId}`,
     new URLSearchParams({
-      "tweet.fields": "id,text,author_id,created_at,conversation_id,edit_history_tweet_ids,public_metrics,referenced_tweets,lang",
+      "tweet.fields": "id,text,note_tweet,author_id,created_at,conversation_id,edit_history_tweet_ids,public_metrics,referenced_tweets,lang",
       expansions: "author_id",
       "user.fields": "id,name,username,profile_image_url",
     }),
@@ -79,7 +79,7 @@ export async function fetchXPostById(postId: string, expectedHandle?: string): P
     authorExternalId: payload.data.author_id,
     authorHandle,
     publishedAt: new Date(payload.data.created_at),
-    exactText: payload.data.text,
+    exactText: fullPostText(payload.data),
     canonicalPath: authorHandle ? `/${authorHandle}/status/${payload.data.id}` : `/i/status/${payload.data.id}`,
     metadata: {
       conversationId: payload.data.conversation_id,
