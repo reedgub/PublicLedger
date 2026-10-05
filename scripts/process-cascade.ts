@@ -25,6 +25,8 @@ export async function processCascade(options: { mode?: "live" | "backfill"; maxS
   console.log(JSON.stringify({ stage: "cascade_start", run_id: runId, scope, mode: options.mode ?? "all", budget_cap_usd: guard.capUsd, already_spent_usd: Number(guard.spentUsd.toFixed(4)) }));
   const cascade = await runCascade({ scope, guard, mode: options.mode, maxSources: options.maxSources, runId });
   console.log(JSON.stringify({ stage: "cascade_summary", ...cascade, costUsd: Number(cascade.costUsd.toFixed(4)) }));
+  // A refused provider (no credits, bad key) should turn the workflow red, not pass silently.
+  if (cascade.providerError) process.exitCode = 1;
   if (options.skipVerify) return { cascade, verify: null };
   if (env.VERIFIER_MODE === "sync") {
     const verify = await verifyPendingSync({ guard, scope, runId });

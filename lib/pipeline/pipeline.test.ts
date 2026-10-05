@@ -5,7 +5,7 @@ import { buildScreenUserPrompt, keptKeys } from "@/lib/pipeline/screen";
 import { normalizeExtraction, buildExtractionUserPrompt } from "@/lib/pipeline/extract";
 import { buildBatchLine, decideCandidate, parseBatchOutputLine, verifierContext, type CascadeVerdict } from "@/lib/pipeline/verify";
 import { BudgetGuard, tokenCostUsd } from "@/lib/pipeline/spend";
-import { dedupeWithinSource, sourceForcesReview } from "@/lib/pipeline/cascade";
+import { dedupeWithinSource, isProviderOutage, sourceForcesReview } from "@/lib/pipeline/cascade";
 import { buildCascadeXQuery, windowYearTerms, X_QUERY_MAX_LENGTH } from "@/lib/sources/x-query";
 import { fullPostText } from "@/lib/sources/x-parser";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
@@ -185,6 +185,14 @@ describe("dedupe and budget", () => {
     const kept = dedupeWithinSource("e1", [take, prediction(), prediction()]);
     expect(kept).toHaveLength(1);
     expect(kept[0].record_type).toBe("prediction");
+  });
+
+  it("treats credit, auth, rate-limit and server errors as retryable provider outages", () => {
+    expect(isProviderOutage(Object.assign(new Error("429 You have no credits remaining"), { status: 429 }))).toBe(true);
+    expect(isProviderOutage(Object.assign(new Error("bad key"), { status: 401 }))).toBe(true);
+    expect(isProviderOutage(Object.assign(new Error("boom"), { status: 503 }))).toBe(true);
+    expect(isProviderOutage(Object.assign(new Error("bad request"), { status: 400 }))).toBe(false);
+    expect(isProviderOutage(new Error("Model did not return valid JSON"))).toBe(false);
   });
 
   it("enforces hard caps", () => {

@@ -44,7 +44,17 @@ export type CascadeSummary = {
   duplicates: number;
   deferredByBudget: number;
   costUsd: number;
+  /** Set when extraction stopped because the model provider refused (credits, auth, rate limit, outage). */
+  providerError?: string;
 };
+
+/** Errors that say nothing about the source itself: retry next run rather than marking the source failed. */
+export function isProviderOutage(error: unknown): boolean {
+  const status = (error as { status?: number } | null)?.status;
+  if (typeof status === "number") return status === 401 || status === 402 || status === 403 || status === 408 || status === 429 || status >= 500;
+  const name = (error as { name?: string } | null)?.name ?? "";
+  return /APIConnection|Timeout/i.test(name);
+}
 
 /** Source kinds whose candidates always need a human (no reliable speaker attribution). */
 export function sourceForcesReview(sourceType: string, metadata: Record<string, unknown>): boolean {
@@ -176,11 +186,16 @@ export async function runCascade(options: {
     return summary;
   }
   const limit = pLimit(env.OPEN_MODEL_CONCURRENCY);
+  let providerOutage: string | null = null;
   let extractionCost = 0;
   let extractionTokens = 0;
   await Promise.all(sources.map((source) => limit(async () => {
     const units = unitsBySource.get(source.id);
     if (!units || units.length === 0) return;
+    if (providerOutage) {
+      summary.deferredByBudget += 1;
+      return;
+    }
     const estimate = units.reduce((sum, unit) => sum + estimateExtractionCostUsd(target, unit.text.length), 0);
     if (!options.guard.canSpend(estimate)) {
       summary.deferredByBudget += 1;
@@ -210,7 +225,16 @@ export async function runCascade(options: {
       summary.extractionErrors += 1;
       options.guard.add(sourceCost);
       extractionCost += sourceCost;
-      await sql`update public.sources set screen_status = 'error', metadata = metadata || ${sql.json({ cascade_error: error instanceof Error ? error.message.slice(0, 300) : "unknown" })} where id = ${source.id}`;
+      const message = error instanceof Error ? error.message.slice(0, 300) : "unknown";
+      if (isProviderOutage(error)) {
+        // Out of credits, bad key, rate limit or provider outage: nothing is
+        // wrong with this source. Leave it queued and stop extracting for
+        // this run instead of burning through (and failing) the rest.
+        providerOutage ??= message;
+        await sql`update public.sources set metadata = metadata || ${sql.json({ cascade_last_error: message })} where id = ${source.id}`;
+        return;
+      }
+      await sql`update public.sources set screen_status = 'error', metadata = metadata || ${sql.json({ cascade_error: message })} where id = ${source.id}`;
       return;
     }
     options.guard.add(sourceCost);
@@ -251,6 +275,10 @@ export async function runCascade(options: {
     summary.extracted += 1;
   })));
 
+  if (providerOutage) {
+    summary.providerError = providerOutage;
+    console.error(`Extraction provider unavailable (${target.provider}): ${providerOutage}. Unprocessed sources stay queued for the next run.`);
+  }
   if (extractionCost > 0 || extractionTokens > 0) {
     // Guard was already charged per source; book the ledger row without re-adding.
     await recordSpend({
