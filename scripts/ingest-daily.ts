@@ -1,8 +1,9 @@
 // Daily low-cost ingestion.
 //
 //   1. Collect finished verification batches from earlier runs (publishes).
-//   2. Poll each verified expert's X timeline since the last seen post id
-//      (official API, retweets/replies excluded server-side).
+//   2. Search each expert's recent X posts since the last seen post id,
+//      filtered server-side to forecast vocabulary so only candidate posts
+//      are read and billed (official API; retweets/replies excluded).
 //   3. Pull new posts from registered feeds and new podcast episodes.
 //   4. Run the cascade over everything new and submit stage 3 as a batch.
 //
@@ -15,7 +16,8 @@ import { randomUUID } from "node:crypto";
 import { closeDatabase, getDatabase } from "@/lib/db/postgres";
 import { env } from "@/lib/env";
 import { revalidateLive } from "@/lib/http/revalidate";
-import { fetchUserTimeline, resolveXUser } from "@/lib/sources/x";
+import { resolveXUser, searchXQuery } from "@/lib/sources/x";
+import { buildCascadeXQuery } from "@/lib/sources/x-query";
 import { collectFeed } from "@/lib/sources/feed";
 import { episodeRecord, fetchPodcastEpisodes, transcribeEpisode } from "@/lib/sources/podcast";
 import { createBudgetGuard, recordSpend, transcriptionCostUsd, xReadCostUsd, type BudgetGuard } from "@/lib/pipeline/spend";
@@ -23,7 +25,10 @@ import { storeSourceRecords } from "@/lib/pipeline/store";
 import { collectVerificationBatches } from "@/lib/pipeline/verifyRunner";
 import { processCascade } from "@/scripts/process-cascade";
 
-const TIMELINE_CHECKPOINT = "x_timeline";
+// Same checkpoint row the earlier timeline poller used; post ids are
+// interchangeable as since_id cursors.
+const X_CURSOR_CHECKPOINT = "x_timeline";
+const RECENT_WINDOW_MS = 7 * 86_400_000;
 const FIRST_RUN_LOOKBACK_MS = 2 * 86_400_000;
 const MAX_POSTS_PER_EXPERT = 100;
 
@@ -32,70 +37,81 @@ function arg(name: string): string | undefined {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
-type ExpertRow = { id: string; slug: string; display_name: string; x_handle: string; x_user_id: string | null; source_status: string; cursor: string | null };
+type ExpertRow = { id: string; slug: string; display_name: string; x_handle: string; source_status: string; cursor: string | null; last_success_at: Date | null };
 
 async function pollX(guard: BudgetGuard, runId: string, onlyExpert?: string) {
-  const summary = { experts: 0, posts: 0, newSources: 0, errors: 0, stoppedByBudget: false };
+  const summary = { experts: 0, posts: 0, newSources: 0, verified: 0, errors: 0, stoppedByBudget: false };
   if (!env.X_BEARER_TOKEN) {
-    console.warn("X_BEARER_TOKEN not set: skipping X timeline polling.");
+    console.warn("X_BEARER_TOKEN not set: skipping X polling.");
     return summary;
   }
   const sql = getDatabase();
   const experts = await sql<ExpertRow[]>`
-    select e.id, e.slug, e.display_name, e.x_handle, e.x_user_id, e.source_status, c.cursor
+    select e.id, e.slug, e.display_name, e.x_handle, e.source_status, c.cursor, c.last_success_at
     from public.experts e
-    left join public.ingestion_checkpoints c on c.expert_id = e.id and c.source_type = ${TIMELINE_CHECKPOINT}
+    left join public.ingestion_checkpoints c on c.expert_id = e.id and c.source_type = ${X_CURSOR_CHECKPOINT}
     where e.is_active and e.x_handle is not null and e.source_status in ('verified', 'unverified')
       and (${onlyExpert ?? null}::text is null or e.slug = ${onlyExpert ?? null} or lower(e.x_handle) = lower(${onlyExpert ?? ""}))
     order by c.last_success_at asc nulls first
   `;
+  const now = Date.now();
+  // Recent search must end at least a few seconds in the past.
+  const end = new Date(now - 30_000);
   for (const expert of experts) {
-    // Upper bound for this expert today; a quiet account costs far less.
-    if (!guard.canSpend(xReadCostUsd(20, 1))) {
+    // Upper bound for this expert today; most experts post far fewer matches.
+    if (!guard.canSpend(xReadCostUsd(10, 1))) {
       summary.stoppedByBudget = true;
       break;
     }
     try {
-      let userId = expert.x_user_id;
-      if (!userId) {
-        // One official lookup per expert, ever. Unverified experts become
-        // verified only when X returns the exact handle (same rule as the
-        // verify-experts job); otherwise they are marked unresolved and skipped.
+      if (expert.source_status === "unverified") {
+        // One official lookup per unverified expert, ever: verified only when
+        // X returns the exact handle (same rule as the verify-experts job).
         const user = await resolveXUser(expert.x_handle);
         const matches = user && user.username.toLowerCase() === expert.x_handle.toLowerCase();
         await recordSpend({ scope: "daily", runId, provider: "x", stage: "user_lookup", units: 1, unitKind: "request", costUsd: xReadCostUsd(0, 1) }, guard);
         if (!user || !matches) {
-          if (expert.source_status === "unverified") await sql`update public.experts set source_status = 'unresolved', updated_at = now() where id = ${expert.id}`;
+          await sql`update public.experts set source_status = 'unresolved', updated_at = now() where id = ${expert.id}`;
           throw new Error("X user not found or handle mismatch");
         }
-        userId = user.id;
-        await sql`update public.experts set x_user_id = ${userId}, x_handle = ${user.username}, avatar_url = coalesce(${user.profileImageUrl}, avatar_url), source_status = 'verified', updated_at = now() where id = ${expert.id}`;
+        await sql`update public.experts set x_user_id = ${user.id}, x_handle = ${user.username}, avatar_url = coalesce(${user.profileImageUrl}, avatar_url), source_status = 'verified', updated_at = now() where id = ${expert.id}`;
+        summary.verified += 1;
       }
-      const result = await fetchUserTimeline({
-        userId,
+      // Server-side filtered recent search: X only returns (and bills) posts
+      // that contain forecast vocabulary, instead of every post on the
+      // timeline. Recent search reaches back 7 days, so a cursor older than
+      // that is replaced by a start time just inside the window.
+      const lastSuccess = expert.last_success_at ? new Date(expert.last_success_at).getTime() : 0;
+      const cursorUsable = Boolean(expert.cursor) && now - lastSuccess < RECENT_WINDOW_MS - 12 * 3_600_000;
+      const start = new Date(Math.max(now - RECENT_WINDOW_MS + 60_000, lastSuccess ? lastSuccess - 2 * 86_400_000 : now - FIRST_RUN_LOOKBACK_MS));
+      const query = buildCascadeXQuery(expert.x_handle, { start, end, tier: "recall" });
+      const result = await searchXQuery({
+        query,
         handle: expert.x_handle,
-        sinceId: expert.cursor,
-        startTime: expert.cursor ? undefined : new Date(Date.now() - FIRST_RUN_LOOKBACK_MS),
+        start,
+        end,
+        mode: "recent",
         maxPosts: MAX_POSTS_PER_EXPERT,
+        sinceId: cursorUsable ? expert.cursor : null,
       });
       const cost = xReadCostUsd(result.postsRead, result.requests);
-      await recordSpend({ scope: "daily", runId, provider: "x", stage: "timeline", units: result.postsRead, unitKind: "post_read", costUsd: cost, metadata: { expert_id: expert.id } }, guard);
+      await recordSpend({ scope: "daily", runId, provider: "x", stage: "recent_search", units: result.postsRead, unitKind: "post_read", costUsd: cost, metadata: { expert_id: expert.id } }, guard);
       summary.newSources += await storeSourceRecords(result.records, { expertId: expert.id, mode: "live", verificationLevel: "x_api" });
       summary.posts += result.postsRead;
       summary.experts += 1;
       await sql`
         insert into public.ingestion_checkpoints (expert_id, source_type, cursor, last_started_at, last_success_at, last_status, updated_at)
-        values (${expert.id}, ${TIMELINE_CHECKPOINT}, ${result.newestId}, now(), now(), 'succeeded', now())
+        values (${expert.id}, ${X_CURSOR_CHECKPOINT}, ${result.newestId}, now(), now(), 'succeeded', now())
         on conflict (expert_id, source_type) do update set cursor = coalesce(excluded.cursor, public.ingestion_checkpoints.cursor),
           last_started_at = now(), last_success_at = now(), last_status = 'succeeded', last_error = null, updated_at = now()
       `;
     } catch (error) {
       summary.errors += 1;
       const message = error instanceof Error ? error.message : "unknown";
-      console.error(`Timeline poll failed for @${expert.x_handle}: ${message}`);
+      console.error(`X poll failed for @${expert.x_handle}: ${message}`);
       await sql`
         insert into public.ingestion_checkpoints (expert_id, source_type, last_started_at, last_status, last_error, updated_at)
-        values (${expert.id}, ${TIMELINE_CHECKPOINT}, now(), 'failed', ${message.slice(0, 300)}, now())
+        values (${expert.id}, ${X_CURSOR_CHECKPOINT}, now(), 'failed', ${message.slice(0, 300)}, now())
         on conflict (expert_id, source_type) do update set last_started_at = now(), last_status = 'failed', last_error = excluded.last_error, updated_at = now()
       `;
     }
