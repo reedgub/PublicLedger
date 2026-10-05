@@ -10,7 +10,7 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 
-export const CASCADE_VERIFIER_VERSION = "2026-10-05.2-strict-attribution";
+export const CASCADE_VERIFIER_VERSION = "2026-10-05.3-no-human-review";
 
 export const cascadeVerdictSchema = z.object({
   verdict: z.enum([
@@ -61,6 +61,8 @@ Then decide:
 - approve: verdict is faithful, the claim is concrete and falsifiable, criteria name a specific public data source, no probability was invented, and a careful editor would publish it as-is.
 - reject: any substantive problem above.
 - review: faithful but you are not sure an editor would publish it, or the source is a machine transcript where the speaker is uncertain.
+
+There is no human editor after you: only a confident approve is published; review and reject are both left unpublished.
 
 confidence is your confidence in the decision (0-1). reason is one sentence. Be strict: when in doubt, do not approve. A wrong attribution on a public track record is far worse than a missed prediction.`;
 
@@ -165,21 +167,19 @@ export type CandidateFlags = {
 
 export type CandidateAction =
   | { action: "publish"; verificationMode: "auto" }
-  | { action: "reject"; reason: string }
-  | { action: "review"; reason: string };
+  | { action: "reject"; reason: string };
 
-const HARD_REJECT_VERDICTS = new Set(["unsupported", "overstated", "understated", "wrong_speaker", "not_prediction", "hindsight_leak"]);
-
+// There is no human review queue: the verifier either publishes a candidate or
+// it is rejected (kept in prediction_candidates with the reason, never shown).
 export function decideCandidate(verdict: CascadeVerdict, flags: CandidateFlags): CandidateAction {
-  if (verdict.decision === "reject" || (HARD_REJECT_VERDICTS.has(verdict.verdict) && verdict.confidence >= 0.7)) {
+  if (verdict.decision === "reject" || verdict.verdict !== "faithful") {
     return { action: "reject", reason: `${verdict.verdict}: ${verdict.reason}` };
   }
-  if (flags.forceReview) return { action: "review", reason: `source requires human review: ${verdict.reason}` };
-  if (!flags.hasResolutionDate) return { action: "review", reason: "no resolution date" };
-  // Only high-confidence faithful approvals publish without a human. The
-  // launch spot-check found the 0.75–0.9 band too unreliable to auto-publish.
-  if (verdict.decision === "approve" && verdict.verdict === "faithful" && verdict.confidence >= 0.9) {
+  if (flags.forceReview) return { action: "reject", reason: `speaker_uncertain: ${verdict.reason}` };
+  if (!flags.hasResolutionDate) return { action: "reject", reason: "no resolution date" };
+  // The launch spot-check found the 0.75–0.9 band too unreliable to publish.
+  if (verdict.decision === "approve" && verdict.confidence >= 0.9) {
     return { action: "publish", verificationMode: "auto" };
   }
-  return { action: "review", reason: verdict.reason };
+  return { action: "reject", reason: `not_confident (${verdict.decision}, ${verdict.confidence}): ${verdict.reason}` };
 }
