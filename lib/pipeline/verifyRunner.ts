@@ -10,6 +10,7 @@ import { getOpenAIClient } from "@/lib/ai/client";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
 import { publishCandidate } from "@/lib/pipeline/publish";
+import { isProviderOutage } from "@/lib/pipeline/cascade";
 import { recordSpend, tokenCostUsd, type BudgetGuard, type SpendScope } from "@/lib/pipeline/spend";
 import {
   buildBatchLine,
@@ -163,6 +164,11 @@ export async function verifyPendingSync(options: { guard: BudgetGuard; scope: Sp
       await applyVerdict(row, verdict, summary);
     } catch (error) {
       summary.errors += 1;
+      // Provider refused (credits, auth, rate limit): not the candidate's fault; retry next run.
+      if (isProviderOutage(error)) {
+        console.error(`Verifier provider unavailable: ${error instanceof Error ? error.message : "unknown"}. Pending candidates stay queued.`);
+        break;
+      }
       await handleFailedVerification(row, error instanceof Error ? error.message : "unknown");
     }
   }
