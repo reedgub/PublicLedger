@@ -32,7 +32,7 @@ function arg(name: string): string | undefined {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
-type ExpertRow = { id: string; slug: string; display_name: string; x_handle: string; x_user_id: string | null; cursor: string | null };
+type ExpertRow = { id: string; slug: string; display_name: string; x_handle: string; x_user_id: string | null; source_status: string; cursor: string | null };
 
 async function pollX(guard: BudgetGuard, runId: string, onlyExpert?: string) {
   const summary = { experts: 0, posts: 0, newSources: 0, errors: 0, stoppedByBudget: false };
@@ -42,10 +42,10 @@ async function pollX(guard: BudgetGuard, runId: string, onlyExpert?: string) {
   }
   const sql = getDatabase();
   const experts = await sql<ExpertRow[]>`
-    select e.id, e.slug, e.display_name, e.x_handle, e.x_user_id, c.cursor
+    select e.id, e.slug, e.display_name, e.x_handle, e.x_user_id, e.source_status, c.cursor
     from public.experts e
     left join public.ingestion_checkpoints c on c.expert_id = e.id and c.source_type = ${TIMELINE_CHECKPOINT}
-    where e.is_active and e.x_handle is not null and e.source_status = 'verified'
+    where e.is_active and e.x_handle is not null and e.source_status in ('verified', 'unverified')
       and (${onlyExpert ?? null}::text is null or e.slug = ${onlyExpert ?? null} or lower(e.x_handle) = lower(${onlyExpert ?? ""}))
     order by c.last_success_at asc nulls first
   `;
@@ -58,10 +58,18 @@ async function pollX(guard: BudgetGuard, runId: string, onlyExpert?: string) {
     try {
       let userId = expert.x_user_id;
       if (!userId) {
+        // One official lookup per expert, ever. Unverified experts become
+        // verified only when X returns the exact handle (same rule as the
+        // verify-experts job); otherwise they are marked unresolved and skipped.
         const user = await resolveXUser(expert.x_handle);
-        if (!user) throw new Error("X user not found");
+        const matches = user && user.username.toLowerCase() === expert.x_handle.toLowerCase();
+        await recordSpend({ scope: "daily", runId, provider: "x", stage: "user_lookup", units: 1, unitKind: "request", costUsd: xReadCostUsd(0, 1) }, guard);
+        if (!user || !matches) {
+          if (expert.source_status === "unverified") await sql`update public.experts set source_status = 'unresolved', updated_at = now() where id = ${expert.id}`;
+          throw new Error("X user not found or handle mismatch");
+        }
         userId = user.id;
-        await sql`update public.experts set x_user_id = ${userId} where id = ${expert.id}`;
+        await sql`update public.experts set x_user_id = ${userId}, x_handle = ${user.username}, avatar_url = coalesce(${user.profileImageUrl}, avatar_url), source_status = 'verified', updated_at = now() where id = ${expert.id}`;
       }
       const result = await fetchUserTimeline({
         userId,
