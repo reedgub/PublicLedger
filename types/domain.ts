@@ -73,6 +73,8 @@ export type Prediction = {
   markets: Market[];
   recordType: RecordType;
   imputationNote: string | null;
+  /** "backfill" = captured from the archive after publication, not recorded live. */
+  captureMode: "live" | "backfill";
 };
 
 export type Market = {

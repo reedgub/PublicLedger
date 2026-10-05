@@ -1,0 +1,87 @@
+name: Backfill (manual, resumable)
+
+# Historical backfill. Always run with estimate=true first, then raise the
+# budget. BACKFILL_BUDGET_USD / the budget input is a LIFETIME cap across all
+# backfill runs (read from public.pipeline_spend), so re-running continues
+# where the last run stopped and never double-spends.
+
+on:
+  workflow_dispatch:
+    inputs:
+      estimate:
+        description: "Only forecast cost (counts endpoint, no post reads)"
+        type: boolean
+        default: true
+      years:
+        description: "Years of history (2–5)"
+        default: "2"
+      budget:
+        description: "Lifetime backfill cap in USD (overrides BACKFILL_BUDGET_USD)"
+        default: ""
+      experts:
+        description: "Comma-separated slugs/handles (blank = all verified experts)"
+        default: ""
+      sources:
+        description: "x,writing,podcast"
+        default: "x,writing"
+      tier:
+        description: "X query tier: precision (cheap) or recall"
+        default: "precision"
+
+concurrency:
+  group: backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
+      NEXT_PUBLIC_SITE_ORIGIN: ${{ secrets.NEXT_PUBLIC_SITE_ORIGIN }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPEN_MODEL_API_KEY: ${{ secrets.OPEN_MODEL_API_KEY }}
+      OPEN_MODEL_BASE_URL: ${{ vars.OPEN_MODEL_BASE_URL }}
+      OPEN_MODEL_SCREEN_MODEL: ${{ vars.OPEN_MODEL_SCREEN_MODEL }}
+      OPEN_MODEL_EXTRACT_MODEL: ${{ vars.OPEN_MODEL_EXTRACT_MODEL }}
+      TRANSCRIBE_API_KEY: ${{ secrets.TRANSCRIBE_API_KEY }}
+      TRANSCRIBE_BASE_URL: ${{ vars.TRANSCRIBE_BASE_URL }}
+      BACKFILL_BUDGET_USD: ${{ vars.BACKFILL_BUDGET_USD }}
+      VERIFIER_MODE: ${{ vars.VERIFIER_MODE }}
+      CASCADE_VERIFIER_MODEL: ${{ vars.CASCADE_VERIFIER_MODEL }}
+      X_PRICE_PER_POST_READ_USD: ${{ vars.X_PRICE_PER_POST_READ_USD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Ensure ffmpeg (podcast transcription)
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Backfill
+        env:
+          IN_ESTIMATE: ${{ inputs.estimate }}
+          IN_YEARS: ${{ inputs.years }}
+          IN_BUDGET: ${{ inputs.budget }}
+          IN_EXPERTS: ${{ inputs.experts }}
+          IN_SOURCES: ${{ inputs.sources }}
+          IN_TIER: ${{ inputs.tier }}
+        run: |
+          args=(--years "$IN_YEARS" --sources "$IN_SOURCES" --tier "$IN_TIER")
+          if [ "$IN_ESTIMATE" = "true" ]; then args+=(--estimate); fi
+          if [ -n "$IN_BUDGET" ]; then args+=(--budget "$IN_BUDGET"); fi
+          if [ -n "$IN_EXPERTS" ]; then args+=(--experts "$IN_EXPERTS"); fi
+          pnpm backfill "${args[@]}"
+      - name: Spend report
+        if: always()
+        run: pnpm spend --days 30 || true

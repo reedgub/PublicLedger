@@ -10,43 +10,13 @@ import { validateExtractedPrediction } from "@/lib/predictions/validation";
 import { canAutoPublish } from "@/lib/predictions/promotion";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
 import { predictionFingerprint } from "@/lib/predictions/fingerprint";
-import { verifyMarketMatch } from "@/lib/ai/matchMarket";
-import { canCreateMarketLink } from "@/lib/matching/markets";
+import { linkPublishedPrediction } from "@/lib/pipeline/publish";
 import { applyAutoApprovalDecision, judgeCandidate } from "@/lib/ai/autoApprove";
 import { revalidateLive } from "@/lib/http/revalidate";
 
 type SourceRow = { id: string; exact_text: string; published_at: string; content_hash: string; expert_id: string; display_name: string; x_handle: string };
 
 export type ProcessingSummary = { examined: number; rejectedByHeuristic: number; aiPredictions: number; verifierRejected: number; autoApproved: number; autoRejected: number; autoApproverErrors: number; published: number; duplicates: number; errors: number };
-
-async function linkPublishedPrediction(predictionId: string, claim: string, resolutionCriteria: string, category: string, resolutionDate: string | null, predictionDate: string) {
-  const sql = getDatabase();
-  const topics = await sql<{ id: string; score: number }[]>`
-    select id, similarity(title, ${claim}) as score from public.topics
-    where category_slug = ${category} and status = 'active' and similarity(title, ${claim}) >= 0.45
-    order by score desc limit 3
-  `;
-  for (const topic of topics) await sql`insert into public.prediction_topics (prediction_id, topic_id, relevance_score) values (${predictionId}, ${topic.id}, ${topic.score}) on conflict do nothing`;
-
-  const markets = await sql<{ id: string; question: string; description: string | null; end_at: string | null; score: number }[]>`
-    select m.id, m.question, m.description, m.end_at, similarity(m.question, ${claim}) as score
-    from public.markets m left join public.topics t on t.id = m.topic_id
-    where (t.category_slug = ${category} or similarity(m.question, ${claim}) >= 0.35)
-      and similarity(m.question, ${claim}) >= 0.2
-    order by score desc limit 3
-  `;
-  for (const market of markets) {
-    const result = await verifyMarketMatch({ normalizedClaim: claim, resolutionCriteria, predictionDate, resolutionDate, marketQuestion: market.question, marketDescription: market.description, marketEndDate: market.end_at });
-    if (!canCreateMarketLink(result)) continue;
-    const [snapshot] = await sql<{ yes_probability: number | null; distance_hours: number }[]>`
-      select yes_probability, abs(extract(epoch from (observed_at - ${predictionDate}::timestamptz))) / 3600 as distance_hours
-      from public.market_snapshots where market_id = ${market.id}
-      order by abs(extract(epoch from (observed_at - ${predictionDate}::timestamptz))) limit 1
-    `;
-    const historicalProbability = snapshot && snapshot.distance_hours <= env.HISTORICAL_MARKET_MAX_DISTANCE_HOURS ? snapshot.yes_probability : null;
-    await sql`insert into public.prediction_markets (prediction_id, market_id, semantic_match_score, market_probability_at_prediction) values (${predictionId}, ${market.id}, ${result.score}, ${historicalProbability}) on conflict do nothing`;
-  }
-}
 
 export async function processSources(): Promise<ProcessingSummary> {
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not configured. AI extraction was skipped.");
@@ -63,6 +33,8 @@ export async function processSources(): Promise<ProcessingSummary> {
       and s.exact_text is not null
       and s.deleted_at is null
       and (s.source_type = 'substack' or e.source_status = 'verified')
+      -- Sources the cascade has screened or claimed are not processed twice.
+      and s.screen_status = 'pending'
       and not exists (
         select 1 from public.prediction_candidates pc
         where pc.source_id = s.id and pc.model_name = ${env.OPENAI_MODEL}
@@ -73,6 +45,8 @@ export async function processSources(): Promise<ProcessingSummary> {
   const summary: ProcessingSummary = { examined: sources.length, rejectedByHeuristic: 0, aiPredictions: 0, verifierRejected: 0, autoApproved: 0, autoRejected: 0, autoApproverErrors: 0, published: 0, duplicates: 0, errors: 0 };
   const limit = pLimit(env.SEED_CONCURRENCY);
   await Promise.all(sources.map((source) => limit(async () => {
+    // Claim the source for the legacy path so the cascade skips it.
+    await sql`update public.sources set screen_status = 'extracted', screen_model = 'legacy', screened_at = now() where id = ${source.id}`;
     try {
       const heuristic = scorePredictionHeuristic(source.exact_text);
       if (!heuristic.shouldExtract) {

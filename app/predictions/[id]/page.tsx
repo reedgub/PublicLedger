@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight, CircleDotDashed, FileCheck2, Landmark } from "lucide-react";
-import { StatusBadge } from "@/components/status-badge";
+import { CaptureBadge, StatusBadge } from "@/components/status-badge";
 import { ShareButton } from "@/components/share-button";
 import { CATEGORIES } from "@/lib/constants";
 import { getPredictionById } from "@/lib/data/public";
@@ -47,6 +47,7 @@ export default async function PredictionPage({ params }: PageProps<"/predictions
                 <span className="border border-provisional px-2 py-1 font-mono text-[9px] text-provisional uppercase tracking-[0.14em]">Take</span>
               )}
               <StatusBadge status={displayStatus} />
+              <CaptureBadge captureMode={prediction.captureMode} />
             </div>
             <h1 className="editorial mx-auto mt-7 max-w-3xl text-4xl leading-[1.03] tracking-[-0.035em] text-balance sm:text-6xl">{prediction.normalizedClaim}</h1>
             {prediction.recordType === "take" && prediction.imputationNote && (

@@ -1,9 +1,8 @@
-name: Ingest X (daily)
+name: Ingest X via xAI (legacy, manual)
 
+# Superseded by ingest-daily.yml (official X timelines + low-cost cascade).
+# Kept as a manual fallback; no longer scheduled.
 on:
-  # Every day at 12:00 UTC. Manual trigger available for backfills or reruns.
-  schedule:
-    - cron: "0 12 * * *"
   workflow_dispatch:
     inputs:
       backfill_days:

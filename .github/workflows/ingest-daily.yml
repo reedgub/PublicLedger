@@ -1,0 +1,65 @@
+name: Ingest (daily, low-cost cascade)
+
+# Official X timelines + feeds + podcasts → heuristic → open-model screen →
+# open-model extraction → batched frontier verification. Results of the
+# previous day's verification batch are collected and published first.
+# Spend is capped by DAILY_BUDGET_USD (rolling 24h) from public.pipeline_spend.
+
+on:
+  schedule:
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+    inputs:
+      expert:
+        description: "Only run for one expert slug or handle"
+        required: false
+        default: ""
+
+concurrency:
+  group: ingest-daily
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
+      NEXT_PUBLIC_SITE_ORIGIN: ${{ secrets.NEXT_PUBLIC_SITE_ORIGIN }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPEN_MODEL_API_KEY: ${{ secrets.OPEN_MODEL_API_KEY }}
+      OPEN_MODEL_BASE_URL: ${{ vars.OPEN_MODEL_BASE_URL }}
+      OPEN_MODEL_SCREEN_MODEL: ${{ vars.OPEN_MODEL_SCREEN_MODEL }}
+      OPEN_MODEL_EXTRACT_MODEL: ${{ vars.OPEN_MODEL_EXTRACT_MODEL }}
+      TRANSCRIBE_API_KEY: ${{ secrets.TRANSCRIBE_API_KEY }}
+      TRANSCRIBE_BASE_URL: ${{ vars.TRANSCRIBE_BASE_URL }}
+      DAILY_BUDGET_USD: ${{ vars.DAILY_BUDGET_USD }}
+      VERIFIER_MODE: ${{ vars.VERIFIER_MODE }}
+      CASCADE_VERIFIER_MODEL: ${{ vars.CASCADE_VERIFIER_MODEL }}
+      X_PRICE_PER_POST_READ_USD: ${{ vars.X_PRICE_PER_POST_READ_USD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Ensure ffmpeg (podcast transcription)
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Daily ingestion
+        run: |
+          args=""
+          if [ -n "${{ inputs.expert }}" ]; then args="--expert ${{ inputs.expert }}"; fi
+          pnpm ingest:daily $args
+      - name: Spend report
+        if: always()
+        run: pnpm spend --days 7 || true

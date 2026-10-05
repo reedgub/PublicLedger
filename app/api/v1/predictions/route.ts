@@ -51,6 +51,7 @@ export async function GET(request: Request) {
         resolutionCriteria: prediction.resolutionCriteria,
         explicitProbability: prediction.explicitProbability,
         status: prediction.status,
+        captureMode: prediction.captureMode,
         source: {
           type: prediction.source.sourceType,
           canonicalPath: prediction.source.canonicalPath,

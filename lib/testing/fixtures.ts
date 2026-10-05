@@ -41,5 +41,6 @@ export const syntheticPrediction: Prediction = {
   topics: [],
   markets: [],
   recordType: "prediction",
+  captureMode: "live",
   imputationNote: null,
 };

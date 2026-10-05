@@ -65,6 +65,7 @@ Tokens live in `app/globals.css` (`:root`). Use the token or its Tailwind alias;
 | Empty state | `<EmptyState>` |
 | Expert avatar | `<ExpertAvatar>` (stored X image or monogram tile, no third-party avatar services) |
 | Status | `<StatusBadge>` |
+| Provenance (archive capture) | `<CaptureBadge>` — neutral badge (never an outcome color) on predictions captured from the archive after publication |
 | Prediction rows | `<PredictionList>` |
 | Market context | `<MarketCard>` (always labeled informational) |
 

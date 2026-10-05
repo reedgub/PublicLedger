@@ -13,3 +13,17 @@ export function StatusBadge({ status }: { status: PredictionStatus | ResolutionO
       : "border-border bg-muted text-foreground";
   return <Badge variant="outline" className={`metric rounded-full px-2.5 py-0.5 text-[10px] tracking-[0.06em] uppercase ${color}`}>{labels[status]}</Badge>;
 }
+
+/** Neutral provenance badge for predictions captured from the archive after publication. */
+export function CaptureBadge({ captureMode }: { captureMode: "live" | "backfill" }) {
+  if (captureMode !== "backfill") return null;
+  return (
+    <Badge
+      variant="outline"
+      title="Captured from the public archive after it was published, not recorded live by PublicLedger."
+      className="metric rounded-full border-border bg-muted px-2.5 py-0.5 text-[10px] tracking-[0.06em] text-foreground uppercase"
+    >
+      Archive capture
+    </Badge>
+  );
+}
