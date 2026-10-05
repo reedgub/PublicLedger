@@ -140,7 +140,7 @@ describe("stage 3 verification", () => {
 
   it("publishes only faithful approvals and tiers by confidence", () => {
     expect(decideCandidate(verdict(), flags)).toEqual({ action: "publish", verificationMode: "auto" });
-    expect(decideCandidate(verdict({ confidence: 0.8 }), flags)).toEqual({ action: "publish", verificationMode: "auto_low_confidence" });
+    expect(decideCandidate(verdict({ confidence: 0.8 }), flags).action).toBe("review");
     expect(decideCandidate(verdict({ confidence: 0.5 }), flags).action).toBe("review");
     expect(decideCandidate(verdict({ verdict: "ambiguous" }), flags).action).toBe("review");
   });
@@ -163,7 +163,7 @@ describe("stage 3 verification", () => {
     expect(line.url).toBe("/v1/chat/completions");
     expect(line.body.response_format.json_schema.strict).toBe(true);
     expect(line.body.messages[0].role).toBe("system");
-    expect(line.body.reasoning_effort).toBe("low");
+    expect(line.body.reasoning_effort).toBe("medium");
 
     const output = JSON.stringify({ custom_id: "cand-1", response: { status_code: 200, body: { choices: [{ message: { content: JSON.stringify(verdict()) } }], usage: { prompt_tokens: 900, completion_tokens: 80 } } }, error: null });
     const parsed = parseBatchOutputLine(output);

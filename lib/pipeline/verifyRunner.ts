@@ -125,7 +125,7 @@ export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, sum
     captureMode: row.ingestion_mode,
     auditAction: "prediction_auto_approved",
     auditReason: "Passed open-model extraction, deterministic validation, and the cascade frontier verifier.",
-    auditAfter: { verifier_confidence: verdict.confidence, low_confidence: action.verificationMode === "auto_low_confidence" },
+    auditAfter: { verifier_confidence: verdict.confidence },
   });
   summary.published += 1;
 }
