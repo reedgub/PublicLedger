@@ -9,6 +9,7 @@ import { dedupeWithinSource, isProviderOutage, sourceForcesReview } from "@/lib/
 import { buildCascadeXQuery, windowYearTerms, X_QUERY_MAX_LENGTH } from "@/lib/sources/x-query";
 import { fullPostText } from "@/lib/sources/x-parser";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
+import { repairSourceQuote } from "@/lib/predictions/validation";
 
 const prediction = (overrides: Partial<ExtractedPrediction> = {}): ExtractedPrediction => ({
   normalized_claim: "The Federal Reserve will cut rates by June 2024.",
@@ -206,5 +207,29 @@ describe("dedupe and budget", () => {
 
   it("prices tokens with discounts", () => {
     expect(tokenCostUsd({ inputTokens: 1_000_000, outputTokens: 1_000_000 }, { input: 0.25, output: 2 }, 0.5)).toBeCloseTo(1.125);
+  });
+});
+
+describe("quote repair", () => {
+  it("returns the exact source passage when the model drifted typographically", () => {
+    const source = "With few cars, Waymo leads. When $TSLA\u2019s solution enters the market next year, the transition is likely to shift  fast.";
+    const repaired = repairSourceQuote(source, "When $TSLA's solution enters the market next year, the transition is likely to shift fast.");
+    expect(repaired).toBe("When $TSLA\u2019s solution enters the market next year, the transition is likely to shift  fast.");
+    expect(source.includes(repaired!)).toBe(true);
+  });
+
+  it("maps folded Unicode bold letters back to the original characters", () => {
+    const source = "My #1 prediction: \u{1D5FD}\u{1D5F2}\u{1D5FC}\u{1D5FD}\u{1D5F9}\u{1D5F2} are going to play games with AGI.";
+    const repaired = repairSourceQuote(source, "people are going to play games with AGI.");
+    expect(repaired).not.toBeNull();
+    expect(source.includes(repaired!)).toBe(true);
+    expect(repaired!.endsWith("AGI.")).toBe(true);
+  });
+
+  it("refuses absent, too-short or ambiguous passages", () => {
+    expect(repairSourceQuote("Rates will fall by 2025.", "Rates will rise by 2025.")).toBeNull();
+    expect(repairSourceQuote("abc", "abc d")).toBeNull();
+    expect(repairSourceQuote("I think it will rain soon. I think it will rain soon.", "I think it will rain soon.")).toBe("I think it will rain soon.");
+    expect(repairSourceQuote("I think it\u2019ll rain soon. I think it\u2019ll rain soon.", "I think it'll rain soon.")).toBeNull();
   });
 });

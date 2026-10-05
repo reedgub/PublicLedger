@@ -109,3 +109,39 @@ export async function markCoverage(
     where id = ${id}
   `;
 }
+
+// ---- Window grouping ----------------------------------------------------------
+//
+// X rate-limits full-archive search per request, not per post, and most
+// expert-months hold only a handful of matching posts. Adjacent months whose
+// counts are known are therefore merged into one query window (up to
+// maxItems expected posts and maxMonths months), cutting requests ~10x for
+// typical accounts. Months with unknown counts stay single.
+
+export type WindowRow = { id: string; start: Date; end: Date; estimated: number | null };
+export type Window = { start: Date; end: Date; rows: WindowRow[]; estimated: number | null };
+
+export function groupWindows(rows: WindowRow[], options: { maxItems?: number; maxMonths?: number } = {}): Window[] {
+  const maxItems = options.maxItems ?? 450;
+  const maxMonths = options.maxMonths ?? 12;
+  const sorted = rows.slice().sort((a, b) => a.start.getTime() - b.start.getTime());
+  const windows: Window[] = [];
+  let current: Window | null = null;
+  for (const row of sorted) {
+    const mergeable = current !== null
+      && row.estimated !== null
+      && current.estimated !== null
+      && current.end.getTime() === row.start.getTime()
+      && current.rows.length < maxMonths
+      && current.estimated + row.estimated <= maxItems;
+    if (mergeable && current) {
+      current.end = row.end;
+      current.rows.push(row);
+      current.estimated = (current.estimated ?? 0) + (row.estimated ?? 0);
+    } else {
+      current = { start: row.start, end: row.end, rows: [row], estimated: row.estimated };
+      windows.push(current);
+    }
+  }
+  return windows;
+}

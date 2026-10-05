@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthsAgo, planMonthlyPeriods, prioritizePeriods, priorityBand } from "@/lib/pipeline/coverage";
+import { groupWindows, monthsAgo, planMonthlyPeriods, prioritizePeriods, priorityBand } from "@/lib/pipeline/coverage";
 import { extractMentions } from "@/lib/pipeline/discovery";
 import { forecastCost, DEFAULT_RATIOS } from "@/lib/pipeline/estimate";
 import { excerptAppears, normalizeForMatch, pageTextFromHtml } from "@/lib/resolution/evidence";
@@ -62,5 +62,27 @@ describe("resolution evidence", () => {
     const verifier = { verdict: "approve" as const, confidence: 0.99, reason: "ok" };
     expect(canAutoResolve(proposal, verifier, proposal.evidence)).toBe(true);
     expect(canAutoResolve(proposal, verifier, [])).toBe(false);
+  });
+});
+
+describe("window grouping", () => {
+  const month = (y: number, m: number, estimated: number | null) => ({
+    id: `${y}-${m}`, start: new Date(Date.UTC(y, m, 1)), end: new Date(Date.UTC(y, m + 1, 1)), estimated,
+  });
+
+  it("merges adjacent low-volume months into one query window", () => {
+    const windows = groupWindows([month(2024, 0, 3), month(2024, 1, 5), month(2024, 2, 2)]);
+    expect(windows).toHaveLength(1);
+    expect(windows[0].rows).toHaveLength(3);
+    expect(windows[0].estimated).toBe(10);
+    expect(windows[0].end.toISOString()).toBe("2024-04-01T00:00:00.000Z");
+  });
+
+  it("splits on volume, gaps, unknown counts and the month cap", () => {
+    expect(groupWindows([month(2024, 0, 300), month(2024, 1, 300)], { maxItems: 450 })).toHaveLength(2);
+    expect(groupWindows([month(2024, 0, 1), month(2024, 2, 1)])).toHaveLength(2);
+    expect(groupWindows([month(2024, 0, 1), month(2024, 1, null), month(2024, 2, 1)])).toHaveLength(3);
+    const year = Array.from({ length: 24 }, (_, index) => month(2023, index, 1));
+    expect(groupWindows(year, { maxMonths: 12 }).map((window) => window.rows.length)).toEqual([12, 12]);
   });
 });

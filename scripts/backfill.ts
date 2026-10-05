@@ -21,7 +21,7 @@ import { buildCascadeXQuery, CASCADE_X_QUERY_VERSION, type XQueryTier } from "@/
 import { countXQuery, searchXQuery } from "@/lib/sources/x";
 import { collectSitemap, collectFeed } from "@/lib/sources/feed";
 import { episodeRecord, fetchPodcastEpisodes, transcribeEpisode } from "@/lib/sources/podcast";
-import { ensureCoverage, loadCoverage, markCoverage, planMonthlyPeriods, prioritizePeriods, setEstimate, type Period } from "@/lib/pipeline/coverage";
+import { ensureCoverage, groupWindows, loadCoverage, markCoverage, planMonthlyPeriods, priorityBand, setEstimate, type Period, type Window, type WindowRow } from "@/lib/pipeline/coverage";
 import { forecastCost, measuredRatios } from "@/lib/pipeline/estimate";
 import { createBudgetGuard, recordSpend, transcriptionCostUsd, xReadCostUsd, type BudgetGuard } from "@/lib/pipeline/spend";
 import { storeSourceRecords } from "@/lib/pipeline/store";
@@ -40,6 +40,7 @@ type Flags = {
   maxPeriods?: number;
   includeUnverified: boolean;
   skipProcess: boolean;
+  maxMinutes: number;
 };
 
 function parseFlags(argv: string[]): Flags {
@@ -60,6 +61,9 @@ function parseFlags(argv: string[]): Flags {
     maxPeriods: get("--max-periods") ? Number(get("--max-periods")) : undefined,
     includeUnverified: argv.includes("--include-unverified"),
     skipProcess: argv.includes("--skip-process"),
+    // Collection stops after this long so processing always gets its turn
+    // inside a CI job limit (GitHub-hosted runners cap jobs at 6 hours).
+    maxMinutes: Number(get("--max-minutes") ?? 240),
   };
 }
 
@@ -193,58 +197,70 @@ async function loadExpertSources(experts: ExpertRow[], kinds: Array<ExpertSource
 
 // ---- Collect: X -------------------------------------------------------------------
 
-async function collectX(flags: Flags, experts: ExpertRow[], periods: Period[], guard: BudgetGuard, runId: string) {
+async function collectX(flags: Flags, experts: ExpertRow[], periods: Period[], guard: BudgetGuard, runId: string, deadline: number) {
   if (!env.X_BEARER_TOKEN) {
     console.warn("X_BEARER_TOKEN not set: skipping X backfill.");
-    return { posts: 0, newSources: 0, periods: 0, stoppedByBudget: false };
+    return { posts: 0, newSources: 0, windows: 0, requests: 0, stoppedByBudget: false, stoppedByTime: false };
   }
   const now = new Date();
-  const ordered = prioritizePeriods(periods, now);
   const withHandles = experts.filter((expert) => expert.x_handle);
-  const coverageByExpert = new Map<string, Map<number, { id: string; status: string; estimated_items: number | null }>>();
+  type Job = { expert: ExpertRow; window: Window; band: number };
+  const jobs: Job[] = [];
   for (const expert of withHandles) {
     await ensureCoverage(expert.id, "x", periods, CASCADE_X_QUERY_VERSION);
     const rows = await loadCoverage(expert.id, "x", periods[0].start);
-    coverageByExpert.set(expert.id, new Map(rows.map((row) => [new Date(row.period_start).getTime(), row])));
-  }
-  let posts = 0; let newSources = 0; let done = 0;
-  const perExpertDone = new Map<string, number>();
-  for (const period of ordered) {
-    for (const expert of withHandles) {
-      const row = coverageByExpert.get(expert.id)?.get(period.start.getTime());
-      if (!row || row.status === "complete" || row.status === "skipped") continue;
-      if (flags.maxPeriods && (perExpertDone.get(expert.id) ?? 0) >= flags.maxPeriods) continue;
+    const open: WindowRow[] = [];
+    for (const row of rows) {
+      if (row.status === "complete" || row.status === "skipped") continue;
+      // Months the counts endpoint says are empty need no read at all.
       if (row.estimated_items === 0) {
         await markCoverage(row.id, "complete", { queryVersion: CASCADE_X_QUERY_VERSION });
         continue;
       }
-      // Budget check against the known (or a capped default) volume.
-      const expected = Math.min(row.estimated_items ?? 100, flags.maxPostsPerPeriod);
-      if (!guard.canSpend(xReadCostUsd(expected, Math.ceil(expected / 500)))) {
-        console.log(JSON.stringify({ stage: "backfill_budget_reached", spent_usd: Number(guard.spentUsd.toFixed(4)), cap_usd: guard.capUsd }));
-        return { posts, newSources, periods: done, stoppedByBudget: true };
+      open.push({ id: row.id, start: new Date(row.period_start), end: new Date(row.period_end), estimated: row.estimated_items });
+    }
+    let windows = groupWindows(open, { maxItems: Math.min(450, flags.maxPostsPerPeriod), maxMonths: 12 });
+    if (flags.maxPeriods) windows = windows.slice(0, flags.maxPeriods);
+    // A window's priority is that of its most valuable month.
+    for (const window of windows) jobs.push({ expert, window, band: Math.min(...window.rows.map((row) => priorityBand(row, now))) });
+  }
+  // Resolvable months first, newest first, naturally interleaved across experts.
+  jobs.sort((a, b) => a.band - b.band || b.window.end.getTime() - a.window.end.getTime());
+
+  let posts = 0; let newSources = 0; let done = 0; let requests = 0;
+  for (const { expert, window } of jobs) {
+    if (Date.now() > deadline) {
+      console.log(JSON.stringify({ stage: "backfill_time_limit", windows_done: done, windows_left: jobs.length - done }));
+      return { posts, newSources, windows: done, requests, stoppedByBudget: false, stoppedByTime: true };
+    }
+    const cap = flags.maxPostsPerPeriod * window.rows.length;
+    const expected = Math.min(window.estimated ?? 100, cap);
+    if (!guard.canSpend(xReadCostUsd(expected, Math.ceil(expected / 500)))) {
+      console.log(JSON.stringify({ stage: "backfill_budget_reached", spent_usd: Number(guard.spentUsd.toFixed(4)), cap_usd: guard.capUsd }));
+      return { posts, newSources, windows: done, requests, stoppedByBudget: true, stoppedByTime: false };
+    }
+    for (const row of window.rows) await markCoverage(row.id, "running");
+    try {
+      const query = buildCascadeXQuery(expert.x_handle!, { start: window.start, end: window.end, tier: flags.tier, includeReplies: flags.includeReplies });
+      const result = await searchXQuery({ query, handle: expert.x_handle!, start: window.start, end: window.end, mode: "full-archive", maxPosts: cap });
+      const cost = xReadCostUsd(result.postsRead, result.requests);
+      await recordSpend({ scope: "backfill", runId, provider: "x", stage: "backfill_search", units: result.postsRead, unitKind: "post_read", costUsd: cost, metadata: { expert_id: expert.id, window_start: window.start.toISOString(), window_end: window.end.toISOString(), months: window.rows.length } }, guard);
+      const created = await storeSourceRecords(result.records, { expertId: expert.id, mode: "backfill", verificationLevel: "x_api" });
+      posts += result.postsRead; newSources += created; done += 1; requests += result.requests;
+      // Hitting the cap means the window was not fully scanned.
+      const status = result.postsRead >= cap ? "partial" : "complete";
+      for (const [index, row] of window.rows.entries()) {
+        await markCoverage(row.id, status, { itemsFetched: index === 0 ? result.postsRead : 0, costUsd: index === 0 ? cost : 0, queryVersion: CASCADE_X_QUERY_VERSION });
       }
-      await markCoverage(row.id, "running");
-      try {
-        const query = buildCascadeXQuery(expert.x_handle!, { start: period.start, end: period.end, tier: flags.tier, includeReplies: flags.includeReplies });
-        const result = await searchXQuery({ query, handle: expert.x_handle!, start: period.start, end: period.end, mode: "full-archive", maxPosts: flags.maxPostsPerPeriod });
-        const cost = xReadCostUsd(result.postsRead, result.requests);
-        await recordSpend({ scope: "backfill", runId, provider: "x", stage: "backfill_search", units: result.postsRead, unitKind: "post_read", costUsd: cost, metadata: { expert_id: expert.id, period_start: period.start.toISOString() } }, guard);
-        const created = await storeSourceRecords(result.records, { expertId: expert.id, mode: "backfill", verificationLevel: "x_api" });
-        posts += result.postsRead; newSources += created; done += 1;
-        perExpertDone.set(expert.id, (perExpertDone.get(expert.id) ?? 0) + 1);
-        // Hitting the per-month cap means the month was not fully scanned.
-        await markCoverage(row.id, result.postsRead >= flags.maxPostsPerPeriod ? "partial" : "complete", { itemsFetched: result.postsRead, costUsd: cost, queryVersion: CASCADE_X_QUERY_VERSION });
-      } catch (error) {
-        await markCoverage(row.id, "failed", { error: error instanceof Error ? error.message.slice(0, 300) : "unknown" });
-        if (error instanceof HttpError && [401, 403].includes(error.status)) {
-          throw new Error("X full-archive search was refused (401/403). Check that your X plan includes full-archive search.");
-        }
-        console.error(`X backfill failed for @${expert.x_handle} ${period.start.toISOString().slice(0, 7)}:`, error instanceof Error ? error.message : "unknown");
+    } catch (error) {
+      for (const row of window.rows) await markCoverage(row.id, "failed", { error: error instanceof Error ? error.message.slice(0, 300) : "unknown" });
+      if (error instanceof HttpError && [401, 403].includes(error.status)) {
+        throw new Error("X full-archive search was refused (401/403). Check that your X plan includes full-archive search.");
       }
+      console.error(`X backfill failed for @${expert.x_handle} ${window.start.toISOString().slice(0, 7)}..${window.end.toISOString().slice(0, 7)}:`, error instanceof Error ? error.message : "unknown");
     }
   }
-  return { posts, newSources, periods: done, stoppedByBudget: false };
+  return { posts, newSources, windows: done, requests, stoppedByBudget: false, stoppedByTime: false };
 }
 
 // ---- Collect: writing (sitemaps/feeds, free) ----------------------------------------
@@ -330,12 +346,14 @@ async function main() {
   }
 
   const runId = randomUUID();
+  const startedAt = Date.now();
   const guard = await createBudgetGuard("backfill", { capUsd: flags.budgetUsd ?? env.BACKFILL_BUDGET_USD });
   console.log(JSON.stringify({ stage: "backfill_start", run_id: runId, experts: experts.length, years: flags.years, sources: [...flags.sources], budget_cap_usd: guard.capUsd, already_spent_usd: Number(guard.spentUsd.toFixed(4)) }));
 
   // Free sources first, then paid ones in value order.
   const writing = flags.sources.has("writing") ? await collectWriting(flags, experts, since, until) : null;
-  const x = flags.sources.has("x") ? await collectX(flags, experts, periods, guard, runId) : null;
+  const deadline = startedAt + flags.maxMinutes * 60_000;
+  const x = flags.sources.has("x") ? await collectX(flags, experts, periods, guard, runId, deadline) : null;
   const podcasts = flags.sources.has("podcast") ? await collectPodcasts(experts, since, until, guard, runId) : null;
   console.log(JSON.stringify({ stage: "backfill_collected", writing, x, podcasts, spent_usd: Number(guard.spentUsd.toFixed(4)) }));
 
