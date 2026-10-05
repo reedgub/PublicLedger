@@ -13,13 +13,18 @@ import { CATEGORY_SLUGS } from "@/lib/constants";
 import { chatJson, resolveModel, type ModelTarget } from "@/lib/llm/openCompat";
 import { tokenCostUsd } from "@/lib/pipeline/spend";
 
-export const CASCADE_EXTRACTION_VERSION = "2026-10-05.1-cascade";
+export const CASCADE_EXTRACTION_VERSION = "2026-10-05.2-cascade-attribution";
 
 export const OUTCOME_BLIND_RULES = `
 Outcome blindness (mandatory):
 - Work ONLY from the supplied source text and its timestamp. You may know what happened after the source was published — ignore it completely.
 - Never add names, numbers, thresholds, dates or framing to the normalized_claim or resolution_criteria that are not in the source or not knowable on the source date.
-- Extract every qualifying claim regardless of whether you believe it later came true or false.`;
+- Extract every qualifying claim regardless of whether you believe it later came true or false.
+
+Attribution (mandatory):
+- Only extract outcomes the author asserts in their own voice. Do NOT extract the author reporting someone else's forecast: central-bank or government projections, market pricing or betting odds, analyst or economist consensus ("X is expected to…"), poll numbers, company guidance, or third-person quotes ("he said…").
+- Do NOT extract retrospective claims of having been right ("as I predicted…", "just like I told you").
+- Do NOT extract claims whose subject is unclear without outside context.`;
 
 const JSON_SHAPE = `
 Reply with ONLY a JSON object of this exact shape:

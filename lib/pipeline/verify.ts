@@ -10,7 +10,7 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 
-export const CASCADE_VERIFIER_VERSION = "2026-10-05.1";
+export const CASCADE_VERIFIER_VERSION = "2026-10-05.2-strict-attribution";
 
 export const cascadeVerdictSchema = z.object({
   verdict: z.enum([
@@ -50,8 +50,8 @@ export const CASCADE_VERIFIER_SYSTEM_PROMPT = `You are the single final auditor 
 Return verdict = the most serious problem found, or "faithful" if none:
 - unsupported: the claim, a detail, a threshold or a date is not supported by the source.
 - overstated / understated: certainty was strengthened ("might" -> "will") or weakened.
-- wrong_speaker: the author is quoting, paraphrasing or attributing someone else.
-- not_prediction: commentary, mood, opinion, joke, rhetorical question, or a statement about the past/present.
+- wrong_speaker: the forecast belongs to someone other than the author. This INCLUDES the author reporting or summarising another party's projection or expectation: central-bank or government forecasts ("the Fed sees core PCE at 2.6%", "the ECB projects inflation at 3%"), market pricing or betting odds ("markets assign a 30% probability", "Polymarket has X at 50%"), economists' or analysts' consensus ("unemployment is expected to remain at 4.3%"), poll numbers, company guidance, and third-person reports ("Hayes said…"). Only approve when the author personally asserts the outcome in their own voice.
+- not_prediction: commentary, mood, opinion, joke, rhetorical question, or a statement about the past/present. This INCLUDES retrospective claims of having been right ("as I predicted, it was bogus", "just like I told you"), descriptions of current positions or facts, and statements whose subject is unclear without outside context ("2026 has a clear shot at $100M+" — what does?).
 - bad_deadline: the resolution_date is neither stated nor clearly inferable from the source (for record_type "prediction"), or the imputation is not defensible (for "take").
 - bad_resolution_criteria: criteria are vague, unscorable, or do not name a specific public data source.
 - hindsight_leak: the claim or criteria contain information that was not knowable from the source on its date (e.g. later events, outcome-specific framing).
@@ -62,7 +62,7 @@ Then decide:
 - reject: any substantive problem above.
 - review: faithful but you are not sure an editor would publish it, or the source is a machine transcript where the speaker is uncertain.
 
-confidence is your confidence in the decision (0-1). reason is one sentence. Be strict: when in doubt, do not approve.`;
+confidence is your confidence in the decision (0-1). reason is one sentence. Be strict: when in doubt, do not approve. A wrong attribution on a public track record is far worse than a missed prediction.`;
 
 export type VerifierInput = {
   authorName: string;
@@ -117,8 +117,9 @@ export function buildVerifierRequestBody(input: VerifierInput, model = env.CASCA
       type: "json_schema" as const,
       json_schema: { name: "publicledger_cascade_verdict", strict: true, schema: CASCADE_VERDICT_JSON_SCHEMA },
     },
-    // Low reasoning keeps hidden reasoning tokens (billed as output) small.
-    ...(supportsReasoningEffort(model) ? { reasoning_effort: "low" as const } : {}),
+    // Medium reasoning: attribution errors cost far more than the extra
+    // output tokens (still well under a cent per candidate in batch mode).
+    ...(supportsReasoningEffort(model) ? { reasoning_effort: "medium" as const } : {}),
   };
 }
 
@@ -163,7 +164,7 @@ export type CandidateFlags = {
 };
 
 export type CandidateAction =
-  | { action: "publish"; verificationMode: "auto" | "auto_low_confidence" }
+  | { action: "publish"; verificationMode: "auto" }
   | { action: "reject"; reason: string }
   | { action: "review"; reason: string };
 
@@ -175,9 +176,10 @@ export function decideCandidate(verdict: CascadeVerdict, flags: CandidateFlags):
   }
   if (flags.forceReview) return { action: "review", reason: `source requires human review: ${verdict.reason}` };
   if (!flags.hasResolutionDate) return { action: "review", reason: "no resolution date" };
-  if (verdict.decision === "approve" && verdict.verdict === "faithful") {
-    if (verdict.confidence >= 0.9) return { action: "publish", verificationMode: "auto" };
-    if (verdict.confidence >= 0.75) return { action: "publish", verificationMode: "auto_low_confidence" };
+  // Only high-confidence faithful approvals publish without a human. The
+  // launch spot-check found the 0.75–0.9 band too unreliable to auto-publish.
+  if (verdict.decision === "approve" && verdict.verdict === "faithful" && verdict.confidence >= 0.9) {
+    return { action: "publish", verificationMode: "auto" };
   }
   return { action: "review", reason: verdict.reason };
 }
