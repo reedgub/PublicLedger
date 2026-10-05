@@ -99,7 +99,7 @@ The default pipeline reads everything cheaply and only spends money on text that
 
 | Stage | What runs | Cost |
 | --- | --- | --- |
-| Collect | Official X API (timelines daily, one merged full-archive query per month for backfill), RSS/Atom feeds, sitemaps, podcast RSS + Whisper | X reads are billed per post; feeds/sitemaps are free |
+| Collect | Official X API (keyword-filtered recent search daily, so only candidate posts are billed; merged full-archive queries for backfill), RSS/Atom feeds, sitemaps, podcast RSS + Whisper | X reads are billed per post; feeds/sitemaps are free |
 | 0 | Regex heuristic + passage selection for long documents (`lib/pipeline/chunk.ts`) | free |
 | 1 | Small open model screens ~20 items per call, tuned for recall (`lib/pipeline/screen.ts`) | ~free |
 | 2 | Open-weight extraction with the production prompt + outcome-blindness rules (`lib/pipeline/extract.ts`) | cents per thousand units |
@@ -111,7 +111,7 @@ Open models run behind any OpenAI-compatible endpoint (`OPEN_MODEL_BASE_URL`): D
 Every paid call is booked in `pipeline_spend`, and hard caps are enforced before each call: `DAILY_BUDGET_USD` (rolling 24h), `RESOLUTION_DAILY_BUDGET_USD`, and `BACKFILL_BUDGET_USD` (a **lifetime** cap across all backfill runs — raise it to continue). `pnpm spend` prints where the money went and the cost per published prediction.
 
 ```bash
-pnpm ingest:daily                 # collect finished batches → timelines/feeds/podcasts → cascade → submit batch
+pnpm ingest:daily                 # collect finished batches → X recent search/feeds/podcasts → cascade → submit batch
 pnpm backfill --estimate --years 2   # forecast cost from X counts (no post reads)
 pnpm backfill --years 2 --budget 20  # collect + process, resumable; rerun to continue
 pnpm backfill --years 5 --experts sama,LHSummers --sources x,writing,podcast

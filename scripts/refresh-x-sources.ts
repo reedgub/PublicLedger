@@ -12,7 +12,8 @@ import { recordSpend, xReadCostUsd } from "@/lib/pipeline/spend";
 //
 // Only sources behind a PUBLISHED prediction are re-checked (oldest check
 // first): every read is billed, and screened-out or unpublished sources are
-// never shown publicly. Run weekly; REFRESH_LIMIT caps reads per run.
+// never shown publicly. Each source is re-read at most once every 30 days,
+// so the weekly job spreads the work; REFRESH_LIMIT caps reads per run.
 
 type SourceRow = { id: string; external_id: string; exact_text: string | null };
 
@@ -29,6 +30,8 @@ export async function refreshXSources(limit = 1000): Promise<{ checked: number; 
     select s.id, s.external_id, s.exact_text from public.sources s
     where s.source_type = 'x' and s.external_id is not null and s.deleted_at is null
       and exists (select 1 from public.predictions p where p.source_id = s.id and p.published_at is not null)
+      -- Each published source is re-read at most once a month.
+      and (s.last_verified_at is null or s.last_verified_at < now() - interval '30 days')
     order by coalesce(s.last_verified_at, s.created_at) asc limit ${limit}
   `;
   let updated = 0; let unavailable = 0; let errors = 0;
@@ -75,5 +78,5 @@ export async function refreshXSources(limit = 1000): Promise<{ checked: number; 
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  refreshXSources(Number(process.env.REFRESH_LIMIT || 1000)).then((result) => console.log(`Checked: ${result.checked}\nUpdated: ${result.updated}\nUnavailable: ${result.unavailable}\nErrors: ${result.errors}`)).finally(closeDatabase);
+  refreshXSources(Number(process.env.REFRESH_LIMIT || 300)).then((result) => console.log(`Checked: ${result.checked}\nUpdated: ${result.updated}\nUnavailable: ${result.unavailable}\nErrors: ${result.errors}`)).finally(closeDatabase);
 }

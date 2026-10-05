@@ -1,6 +1,6 @@
 name: Ingest (daily, low-cost cascade)
 
-# Official X timelines + feeds + podcasts → heuristic → open-model screen →
+# Keyword-filtered X recent search + feeds + podcasts → heuristic → open-model screen →
 # open-model extraction → batched frontier verification. Results of the
 # previous day's verification batch are collected and published first.
 # Spend is capped by DAILY_BUDGET_USD (rolling 24h) from public.pipeline_spend.

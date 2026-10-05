@@ -227,25 +227,31 @@ export async function searchXQuery(options: {
   end: Date;
   mode: "full-archive" | "recent";
   maxPosts: number;
-}): Promise<XReadResult> {
+  /** Only posts newer than this id (replaces start_time when set). */
+  sinceId?: string | null;
+}): Promise<XReadResult & { newestId: string | null }> {
   const path = options.mode === "full-archive" ? "/2/tweets/search/all" : "/2/tweets/search/recent";
   const seen = new Set<string>();
   const records: SourceRecord[] = [];
   let nextToken: string | undefined;
   let postsRead = 0;
   let requests = 0;
+  let newestId: string | null = null;
   do {
     const params = new URLSearchParams({
       query: options.query,
       max_results: String(Math.min(options.mode === "full-archive" ? 500 : 100, Math.max(10, options.maxPosts - postsRead))),
-      start_time: options.start.toISOString(),
       end_time: options.end.toISOString(),
       "tweet.fields": CASCADE_TWEET_FIELDS,
     });
+    if (options.sinceId) params.set("since_id", options.sinceId);
+    else params.set("start_time", options.start.toISOString());
     if (nextToken) params.set("next_token", nextToken);
     const page = parseXSearchPage(await xRequest<unknown>(path, params));
     requests += 1;
     postsRead += page.data?.length ?? 0;
+    // Results are newest first, so the first page carries the newest id.
+    if (requests === 1 && page.meta?.newest_id) newestId = page.meta.newest_id;
     for (const post of page.data ?? []) {
       if (seen.has(post.id)) continue;
       seen.add(post.id);
@@ -254,7 +260,7 @@ export async function searchXQuery(options: {
     }
     nextToken = page.meta?.next_token;
   } while (nextToken && postsRead < options.maxPosts);
-  return { records, postsRead, requests };
+  return { records, postsRead, requests, newestId: newestId ?? options.sinceId ?? null };
 }
 
 export type XCountResult = { total: number; buckets: Array<{ start: string; end: string; count: number }>; requests: number };
