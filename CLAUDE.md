@@ -24,9 +24,20 @@ PublicLedger (formerly "Project Lighthouse" and, before that, "Receipts") is a s
 - Ambiguous and void outcomes are not binary wins or losses.
 - Market context is informational and must not be presented as an attributed expert prediction.
 
+## Design system (locked)
+
+The visual design is final and documented in `DESIGN.md`. Read it before building or changing any UI, and follow it for everything new:
+
+- Reuse the tokens in `app/globals.css` and the components in `components/brand/` and `components/motion/`. Don't introduce new colors, fonts, radii, or one-off styles. If something new is truly needed, add it as a reusable primitive and document it in `DESIGN.md` in the same change.
+- Dark `#060606` canvas, Inter display headings at weight 400, Geist Mono uppercase labels, `PixelButton` CTAs, 20px cards, `.surface-light` for white panels.
+- New sections enter with `Reveal` / `SplitReveal`; all motion respects reduced motion. No smooth-scroll or scroll-hijacking libraries.
+- The product name is always written "PublicLedger".
+- Check new UI at 390px and 1440px before handing off.
+
 ## Current implementation map
 
 - Public App Router pages: `app/`
+- Design system: `DESIGN.md`, `app/globals.css`, `components/brand/`, `components/motion/`
 - Public data access: `lib/data/public.ts`
 - Privileged data access and authorization: `lib/data/admin.ts`, `lib/auth/admin.ts`
 - Schema, RLS, views, triggers, and search: `supabase/migrations/`
