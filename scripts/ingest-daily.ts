@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { closeDatabase, getDatabase } from "@/lib/db/postgres";
 import { env } from "@/lib/env";
 import { revalidateLive } from "@/lib/http/revalidate";
+import { HttpError } from "@/lib/http/retry";
 import { resolveXUser, searchXQuery } from "@/lib/sources/x";
 import { buildCascadeXQuery } from "@/lib/sources/x-query";
 import { collectFeed } from "@/lib/sources/feed";
@@ -25,11 +26,12 @@ import { storeSourceRecords } from "@/lib/pipeline/store";
 import { collectVerificationBatches } from "@/lib/pipeline/verifyRunner";
 import { processCascade } from "@/scripts/process-cascade";
 
-// Same checkpoint row the earlier timeline poller used; post ids are
-// interchangeable as since_id cursors.
+// Same checkpoint row the earlier timeline poller used. The cursor column is
+// still written for reference; polling windows are time-based.
 const X_CURSOR_CHECKPOINT = "x_timeline";
 const RECENT_WINDOW_MS = 7 * 86_400_000;
 const FIRST_RUN_LOOKBACK_MS = 2 * 86_400_000;
+const RESUME_OVERLAP_MS = 2 * 3_600_000;
 const MAX_POSTS_PER_EXPERT = 100;
 
 function arg(name: string): string | undefined {
@@ -79,11 +81,12 @@ async function pollX(guard: BudgetGuard, runId: string, onlyExpert?: string) {
       }
       // Server-side filtered recent search: X only returns (and bills) posts
       // that contain forecast vocabulary, instead of every post on the
-      // timeline. Recent search reaches back 7 days, so a cursor older than
-      // that is replaced by a start time just inside the window.
+      // timeline. Recent search rejects since_id cursors (HTTP 400 for every
+      // expert that had one), so the window is time-based: from shortly
+      // before the last success, clamped to the 7-day recent window. Re-read
+      // overlap is small and upserts dedupe it.
       const lastSuccess = expert.last_success_at ? new Date(expert.last_success_at).getTime() : 0;
-      const cursorUsable = Boolean(expert.cursor) && now - lastSuccess < RECENT_WINDOW_MS - 12 * 3_600_000;
-      const start = new Date(Math.max(now - RECENT_WINDOW_MS + 60_000, lastSuccess ? lastSuccess - 2 * 86_400_000 : now - FIRST_RUN_LOOKBACK_MS));
+      const start = new Date(Math.max(now - RECENT_WINDOW_MS + 60_000, lastSuccess ? lastSuccess - RESUME_OVERLAP_MS : now - FIRST_RUN_LOOKBACK_MS));
       const query = buildCascadeXQuery(expert.x_handle, { start, end, tier: "recall" });
       const result = await searchXQuery({
         query,
@@ -92,7 +95,6 @@ async function pollX(guard: BudgetGuard, runId: string, onlyExpert?: string) {
         end,
         mode: "recent",
         maxPosts: MAX_POSTS_PER_EXPERT,
-        sinceId: cursorUsable ? expert.cursor : null,
       });
       const cost = xReadCostUsd(result.postsRead, result.requests);
       await recordSpend({ scope: "daily", runId, provider: "x", stage: "recent_search", units: result.postsRead, unitKind: "post_read", costUsd: cost, metadata: { expert_id: expert.id } }, guard);
@@ -107,7 +109,8 @@ async function pollX(guard: BudgetGuard, runId: string, onlyExpert?: string) {
       `;
     } catch (error) {
       summary.errors += 1;
-      const message = error instanceof Error ? error.message : "unknown";
+      const detail = error instanceof HttpError && error.body ? ` ${error.body}` : "";
+      const message = `${error instanceof Error ? error.message : "unknown"}${detail}`;
       console.error(`X poll failed for @${expert.x_handle}: ${message}`);
       await sql`
         insert into public.ingestion_checkpoints (expert_id, source_type, last_started_at, last_status, last_error, updated_at)
