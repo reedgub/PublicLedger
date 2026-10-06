@@ -10,7 +10,7 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 
-export const CASCADE_VERIFIER_VERSION = "2026-10-05.3-no-human-review";
+export const CASCADE_VERIFIER_VERSION = "2026-10-05.4-web-quotes";
 
 export const cascadeVerdictSchema = z.object({
   verdict: z.enum([
@@ -61,6 +61,8 @@ Then decide:
 - approve: verdict is faithful, the claim is concrete and falsifiable, criteria name a specific public data source, no probability was invented, and a careful editor would publish it as-is.
 - reject: any substantive problem above.
 - review: faithful but you are not sure an editor would publish it, or the source is a machine transcript where the speaker is uncertain.
+
+When source_type is "web", the source is a third-party article ABOUT the author, not by them. Approve only if source_quote is the author's own words, inside quotation marks attributed to the author in the article. A journalist's paraphrase, summary, headline or chapter title is wrong_speaker even when it describes the author's view.
 
 There is no human editor after you: only a confident approve is published; review and reject are both left unpublished.
 

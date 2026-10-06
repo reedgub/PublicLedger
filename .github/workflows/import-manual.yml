@@ -1,0 +1,54 @@
+name: Import manual predictions
+
+# Hand-curated prediction lists committed under seed/manual/. Each row is
+# re-checked against its live source (official X API or the web page), then
+# the cascade verifier publishes or rejects it. Safe to re-run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: "JSON file(s) under seed/manual/ (space-separated)"
+        required: true
+
+concurrency:
+  group: import-manual
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
+      NEXT_PUBLIC_SITE_ORIGIN: ${{ secrets.NEXT_PUBLIC_SITE_ORIGIN }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      DAILY_BUDGET_USD: ${{ vars.DAILY_BUDGET_USD }}
+      CASCADE_VERIFIER_MODEL: ${{ vars.CASCADE_VERIFIER_MODEL }}
+      X_PRICE_PER_POST_READ_USD: ${{ vars.X_PRICE_PER_POST_READ_USD }}
+      OPENAI_PRICE_INPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_INPUT_PER_MTOK_USD }}
+      OPENAI_PRICE_OUTPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_OUTPUT_PER_MTOK_USD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Import and verify
+        env:
+          IN_FILE: ${{ inputs.file }}
+        run: |
+          for f in $IN_FILE; do
+            case "$f" in seed/manual/*.json) ;; *) echo "Only seed/manual/*.json files are allowed: $f"; exit 1 ;; esac
+          done
+          pnpm import:manual $IN_FILE
