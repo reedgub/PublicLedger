@@ -18,7 +18,7 @@ import { createBudgetGuard, recordSpend, xReadCostUsd } from "@/lib/pipeline/spe
 import { contentHash, storeSourceRecords } from "@/lib/pipeline/store";
 import { verifyPendingSync } from "@/lib/pipeline/verifyRunner";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
-import { validateExtractedPrediction } from "@/lib/predictions/validation";
+import { isIsoDate, validateExtractedPrediction } from "@/lib/predictions/validation";
 import { pageTextFromHtml } from "@/lib/resolution/evidence";
 import { allowedToFetch, FEED_USER_AGENT, parseArticle } from "@/lib/sources/feed";
 import { captureModeFor, dedupeRows, locateQuote, manualRowSchema, parseXStatusUrl, statedProbability, type ManualRow } from "@/lib/sources/manualImport";
@@ -166,7 +166,7 @@ export async function importManual(rows: ManualRow[]): Promise<Outcome[]> {
       insert into public.prediction_candidates (source_id, expert_id, normalized_claim, source_quote, resolution_date, resolution_criteria,
         explicit_probability, confidence_language, category_slug, extraction_confidence, falsifiability_score, source_fidelity_score,
         status, reason_rejected, model_name, raw_extraction, record_type, imputation_note, pipeline)
-      values (${source.id}, ${expert.id}, ${candidate.normalized_claim}, ${candidate.source_quote}, ${candidate.resolution_date}, ${candidate.resolution_criteria},
+      values (${source.id}, ${expert.id}, ${candidate.normalized_claim}, ${candidate.source_quote}, ${isIsoDate(candidate.resolution_date) ? candidate.resolution_date : null}, ${candidate.resolution_criteria},
         ${candidate.explicit_probability}, ${candidate.confidence_language}, ${candidate.category}, ${candidate.extraction_confidence}, ${candidate.falsifiability_score}, ${candidate.source_fidelity_score},
         ${status}, ${!deterministic.valid ? deterministic.errors.join(",") : duplicate ? "semantic_duplicate" : null}, 'manual-import',
         ${sql.json({ candidate, force_review: false, capture_mode: mode, manual_import: true, extraction_schema_version: EXTRACTION_SCHEMA_VERSION, cascade_version: CASCADE_EXTRACTION_VERSION } as never)},

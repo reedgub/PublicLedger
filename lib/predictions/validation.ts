@@ -13,6 +13,13 @@ export type ExtractedPredictionForValidation = {
 
 export type ValidationResult = { valid: boolean; errors: string[] };
 
+/** A real calendar date written exactly as YYYY-MM-DD (rejects "late 2027", "Q2 2027", "2026-02-30"). */
+export function isIsoDate(value: string | null | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
 export function isLiteralSourceQuote(sourceText: string, sourceQuote: string): boolean {
   return sourceQuote.length > 0 && sourceText.includes(sourceQuote);
 }
@@ -38,7 +45,7 @@ export function validateExtractedPrediction(
   // is neither, and shouldn't be stored.
   if (!candidate.resolution_date) {
     errors.push("resolution_date_missing");
-  } else if (Number.isNaN(new Date(candidate.resolution_date).getTime())) {
+  } else if (!isIsoDate(candidate.resolution_date)) {
     errors.push("resolution_date_invalid");
   } else if (new Date(candidate.resolution_date) < new Date(predictionDate)) {
     errors.push("resolution_before_prediction");
