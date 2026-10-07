@@ -6,7 +6,7 @@ import { EXTRACTION_SCHEMA_VERSION, VERIFIER_SCHEMA_VERSION } from "@/lib/consta
 import { scorePredictionHeuristic } from "@/lib/predictions/heuristics";
 import { extractPredictions } from "@/lib/ai/extractPrediction";
 import { verifyPrediction } from "@/lib/ai/verifyPrediction";
-import { validateExtractedPrediction } from "@/lib/predictions/validation";
+import { isIsoDate, validateExtractedPrediction } from "@/lib/predictions/validation";
 import { canAutoPublish } from "@/lib/predictions/promotion";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
 import { predictionFingerprint } from "@/lib/predictions/fingerprint";
@@ -98,7 +98,7 @@ export async function processSources(): Promise<ProcessingSummary> {
             explicit_probability, confidence_language, category_slug, extraction_confidence, falsifiability_score, source_fidelity_score,
             verifier_verdict, verifier_confidence, status, reason_rejected, model_name, raw_extraction,
             record_type, imputation_note)
-          values (${source.id}, ${source.expert_id}, ${candidate.normalized_claim}, ${candidate.source_quote}, ${candidate.resolution_date}, ${candidate.resolution_criteria},
+          values (${source.id}, ${source.expert_id}, ${candidate.normalized_claim}, ${candidate.source_quote}, ${isIsoDate(candidate.resolution_date) ? candidate.resolution_date : null}, ${candidate.resolution_criteria},
             ${candidate.explicit_probability}, ${candidate.confidence_language}, ${candidate.category}, ${candidate.extraction_confidence}, ${candidate.falsifiability_score}, ${candidate.source_fidelity_score},
             ${verification?.result.verdict ?? null}, ${verification?.result.confidence ?? null}, ${status}, ${duplicate ? "semantic_duplicate" : deterministic.errors.join(",") || verification?.result.reason || null}, ${extraction.model},
             ${sql.json({ extraction: extraction.result, verifier: verification?.result, extraction_schema_version: EXTRACTION_SCHEMA_VERSION, verifier_schema_version: VERIFIER_SCHEMA_VERSION, content_hash: source.content_hash })},

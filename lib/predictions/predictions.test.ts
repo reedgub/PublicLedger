@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { predictionFingerprint } from "@/lib/predictions/fingerprint";
 import { scorePredictionHeuristic } from "@/lib/predictions/heuristics";
 import { canAutoPublish } from "@/lib/predictions/promotion";
-import { isLiteralSourceQuote, validateExtractedPrediction } from "@/lib/predictions/validation";
+import { isIsoDate, isLiteralSourceQuote, validateExtractedPrediction } from "@/lib/predictions/validation";
 
 describe("prediction utilities", () => {
   it("keeps the heuristic permissive for concrete future claims", () => {
@@ -22,10 +22,20 @@ describe("prediction utilities", () => {
 
   it("validates chronology and criteria", () => {
     const result = validateExtractedPrediction("It will happen.", "2026-01-01Z", {
-      normalized_claim: "It will happen.", source_quote: "It will happen.", resolution_date: "2025-01-01Z",
+      normalized_claim: "It will happen.", source_quote: "It will happen.", resolution_date: "2025-01-01",
       resolution_criteria: "An official record confirms it.", explicit_probability: null, category: "other",
     });
     expect(result.errors).toContain("resolution_before_prediction");
+  });
+
+  it("requires deadlines to be real YYYY-MM-DD dates", () => {
+    expect(isIsoDate("2027-12-31")).toBe(true);
+    for (const value of ["late 2027", "Q2 2027", "2027", "2026-02-30", "2027-13-01", "N/A", "", null]) expect(isIsoDate(value)).toBe(false);
+    const result = validateExtractedPrediction("It will happen by late 2027.", "2026-01-01Z", {
+      normalized_claim: "It will happen.", source_quote: "It will happen", resolution_date: "late 2027",
+      resolution_criteria: "An official record confirms it.", explicit_probability: null, category: "other",
+    });
+    expect(result.errors).toContain("resolution_date_invalid");
   });
 
   it("rejects predictions without a resolution date", () => {

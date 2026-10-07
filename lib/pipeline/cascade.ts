@@ -12,7 +12,7 @@ import { getDatabase } from "@/lib/db/postgres";
 import { EXTRACTION_SCHEMA_VERSION } from "@/lib/constants";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
-import { repairSourceQuote, validateExtractedPrediction } from "@/lib/predictions/validation";
+import { isIsoDate, repairSourceQuote, validateExtractedPrediction } from "@/lib/predictions/validation";
 import { selectUnits, type TextUnit } from "@/lib/pipeline/chunk";
 import { screenItems, SCREEN_PROMPT_VERSION, type ScreenItem } from "@/lib/pipeline/screen";
 import { CASCADE_EXTRACTION_VERSION, estimateExtractionCostUsd, extractionTarget, extractUnit } from "@/lib/pipeline/extract";
@@ -261,7 +261,7 @@ export async function runCascade(options: {
         insert into public.prediction_candidates (source_id, expert_id, normalized_claim, source_quote, resolution_date, resolution_criteria,
           explicit_probability, confidence_language, category_slug, extraction_confidence, falsifiability_score, source_fidelity_score,
           status, reason_rejected, model_name, raw_extraction, record_type, imputation_note, pipeline)
-        values (${source.id}, ${source.expert_id}, ${candidate.normalized_claim}, ${candidate.source_quote}, ${candidate.resolution_date}, ${candidate.resolution_criteria},
+        values (${source.id}, ${source.expert_id}, ${candidate.normalized_claim}, ${candidate.source_quote}, ${isIsoDate(candidate.resolution_date) ? candidate.resolution_date : null}, ${candidate.resolution_criteria},
           ${candidate.explicit_probability}, ${candidate.confidence_language}, ${candidate.category}, ${candidate.extraction_confidence}, ${candidate.falsifiability_score}, ${candidate.source_fidelity_score},
           ${status}, ${!deterministic.valid ? deterministic.errors.join(",") : duplicate ? "semantic_duplicate" : null}, ${target.model},
           ${sql.json({ candidate, force_review: forceReview, capture_mode: source.ingestion_mode, extraction_schema_version: EXTRACTION_SCHEMA_VERSION, cascade_version: CASCADE_EXTRACTION_VERSION } as never)},

@@ -14,6 +14,10 @@ on:
         description: "Only run for one expert slug or handle"
         required: false
         default: ""
+      verify_now:
+        description: "Verify immediately instead of via the (cheaper, slower) batch API"
+        type: boolean
+        default: false
 
 concurrency:
   group: ingest-daily
@@ -40,7 +44,7 @@ jobs:
       TRANSCRIBE_API_KEY: ${{ secrets.TRANSCRIBE_API_KEY }}
       TRANSCRIBE_BASE_URL: ${{ vars.TRANSCRIBE_BASE_URL }}
       DAILY_BUDGET_USD: ${{ vars.DAILY_BUDGET_USD }}
-      VERIFIER_MODE: ${{ vars.VERIFIER_MODE }}
+      VERIFIER_MODE: ${{ inputs.verify_now && 'sync' || vars.VERIFIER_MODE }}
       CASCADE_VERIFIER_MODEL: ${{ vars.CASCADE_VERIFIER_MODEL }}
       X_PRICE_PER_POST_READ_USD: ${{ vars.X_PRICE_PER_POST_READ_USD }}
       OPEN_MODEL_SCREEN_PRICE_INPUT_PER_MTOK_USD: ${{ vars.OPEN_MODEL_SCREEN_PRICE_INPUT_PER_MTOK_USD }}
