@@ -10,7 +10,7 @@ import { z } from "zod";
 import { env } from "@/lib/env";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 
-export const CASCADE_VERIFIER_VERSION = "2026-10-05.4-web-quotes";
+export const CASCADE_VERIFIER_VERSION = "2026-10-07.1-reported-news";
 
 export const cascadeVerdictSchema = z.object({
   verdict: z.enum([
@@ -51,7 +51,7 @@ Return verdict = the most serious problem found, or "faithful" if none:
 - unsupported: the claim, a detail, a threshold or a date is not supported by the source.
 - overstated / understated: certainty was strengthened ("might" -> "will") or weakened.
 - wrong_speaker: the forecast belongs to someone other than the author. This INCLUDES the author reporting or summarising another party's projection or expectation: central-bank or government forecasts ("the Fed sees core PCE at 2.6%", "the ECB projects inflation at 3%"), market pricing or betting odds ("markets assign a 30% probability", "Polymarket has X at 50%"), economists' or analysts' consensus ("unemployment is expected to remain at 4.3%"), poll numbers, company guidance, and third-person reports ("Hayes said…"). Only approve when the author personally asserts the outcome in their own voice.
-- not_prediction: commentary, mood, opinion, joke, rhetorical question, or a statement about the past/present. This INCLUDES retrospective claims of having been right ("as I predicted, it was bogus", "just like I told you"), descriptions of current positions or facts, and statements whose subject is unclear without outside context ("2026 has a clear shot at $100M+" — what does?).
+- not_prediction: commentary, mood, opinion, joke, rhetorical question, or a statement about the past/present. This INCLUDES retrospective claims of having been right ("as I predicted, it was bogus", "just like I told you"), descriptions of current positions or facts, news reports of plans someone else has announced or scheduled (a company, league, team or official: "Disney+ will livestream the Super Bowl", "X will start at QB this week, the coach said"), and statements whose subject is unclear without outside context ("2026 has a clear shot at $100M+" — what does?).
 - bad_deadline: the resolution_date is neither stated nor clearly inferable from the source (for record_type "prediction"), or the imputation is not defensible (for "take").
 - bad_resolution_criteria: criteria are vague, unscorable, or do not name a specific public data source.
 - hindsight_leak: the claim or criteria contain information that was not knowable from the source on its date (e.g. later events, outcome-specific framing).
