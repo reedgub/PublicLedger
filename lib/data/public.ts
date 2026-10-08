@@ -8,6 +8,7 @@ import { fetchPolymarketMarkets, selectDiverseMarkets } from "@/lib/sources/poly
 import { normalizeMarketTopic } from "@/lib/topics/normalize";
 import type { Expert, ExpertScorecard, Market, Prediction, Resolution, SearchResult, Source, Topic } from "@/types/domain";
 import { SYNTHETIC_PREDICTION_ID, syntheticPrediction } from "@/lib/testing/fixtures";
+import type { LedgerOutcome, LedgerRow } from "@/lib/leaderboard/ledger";
 
 type Row = Record<string, unknown>;
 
@@ -218,6 +219,41 @@ export const getExpertScorecards = cache(async (): Promise<ExpertScorecard[]> =>
     .order("wilson_rank_score", { ascending: false, nullsFirst: false });
   if (error) throw error;
   return (data ?? []).map((row) => mapScorecard(object(row)));
+});
+
+export type LeaderboardLedgerRow = LedgerRow & { expertSlug: string; expertName: string };
+
+const LEDGER_OUTCOMES: LedgerOutcome[] = ["correct", "incorrect", "partial", "ambiguous", "void"];
+
+/** Every published prediction (not takes) with its approved verdict, for the leaderboard ledger strips. */
+export const getLeaderboardLedgerRows = cache(async (): Promise<LeaderboardLedgerRow[]> => {
+  if (!integrations.supabase) return [];
+  const client = await createServerSupabaseClient();
+  const { data, error } = await client!
+    .from("predictions")
+    .select("id, expert_id, normalized_claim, resolution_date, status, experts(slug, display_name), resolutions(outcome, approved_at)")
+    .not("published_at", "is", null)
+    .neq("status", "source_unavailable")
+    .eq("record_type", "prediction")
+    .order("resolution_date", { ascending: true })
+    .limit(5000);
+  if (error) throw error;
+  return (data ?? []).map((raw) => {
+    const row = object(raw);
+    const resolution = firstRelation(row.resolutions);
+    const expert = firstRelation(row.experts);
+    const outcome = resolution.approved_at && LEDGER_OUTCOMES.includes(resolution.outcome as LedgerOutcome) ? (resolution.outcome as LedgerOutcome) : null;
+    return {
+      id: String(row.id ?? ""),
+      expertId: String(row.expert_id ?? ""),
+      claim: String(row.normalized_claim ?? ""),
+      resolutionDate: stringOrNull(row.resolution_date),
+      status: String(row.status ?? "open"),
+      outcome,
+      expertSlug: String(expert.slug ?? ""),
+      expertName: String(expert.display_name ?? ""),
+    };
+  });
 });
 
 export const getExpertBySlug = cache(async (slug: string): Promise<{ scorecard: ExpertScorecard; predictions: Prediction[] } | null> => {

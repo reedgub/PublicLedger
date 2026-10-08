@@ -67,6 +67,7 @@ Tokens live in `app/globals.css` (`:root`). Use the token or its Tailwind alias;
 | Status | `<StatusBadge>` |
 | Provenance (archive capture) | `<CaptureBadge>` — neutral badge (never an outcome color) on predictions captured from the archive after publication |
 | Prediction rows | `<PredictionList>` |
+| A person's whole record at a glance | `<LedgerStrip marks>` + `<LedgerLegend>` (`components/ledger-strip.tsx`): one 6×12px rounded bar per prediction, verdicts first then open calls by deadline. Correct/incorrect use the outcome colors (they are verdicts); partial/void use `foreground/45`; open calls use `foreground/15` and are never scored. Each bar's `title` gives the outcome, deadline and claim |
 | Market context | `<MarketCard>` (always labeled informational) |
 
 ## 6. Motion
