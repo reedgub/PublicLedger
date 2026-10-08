@@ -26,7 +26,7 @@ function markClass(state: LedgerMark["state"]): string {
  * never count toward accuracy.
  */
 export function LedgerStrip({ marks, className = "" }: { marks: LedgerMark[]; className?: string }) {
-  if (marks.length === 0) return <span className="metric text-[10px] text-muted-foreground">No predictions yet</span>;
+  if (marks.length === 0) return <span className="metric text-[10px] text-muted-foreground">No scored predictions yet</span>;
   const shown = marks.slice(0, MAX_MARKS);
   const hidden = marks.length - shown.length;
   const verdicts = marks.filter((mark) => mark.state === "correct" || mark.state === "incorrect").length;
