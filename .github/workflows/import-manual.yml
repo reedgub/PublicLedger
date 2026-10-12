@@ -24,6 +24,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
       NEXT_PUBLIC_SITE_ORIGIN: ${{ secrets.NEXT_PUBLIC_SITE_ORIGIN }}
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -52,3 +53,9 @@ jobs:
             case "$f" in seed/manual/*.json) ;; *) echo "Only seed/manual/*.json files are allowed: $f"; exit 1 ;; esac
           done
           pnpm import:manual $IN_FILE
+      - name: Tell Slack the run failed
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            --data "{\"text\":\"❌ PublicLedger: ${{ github.workflow }} failed. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$SLACK_WEBHOOK_URL" || true

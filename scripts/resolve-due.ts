@@ -7,10 +7,13 @@ import { canAutoResolve, proposeResolution, verifyResolution, type ResolutionUsa
 import { checkEvidence } from "@/lib/resolution/evidence";
 import { createBudgetGuard, recordSpend, tokenCostUsd } from "@/lib/pipeline/spend";
 import { revalidateLive } from "@/lib/http/revalidate";
+import { postSlack, resolveMessage, type ResolveReport } from "@/lib/notify/slack";
 
 type DueRow = { id: string; normalized_claim: string; prediction_date: string; resolution_date: string | null; resolution_criteria: string };
 
-export async function resolveDue(): Promise<{ due: number; proposed: number; approved: number; errors: number; skipped: boolean }> {
+type ResolveResult = { due: number; proposed: number; approved: number; errors: number; skipped: boolean; costUsd: number; stoppedByBudget: boolean; verdicts: ResolveReport["verdicts"] };
+
+export async function resolveDue(): Promise<ResolveResult> {
   const sql = getDatabase();
   // Takes are never scored (imputation-carrying claims stay display-only), so
   // pulling them into the OpenAI proposer wastes budget AND then trips the
@@ -30,8 +33,9 @@ export async function resolveDue(): Promise<{ due: number; proposed: number; app
     order by resolution_date asc limit ${env.RESOLUTION_MAX_PER_RUN}
   `;
   for (const prediction of due) await sql`update public.predictions set status = 'resolution_pending' where id = ${prediction.id} and status in ('open','due')`;
-  if (!env.OPENAI_API_KEY) return { due: due.length, proposed: 0, approved: 0, errors: 0, skipped: true };
-  let proposed = 0; let approved = 0; let errors = 0;
+  if (!env.OPENAI_API_KEY) return { due: due.length, proposed: 0, approved: 0, errors: 0, skipped: true, costUsd: 0, stoppedByBudget: false, verdicts: [] };
+  let proposed = 0; let approved = 0; let errors = 0; let costUsd = 0; let stoppedByBudget = false;
+  const verdicts: ResolveResult["verdicts"] = [];
   const guard = await createBudgetGuard("resolution");
   const price = { input: env.OPENAI_PRICE_INPUT_PER_MTOK_USD, output: env.OPENAI_PRICE_OUTPUT_PER_MTOK_USD };
   const costOf = (usage?: ResolutionUsage) => usage ? tokenCostUsd(usage, price) + usage.searchCalls * env.RESOLUTION_SEARCH_CALL_USD : 0;
@@ -39,7 +43,7 @@ export async function resolveDue(): Promise<{ due: number; proposed: number; app
   const perResolutionEstimate = 4 * env.RESOLUTION_SEARCH_CALL_USD + tokenCostUsd({ inputTokens: 20_000, outputTokens: 3_000 }, price);
   const limit = pLimit(env.SEED_CONCURRENCY);
   await Promise.all(due.map((prediction) => limit(async () => {
-    if (!guard.canSpend(perResolutionEstimate)) return;
+    if (!guard.canSpend(perResolutionEstimate)) { stoppedByBudget = true; return; }
     // Reserve the estimate while the call is in flight so concurrent workers respect the cap.
     guard.add(perResolutionEstimate);
     let spent = 0;
@@ -71,21 +75,31 @@ export async function resolveDue(): Promise<{ due: number; proposed: number; app
       if (auto) {
         await sql`update public.predictions set status = ${proposal.proposed_outcome === "ambiguous" ? "ambiguous" : proposal.proposed_outcome === "void" ? "void" : "resolved"} where id = ${prediction.id}`;
         approved += 1;
+        verdicts.push({ id: prediction.id, claim: prediction.normalized_claim, outcome: proposal.proposed_outcome });
       }
     } catch (error) { errors += 1; console.error(`Resolution failed for ${prediction.id}:`, error instanceof Error ? error.message : "unknown"); }
     finally {
       // Swap the reservation for the actual cost.
       guard.release(perResolutionEstimate);
       guard.add(spent);
+      costUsd += spent;
       if (spent > 0) await recordSpend({ scope: "resolution", provider: "openai", stage: "resolve", units: 1, unitKind: "resolution", costUsd: spent, metadata: { prediction_id: prediction.id } });
     }
   })));
   if (approved > 0) {
     await revalidateLive(["/", "/leaderboard"]);
   }
-  return { due: due.length, proposed, approved, errors, skipped: false };
+  return { due: due.length, proposed, approved, errors, skipped: false, costUsd, stoppedByBudget, verdicts };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  resolveDue().then((result) => console.log(`Due: ${result.due}\nProposed: ${result.proposed}\nApproved: ${result.approved}\nErrors: ${result.errors}${result.skipped ? "\nOpenAI not configured; proposal phase skipped." : ""}`)).finally(closeDatabase);
+  resolveDue()
+    .then(async (result) => {
+      console.log(`Due: ${result.due}\nProposed: ${result.proposed}\nApproved: ${result.approved}\nErrors: ${result.errors}${result.skipped ? "\nOpenAI not configured; proposal phase skipped." : ""}`);
+      // Quiet days (nothing past its deadline) send nothing.
+      if (result.due > 0 && !result.skipped) {
+        await postSlack(resolveMessage({ due: result.due, verdicts: result.verdicts, heldBack: result.proposed - result.approved, errors: result.errors, costUsd: result.costUsd, stoppedByBudget: result.stoppedByBudget }, env.NEXT_PUBLIC_SITE_ORIGIN ?? null));
+      }
+    })
+    .finally(closeDatabase);
 }
