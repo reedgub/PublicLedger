@@ -24,6 +24,8 @@ import { episodeRecord, fetchPodcastEpisodes, transcribeEpisode } from "@/lib/so
 import { createBudgetGuard, recordSpend, transcriptionCostUsd, xReadCostUsd, type BudgetGuard } from "@/lib/pipeline/spend";
 import { storeSourceRecords } from "@/lib/pipeline/store";
 import { collectVerificationBatches } from "@/lib/pipeline/verifyRunner";
+import { dailyMessage, postSlack, type DailyReport } from "@/lib/notify/slack";
+import { loadSiteSnapshot, spendSinceUsd } from "@/lib/notify/snapshot";
 import { processCascade } from "@/scripts/process-cascade";
 
 // Same checkpoint row the earlier timeline poller used. The cursor column is
@@ -184,29 +186,51 @@ async function pollPodcasts(guard: BudgetGuard, runId: string, onlyExpert?: stri
   return summary;
 }
 
-async function main() {
+async function main(report: DailyReport) {
   const runId = randomUUID();
   const onlyExpert = arg("--expert")?.replace(/^@/, "");
-  const startedAt = Date.now();
 
   const collected = await collectVerificationBatches({ scope: "daily" });
   console.log(JSON.stringify({ stage: "verify_collect_summary", ...collected }));
   if (collected.published > 0) await revalidateLive(["/", "/leaderboard"]);
+  report.verified = { published: collected.published, rejected: collected.rejected };
 
   const guard = await createBudgetGuard("daily");
   console.log(JSON.stringify({ stage: "daily_start", run_id: runId, budget_cap_usd: guard.capUsd, already_spent_usd: Number(guard.spentUsd.toFixed(4)) }));
-  const x = process.argv.includes("--skip-x") ? null : await pollX(guard, runId, onlyExpert);
-  const feeds = process.argv.includes("--skip-feeds") ? null : await pollFeeds(onlyExpert);
-  const podcasts = process.argv.includes("--skip-podcasts") ? null : await pollPodcasts(guard, runId, onlyExpert);
-  console.log(JSON.stringify({ stage: "daily_collected", x, feeds, podcasts, spent_usd: Number(guard.spentUsd.toFixed(4)) }));
+  report.x = process.argv.includes("--skip-x") ? null : await pollX(guard, runId, onlyExpert);
+  report.feeds = process.argv.includes("--skip-feeds") ? null : await pollFeeds(onlyExpert);
+  report.podcasts = process.argv.includes("--skip-podcasts") ? null : await pollPodcasts(guard, runId, onlyExpert);
+  console.log(JSON.stringify({ stage: "daily_collected", x: report.x, feeds: report.feeds, podcasts: report.podcasts, spent_usd: Number(guard.spentUsd.toFixed(4)) }));
 
-  if (!process.argv.includes("--skip-process")) await processCascade({ mode: "live" });
-  console.log(JSON.stringify({ stage: "daily_done", run_id: runId, duration_s: Math.round((Date.now() - startedAt) / 1000) }));
+  if (!process.argv.includes("--skip-process")) {
+    const { cascade, verify } = await processCascade({ mode: "live" });
+    report.cascade = cascade;
+    if (verify && "published" in verify) {
+      report.verified.published += verify.published;
+      report.verified.rejected += verify.rejected;
+    } else if (verify) report.batchSubmitted = verify.submitted;
+  }
+  console.log(JSON.stringify({ stage: "daily_done", run_id: runId, duration_s: Math.round((Date.now() - startedAt.getTime()) / 1000) }));
 
   // A day where every expert errored is an outage, not a quiet day.
-  if (x && x.experts === 0 && x.errors > 0) process.exitCode = 1;
+  if (report.x && report.x.experts === 0 && report.x.errors > 0) process.exitCode = 1;
 }
 
-main()
-  .catch((error) => { console.error(error instanceof Error ? error.message : error); process.exitCode = 1; })
+// Every run ends with a Slack report (no-op without SLACK_WEBHOOK_URL), including runs that crash.
+async function report(daily: DailyReport) {
+  if (!process.env.SLACK_WEBHOOK_URL) return;
+  try {
+    daily.durationS = Math.round((Date.now() - startedAt.getTime()) / 1000);
+    daily.runCostUsd = await spendSinceUsd(startedAt, "daily");
+    await postSlack(dailyMessage(daily, await loadSiteSnapshot(), env.NEXT_PUBLIC_SITE_ORIGIN ?? null));
+  } catch (error) {
+    console.warn("Slack report skipped:", error instanceof Error ? error.message : "unknown");
+  }
+}
+
+const startedAt = new Date();
+const daily: DailyReport = { x: null, feeds: null, podcasts: null, cascade: null, verified: { published: 0, rejected: 0 }, batchSubmitted: 0, runCostUsd: 0, durationS: 0 };
+main(daily)
+  .catch((error) => { daily.error = error instanceof Error ? error.message : String(error); console.error(daily.error); process.exitCode = 1; })
+  .then(() => report(daily))
   .finally(closeDatabase);

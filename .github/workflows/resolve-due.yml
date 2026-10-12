@@ -30,6 +30,8 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
       OPENAI_VERIFIER_MODEL: ${{ secrets.OPENAI_VERIFIER_MODEL }}
@@ -51,3 +53,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Resolve due predictions
         run: pnpm seed:resolve
+      - name: Tell Slack the run failed
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            --data "{\"text\":\"❌ PublicLedger: ${{ github.workflow }} failed. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$SLACK_WEBHOOK_URL" || true
