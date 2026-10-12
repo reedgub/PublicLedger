@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { getDatabase, closeDatabase } from "@/lib/db/postgres";
 import { env } from "@/lib/env";
 import { lookupXPosts } from "@/lib/sources/x";
-import { fullPostText } from "@/lib/sources/x-parser";
+import { fullPostText, samePostText } from "@/lib/sources/x-parser";
 import { recordSpend, xReadCostUsd } from "@/lib/pipeline/spend";
 
 // Compliance refresh. Looks posts up 100 ids per request (instead of one
@@ -58,9 +58,12 @@ export async function refreshXSources(limit = 1000): Promise<{ checked: number; 
         continue;
       }
       const full = fullPostText(post);
-      // Stored text may be either the full long-form text or the truncated
-      // form older code paths saved; both mean "unchanged".
-      if (source.exact_text === full || source.exact_text === post.text) {
+      // Stored text may be the full long-form text or the truncated form, and
+      // older code paths saved it with different formatting (entities,
+      // collapsed line breaks, pic.twitter.com links, no reply @mentions).
+      // Only a change in the words is an edit; the stored text is kept so
+      // published quotes remain exact substrings of it.
+      if (samePostText(source.exact_text, post)) {
         await sql`update public.sources set fetched_at = now(), last_verified_at = now() where id = ${source.id}`;
         continue;
       }

@@ -18,6 +18,28 @@ export function fullPostText(post: XApiPost): string {
   return note && note.length > post.text.length ? note : post.text;
 }
 
+/**
+ * Comparison form of a post's text, ignoring how different code paths and
+ * X endpoints render the same words: HTML entities (&amp;), whitespace and
+ * line breaks, pic.twitter.com vs t.co media links, and the leading
+ * @mentions X adds to replies. Words, numbers and links still have to match.
+ */
+export function comparablePostText(text: string): string {
+  return text
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/(?:https?:\/\/)?pic\.twitter\.com\//g, "t.co/")
+    .replace(/https?:\/\/t\.co\//g, "t.co/")
+    .replace(/^(?:\s*@\w{1,15})+\s+/, "")
+    .replace(/\s+/g, "");
+}
+
+/** True when the stored text and the live post say the same thing. */
+export function samePostText(stored: string | null, post: XApiPost): boolean {
+  if (stored === null) return false;
+  const current = comparablePostText(stored);
+  return current === comparablePostText(fullPostText(post)) || current === comparablePostText(post.text);
+}
+
 export type XSearchPage = {
   data?: XApiPost[];
   meta?: { next_token?: string; result_count?: number; newest_id?: string; oldest_id?: string };
