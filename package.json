@@ -43,6 +43,7 @@
     "export:training": "tsx scripts/export-training-data.ts",
     "discover:experts": "tsx scripts/discover-experts.ts",
     "db:setup-sql": "tsx scripts/build-setup-sql.ts",
+    "correct:prediction": "tsx scripts/correct-prediction.ts",
     "test:db": "bash supabase/tests/run.sh"
   },
   "dependencies": {

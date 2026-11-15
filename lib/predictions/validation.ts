@@ -29,6 +29,13 @@ export function isLiteralSourceQuote(sourceText: string, sourceQuote: string): b
 // A bare number ("rates fall below 3%") is a threshold, not a probability.
 const PERCENT = String.raw`([0-9]{1,3}(?:\.[0-9]+)?)\s?(?:%|percent|per cent)`;
 const PROBABILITY_AFTER = new RegExp(String.raw`(?:^|[^0-9.])${PERCENT}\s*(?:chance|probability|odds|likely|likelihood|confident|confidence|sure|certain)`, "gi");
+// A short UPPERCASE label may sit between them ("72% D probability", "60% GOP chance").
+// Case-sensitive on purpose: "3% very likely" must not read as a 3% probability.
+const PROBABILITY_AFTER_LABEL = /(?:^|[^0-9.])([0-9]{1,3}(?:\.[0-9]+)?)\s?(?:%|percent|per cent)\s*[A-Z]{1,5}\s+(?:chance|probability|odds)/g;
+// "an 84-in-100 chance", "84 out of 100 odds"
+const PROBABILITY_IN_100 = /(?:^|[^0-9.])([0-9]{1,3})(?:-|\s+)(?:in|out of)(?:-|\s+)100\s*(?:chance|probability|odds|shot)/gi;
+// A model's simulation share: "won in 40,012 (50.015%) cases", "in 72% of simulations".
+const PROBABILITY_SIMULATIONS = new RegExp(String.raw`(?:^|[^0-9.])${PERCENT}\)?\s*(?:of\s+(?:the\s+|our\s+|all\s+)?)?(?:simulations|scenarios|model runs|runs|cases)\b`, "gi");
 const PROBABILITY_BEFORE = new RegExp(String.raw`(?:chance|probability|odds|likelihood)\s+(?:of\s+|is\s+|at\s+|are\s+)?(?:about\s+|around\s+|roughly\s+|~\s*)?${PERCENT}`, "gi");
 
 /**
@@ -39,7 +46,7 @@ const PROBABILITY_BEFORE = new RegExp(String.raw`(?:chance|probability|odds|like
  */
 export function probabilityIsStated(quote: string, probability: number | null | undefined): boolean {
   if (probability === null || probability === undefined) return true;
-  for (const pattern of [PROBABILITY_AFTER, PROBABILITY_BEFORE]) {
+  for (const pattern of [PROBABILITY_AFTER, PROBABILITY_AFTER_LABEL, PROBABILITY_BEFORE, PROBABILITY_IN_100, PROBABILITY_SIMULATIONS]) {
     for (const match of quote.matchAll(pattern)) {
       if (Math.abs(Number(match[1]) - probability * 100) <= 0.5) return true;
     }
