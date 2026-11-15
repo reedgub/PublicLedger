@@ -55,25 +55,36 @@ export async function resolveDue(): Promise<ResolveResult> {
       const { usage: verifierUsage, ...verifier } = await verifyResolution({ normalizedClaim: prediction.normalized_claim, resolutionCriteria: prediction.resolution_criteria, resolutionDate: prediction.resolution_date, proposal, checkedEvidence: checked });
       spent += costOf(verifierUsage);
       const auto = canAutoResolve(proposal, verifier, confirmed);
-      const [resolution] = await sql<{ id: string }[]>`
-        insert into public.resolutions (prediction_id, outcome, explanation, resolution_confidence, resolution_method, scoring_eligible, resolved_at, approved_at)
-        values (${prediction.id}, ${proposal.proposed_outcome}, ${proposal.explanation}, ${proposal.confidence}, 'openai_web', ${proposal.scoring_eligible && ["correct", "incorrect"].includes(proposal.proposed_outcome)}, now(), ${auto ? new Date() : null})
-        on conflict (prediction_id) do update set outcome = excluded.outcome, explanation = excluded.explanation,
-          resolution_confidence = excluded.resolution_confidence, resolution_method = excluded.resolution_method,
-          scoring_eligible = excluded.scoring_eligible, resolved_at = excluded.resolved_at, approved_at = excluded.approved_at
-        returning id
-      `;
-      await sql`delete from public.resolution_evidence where resolution_id = ${resolution.id}`;
-      // Only evidence whose excerpt was found on the live page is stored and shown.
-      for (const item of confirmed) await sql`
-        insert into public.resolution_evidence (resolution_id, source_type, source_title, source_path, publisher, excerpt, is_primary_source)
-        values (${resolution.id}, 'web', ${item.title}, ${item.source_path}, ${item.publisher}, ${item.excerpt}, ${item.is_primary_source})
-      `;
-      const evidenceCheck = checked.map((item) => ({ url: item.source_path, confirmed: item.confirmed, error: item.checkError }));
-      await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, ${auto ? "resolution_approved" : "resolution_proposed"}, 'system', ${sql.json({ proposal, verifier, evidence_check: evidenceCheck, resolution_schema_version: RESOLUTION_SCHEMA_VERSION } as never)}, ${auto ? "Passed resolution and evidence thresholds." : "Below auto-resolution thresholds; retried in 30 days."})`;
+      // One transaction: a resolution, its evidence, the audit entry and the
+      // status change land together or not at all. An approved resolution is
+      // never overwritten, and a prediction quarantined meanwhile is skipped.
+      const written = await sql.begin(async (tx) => {
+        const [current] = await tx<{ status: string }[]>`select status from public.predictions where id = ${prediction.id} for update`;
+        if (!current || !["open", "due", "resolution_pending"].includes(current.status)) return false;
+        const [resolution] = await tx<{ id: string }[]>`
+          insert into public.resolutions (prediction_id, outcome, explanation, resolution_confidence, resolution_method, scoring_eligible, resolved_at, approved_at)
+          values (${prediction.id}, ${proposal.proposed_outcome}, ${proposal.explanation}, ${proposal.confidence}, 'openai_web', ${proposal.scoring_eligible && ["correct", "incorrect"].includes(proposal.proposed_outcome)}, now(), ${auto ? new Date() : null})
+          on conflict (prediction_id) do update set outcome = excluded.outcome, explanation = excluded.explanation,
+            resolution_confidence = excluded.resolution_confidence, resolution_method = excluded.resolution_method,
+            scoring_eligible = excluded.scoring_eligible, resolved_at = excluded.resolved_at, approved_at = excluded.approved_at
+          where public.resolutions.approved_at is null
+          returning id
+        `;
+        if (!resolution) return false;
+        await tx`delete from public.resolution_evidence where resolution_id = ${resolution.id}`;
+        // Only evidence whose excerpt was found on the live page is stored and shown.
+        for (const item of confirmed) await tx`
+          insert into public.resolution_evidence (resolution_id, source_type, source_title, source_path, publisher, excerpt, is_primary_source)
+          values (${resolution.id}, 'web', ${item.title}, ${item.source_path}, ${item.publisher}, ${item.excerpt}, ${item.is_primary_source})
+        `;
+        const evidenceCheck = checked.map((item) => ({ url: item.source_path, confirmed: item.confirmed, error: item.checkError }));
+        await tx`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, ${auto ? "resolution_approved" : "resolution_proposed"}, 'system', ${tx.json({ proposal, verifier, evidence_check: evidenceCheck, resolution_schema_version: RESOLUTION_SCHEMA_VERSION } as never)}, ${auto ? "Passed resolution and evidence thresholds." : "Below auto-resolution thresholds; retried in 30 days."})`;
+        if (auto) await tx`update public.predictions set status = ${proposal.proposed_outcome === "ambiguous" ? "ambiguous" : proposal.proposed_outcome === "void" ? "void" : "resolved"} where id = ${prediction.id}`;
+        return true;
+      });
+      if (!written) return;
       proposed += 1;
       if (auto) {
-        await sql`update public.predictions set status = ${proposal.proposed_outcome === "ambiguous" ? "ambiguous" : proposal.proposed_outcome === "void" ? "void" : "resolved"} where id = ${prediction.id}`;
         approved += 1;
         verdicts.push({ id: prediction.id, claim: prediction.normalized_claim, outcome: proposal.proposed_outcome });
       }

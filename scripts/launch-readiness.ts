@@ -15,10 +15,17 @@ export async function launchReadiness(): Promise<Check[]> {
       (select count(*) from public.markets)::integer as markets,
       (select count(*) from public.predictions p left join public.sources s on s.id = p.source_id where p.published_at is not null and s.id is null)::integer as missing_source,
       (select count(*) from public.resolutions r where r.approved_at is not null and r.scoring_eligible and not exists (select 1 from public.resolution_evidence e where e.resolution_id = r.id))::integer as missing_evidence,
-      (select count(*) from public.predictions where explicit_probability is not null and source_quote !~ '[0-9]')::integer as probability_without_numeric_source
+      (select count(*) from public.predictions where explicit_probability is not null and source_quote !~ '[0-9]')::integer as probability_without_numeric_source,
+      (select count(*) from public.prediction_integrity_violations)::integer as integrity_violations
+  `;
+  // Which rules the violating rows break (rows published before the database guards existed).
+  const violations = await sql<{ violation: string; count: number }[]>`
+    select violation, count(*)::integer as count from public.prediction_integrity_violations group by violation order by count desc
   `;
   const goals: Array<[string, number, number]> = [["Experts", counts.experts, 50], ["Published predictions", counts.published, 300], ["Resolved predictions", counts.resolved, 75], ["Categories represented", counts.categories, 8], ["Active topics", counts.topics, 100], ["Markets", counts.markets, 200]];
-  const quality: Array<[string, number]> = [["Published predictions missing source", counts.missing_source], ["Scoring resolutions missing evidence", counts.missing_evidence], ["Numeric probabilities without numeric source quote", counts.probability_without_numeric_source]];
+  const quality: Array<[string, number]> = [["Published predictions missing source", counts.missing_source], ["Scoring resolutions missing evidence", counts.missing_evidence], ["Numeric probabilities without numeric source quote", counts.probability_without_numeric_source],
+    ["Visible predictions breaking publication rules", counts.integrity_violations],
+    ...violations.map((row): [string, number] => [`  of which ${row.violation}`, row.count])];
   return [...goals.map(([label, value, target]): Check => ({ level: value >= target ? "PASS" : "WARN", label, value, target })), ...quality.map(([label, value]): Check => ({ level: value === 0 ? "PASS" : "FAIL", label, value }))];
 }
 

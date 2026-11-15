@@ -48,8 +48,10 @@ async function main() {
         ${record.publishedAt.toISOString()}, ${record.exactText ?? null}, ${contentHash},
         ${sql.json(record.metadata as never)}, now(), now())
       on conflict (source_type, external_id) where external_id is not null do update set
-        exact_text = excluded.exact_text, content_hash = excluded.content_hash,
-        metadata = excluded.metadata, last_verified_at = now()
+        exact_text = case when exists (select 1 from public.predictions p where p.source_id = public.sources.id) then public.sources.exact_text else excluded.exact_text end,
+        content_hash = case when exists (select 1 from public.predictions p where p.source_id = public.sources.id) then public.sources.content_hash else excluded.content_hash end,
+        metadata = public.sources.metadata || excluded.metadata, last_verified_at = now()
+      where public.sources.deleted_at is null
     `;
     inserted += 1;
   }

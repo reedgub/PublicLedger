@@ -1,8 +1,10 @@
-name: Refresh published X sources (weekly)
+name: Refresh published sources (weekly)
 
-# Compliance: re-checks the posts behind published predictions (100 ids per
-# request) and quarantines any that were deleted or edited. Weekly, because
-# every read is billed; REFRESH_LIMIT caps reads per run.
+# Compliance: re-checks every source behind a visible prediction (each at most
+# monthly) and quarantines predictions whose original was deleted, edited, or
+# no longer contains the quote. X uses the official API when X_BEARER_TOKEN is
+# set (billed per read) and the free oEmbed endpoint otherwise; web pages and
+# podcast audio are re-fetched for free. REFRESH_LIMIT caps sources per run.
 
 on:
   schedule:
@@ -36,7 +38,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm refresh:x
+      - run: pnpm refresh:sources
       - name: Tell Slack the run failed
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         run: |

@@ -24,7 +24,7 @@ export function canonicalizeXPostUrl(input: string): XPostRef | null {
   if (statusIndex < 1) return null;
   const handleSegment = parts[statusIndex - 1];
   const idSegment = parts[statusIndex + 1];
-  if (!handleSegment || handleSegment.startsWith("i")) return null;
+  if (!handleSegment || handleSegment.toLowerCase() === "i") return null;
   if (!/^[A-Za-z0-9_]{1,15}$/.test(handleSegment)) return null;
   if (!idSegment || !/^\d{5,25}$/.test(idSegment)) return null;
   return {

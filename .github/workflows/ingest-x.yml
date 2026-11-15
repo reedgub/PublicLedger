@@ -42,7 +42,6 @@ jobs:
       SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
       NEXT_PUBLIC_SITE_ORIGIN: ${{ secrets.NEXT_PUBLIC_SITE_ORIGIN }}
-      AUTO_APPROVE_MODE: ${{ secrets.AUTO_APPROVE_MODE }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

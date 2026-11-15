@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { predictionFingerprint } from "@/lib/predictions/fingerprint";
 import { scorePredictionHeuristic } from "@/lib/predictions/heuristics";
-import { canAutoPublish } from "@/lib/predictions/promotion";
 import { isIsoDate, isLiteralSourceQuote, validateExtractedPrediction } from "@/lib/predictions/validation";
 
 describe("prediction utilities", () => {
@@ -92,10 +91,39 @@ describe("prediction utilities", () => {
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
   });
+});
 
-  it("applies every auto-publication threshold", () => {
-    const candidate = { sourceIsUsable: true, speakerIsAuthor: true, extractionConfidence: 0.93, sourceFidelityScore: 0.98, falsifiabilityScore: 0.9, verifierVerdict: "faithful", verifierConfidence: 0.96, sourceQuoteLiteral: true, hasResolutionCriteria: true, hasResolutionDate: true };
-    expect(canAutoPublish(candidate)).toBe(true);
-    expect(canAutoPublish({ ...candidate, sourceFidelityScore: 0.96 })).toBe(false);
+describe("probabilities are never inferred", () => {
+  it("accepts percentages phrased as probabilities", async () => {
+    const { probabilityIsStated } = await import("@/lib/predictions/validation");
+    expect(probabilityIsStated("roughly a 50% chance of AGI by the end of the decade", 0.5)).toBe(true);
+    expect(probabilityIsStated("I'd put the odds at 60% that it passes", 0.6)).toBe(true);
+    expect(probabilityIsStated("I am 90 per cent confident", 0.9)).toBe(true);
+    expect(probabilityIsStated("a 33.3 percent chance", 0.333)).toBe(true);
+    expect(probabilityIsStated("anything", null)).toBe(true);
+  });
+
+  it("rejects thresholds, ranges and qualitative language", async () => {
+    const { probabilityIsStated } = await import("@/lib/predictions/validation");
+    expect(probabilityIsStated("there is a 70% chance rates fall below 3% by 2027", 0.03)).toBe(false);
+    expect(probabilityIsStated("85-90% Dem House takeover", 0.875)).toBe(false);
+    expect(probabilityIsStated("a 150% gain", 0.5)).toBe(false);
+    expect(probabilityIsStated("very likely", 0.8)).toBe(false);
+  });
+
+  it("rejects a candidate whose probability the quote does not state", () => {
+    const result = validateExtractedPrediction("Inflation will very likely fall below 3% by 2027.", "2026-01-01Z", {
+      normalized_claim: "Inflation falls below 3% by 2027.", source_quote: "Inflation will very likely fall below 3% by 2027.",
+      resolution_date: "2027-12-31", resolution_criteria: "CPI YoY below 3%.", explicit_probability: 0.8, category: "economy-rates",
+    });
+    expect(result.errors).toContain("probability_not_stated_in_quote");
+  });
+
+  it("allows a deadline on the day of the statement", () => {
+    const result = validateExtractedPrediction("It closes today.", "2026-05-04T18:30:00Z", {
+      normalized_claim: "It closes today.", source_quote: "It closes today.", resolution_date: "2026-05-04",
+      resolution_criteria: "Closing announced.", explicit_probability: null, category: "other",
+    });
+    expect(result.errors).not.toContain("resolution_before_prediction");
   });
 });

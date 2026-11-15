@@ -5,7 +5,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { seedExperts } from "@/scripts/seed-experts";
 import { seedPolymarket } from "@/scripts/seed-polymarket";
 import { seedX } from "@/scripts/seed-x";
-import { processSources } from "@/scripts/process-sources";
+import { processSources, type ProcessingSummary } from "@/scripts/process-sources";
 import { resolveDue } from "@/scripts/resolve-due";
 
 async function seedCategories() {
@@ -41,8 +41,8 @@ async function main() {
     try { x = await seedX([env.X_FULL_ARCHIVE_ENABLED === "true" ? "--full-archive" : "--recent", "--all"]); errors += x.errors; }
     catch (error) { errors += 1; console.error("X seed failed:", error instanceof Error ? error.message : "unknown"); }
   } else console.log("X ingestion skipped: X_BEARER_TOKEN is not configured.");
-  let processing = { examined: 0, rejectedByHeuristic: 0, aiPredictions: 0, verifierRejected: 0, autoApproved: 0, autoRejected: 0, autoApproverErrors: 0, published: 0, duplicates: 0, errors: 0 };
-  if (env.OPENAI_API_KEY) {
+  let processing: ProcessingSummary = { examined: 0, rejectedByHeuristic: 0, droppedByScreen: 0, candidates: 0, candidatesRejected: 0, duplicates: 0, published: 0, verifierRejected: 0, deferredByBudget: 0, costUsd: 0, errors: 0 };
+  if (env.OPENAI_API_KEY || env.OPEN_MODEL_API_KEY) {
     try { processing = await processSources(); errors += processing.errors; }
     catch (error) { errors += 1; console.error("Prediction processing failed:", error instanceof Error ? error.message : "unknown"); }
   } else console.log("AI extraction skipped: OPENAI_API_KEY is not configured.");
@@ -53,7 +53,7 @@ async function main() {
     `Experts seeded: ${experts.seeded}`, `Experts X-verified: ${experts.verified}`,
     `Polymarket events: ${polymarket.topics}`, `Markets: ${polymarket.markets}`,
     `Raw X posts: ${x.rawPosts}`, `Candidates: ${counts.candidates}`,
-    `Rejected by heuristic: ${processing.rejectedByHeuristic}`, `AI predictions detected: ${processing.aiPredictions}`,
+    `Rejected by heuristic: ${processing.rejectedByHeuristic}`, `Candidates for verification: ${processing.candidates}`,
     `Verifier rejected: ${processing.verifierRejected}`, `Published predictions: ${counts.published}`,
     `Open: ${counts.open}`, `Resolved: ${counts.resolved}`, `Ambiguous: ${counts.ambiguous}`,
     `Duplicates: ${counts.duplicates}`, `Errors: ${errors}`,
