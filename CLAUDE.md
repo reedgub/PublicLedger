@@ -26,6 +26,7 @@ PublicLedger (formerly "Project Lighthouse" and, before that, "Receipts") is a s
 - The database enforces these rules (`supabase/migrations/202611150001_integrity_guards.sql`). Never disable, bypass or weaken a guard to make a script work; fix the script. New schema changes go in a new migration, then `pnpm db:setup-sql`.
 - There is one automated publish path: `publishCandidate` (`lib/pipeline/publish.ts`). Don't add another. Leads from Grok or anywhere else go through `seed/manual/` and `pnpm import:manual`, never straight into `predictions`.
 - Quarantine (`lib/predictions/quarantine.ts`) is the only way a published prediction leaves public view; it never clears `published_at`.
+- Corrections go through `public.correct_prediction()` (`pnpm correct:prediction`): it publishes a corrected copy, hides and links the original (`superseded_by`), and audits both. Never edit a published row.
 
 ## Design system (locked)
 

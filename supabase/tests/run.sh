@@ -24,8 +24,10 @@ for file in supabase/migrations/*.sql; do
 done
 echo "✓ migrations apply"
 
-psql_q -d "$MIG" -o /dev/null -f supabase/tests/integrity.test.sql 2>&1 | grep -v NOTICE
-echo "✓ integrity guards"
+for test in supabase/tests/*.test.sql; do
+  psql_q -d "$MIG" -o /dev/null -f "$test" 2>&1 | grep -v NOTICE
+done
+echo "✓ integrity guards and corrections"
 
 psql_q -d "$SETUP" -f supabase/setup.sql >/dev/null 2>&1 || { psql_q -d "$SETUP" -f supabase/setup.sql; exit 1; }
 psql_q -d "$SETUP" -f supabase/setup.sql >/dev/null 2>&1 || { echo "setup.sql is not re-runnable"; exit 1; }
