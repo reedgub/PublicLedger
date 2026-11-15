@@ -20,12 +20,16 @@ async function main() {
   }
   const guard = await createBudgetGuard(scope);
   if (command === "submit") {
-    console.log(JSON.stringify({ stage: "verify_batch_submitted", ...(await submitVerificationBatch({ guard, scope })) }));
+    const result = await submitVerificationBatch({ guard, scope });
+    console.log(JSON.stringify({ stage: "verify_batch_submitted", ...result }));
+    // A refused provider (no credits, billing cap) must turn the run red; candidates stay queued.
+    if (result.providerError) process.exitCode = 1;
     return;
   }
   if (command === "sync") {
     const result = await verifyPendingSync({ guard, scope });
     console.log(JSON.stringify({ stage: "verify_sync_summary", ...result }));
+    if (result.providerError) process.exitCode = 1;
     if (result.published > 0) await revalidateLive(["/", "/leaderboard"]);
     return;
   }
