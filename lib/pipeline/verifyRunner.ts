@@ -9,13 +9,12 @@ import { getDatabase } from "@/lib/db/postgres";
 import { getOpenAIClient } from "@/lib/ai/client";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 import { publishCandidate } from "@/lib/pipeline/publish";
-import { isProviderOutage } from "@/lib/pipeline/cascade";
+import { isBillingError, isProviderOutage } from "@/lib/pipeline/cascade";
+import { callVerifier, sleep, verifierTarget } from "@/lib/pipeline/verifierTarget";
 import { recordSpend, tokenCostUsd, type BudgetGuard, type SpendScope } from "@/lib/pipeline/spend";
 import {
   buildBatchLine,
-  buildVerifierRequestBody,
   buildVerifierUserPrompt,
-  cascadeVerdictSchema,
   CASCADE_VERIFIER_SYSTEM_PROMPT,
   CASCADE_VERIFIER_VERSION,
   decideCandidate,
@@ -56,9 +55,9 @@ function toVerifierInput(row: PendingRow): VerifierInput {
 }
 
 /** Rough per-candidate verification cost, used to keep a batch under budget. */
-export function estimateVerifyCostUsd(input: VerifierInput, discount: number): number {
+export function estimateVerifyCostUsd(input: VerifierInput, discount: number, price = verifierPrice()): number {
   const inputTokens = (CASCADE_VERIFIER_SYSTEM_PROMPT.length + buildVerifierUserPrompt(input).length) / 4;
-  return tokenCostUsd({ inputTokens, outputTokens: 400 }, verifierPrice(), discount);
+  return tokenCostUsd({ inputTokens, outputTokens: 400 }, price, discount);
 }
 
 async function loadPending(limit: number): Promise<PendingRow[]> {
@@ -76,15 +75,18 @@ async function loadPending(limit: number): Promise<PendingRow[]> {
   `;
 }
 
-/** providerError: the verifier provider refused (no credits, billing cap, auth); candidates stay pending. */
-export type ApplySummary = { published: number; rejected: number; duplicates: number; errors: number; providerError?: string };
+/**
+ * providerError: the verifier provider refused (no credits, billing cap, auth); candidates stay pending.
+ * stoppedByQuota: a free tier's rate or daily limit was reached; the rest stay pending for the next run.
+ */
+export type ApplySummary = { published: number; rejected: number; duplicates: number; errors: number; providerError?: string; stoppedByQuota?: boolean; remaining?: number };
 
-export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, summary: ApplySummary): Promise<void> {
+export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, summary: ApplySummary, verifierModel: string = env.CASCADE_VERIFIER_MODEL): Promise<void> {
   const sql = getDatabase();
   const candidate = row.raw_extraction.candidate;
   await sql`
     update public.prediction_candidates set verifier_verdict = ${verdict.verdict}, verifier_confidence = ${verdict.confidence},
-      raw_extraction = raw_extraction || ${sql.json({ verifier: verdict, verifier_version: CASCADE_VERIFIER_VERSION, verifier_model: env.CASCADE_VERIFIER_MODEL } as never)}
+      raw_extraction = raw_extraction || ${sql.json({ verifier: verdict, verifier_version: CASCADE_VERIFIER_VERSION, verifier_model: verifierModel } as never)}
     where id = ${row.id}
   `;
   const action = decideCandidate(verdict, {
@@ -129,37 +131,55 @@ async function handleFailedVerification(row: PendingRow, reason: string) {
 
 // ---- Sync ----------------------------------------------------------------------
 
+/** A rate limit (not a billing refusal): stop for now, the rest are verified on the next run. */
+function isRateLimit(error: unknown): boolean {
+  return (error as { status?: number } | null)?.status === 429 && !isBillingError(error);
+}
+
 export async function verifyPendingSync(options: { guard: BudgetGuard; scope: SpendScope; limit?: number; runId?: string }): Promise<ApplySummary> {
   const summary: ApplySummary = { published: 0, rejected: 0, duplicates: 0, errors: 0 };
-  if (!env.OPENAI_API_KEY) return summary;
-  const rows = await loadPending(options.limit ?? 500);
-  const client = getOpenAIClient();
+  const target = verifierTarget();
+  if (!target) return summary;
+  const limit = Math.min(options.limit ?? 500, target.maxPerRun ?? Number.POSITIVE_INFINITY);
+  const rows = await loadPending(limit);
+  const [{ count: pendingTotal }] = await getDatabase()<{ count: number }[]>`
+    select count(*)::int as count from public.prediction_candidates where status = 'pending' and pipeline = 'cascade' and verification_batch_id is null`;
   let cost = 0;
   let tokens = 0;
-  for (const row of rows) {
+  let processed = 0;
+  for (const [index, row] of rows.entries()) {
     const input = toVerifierInput(row);
-    if (!options.guard.canSpend(estimateVerifyCostUsd(input, 0))) break;
+    if (!options.guard.canSpend(estimateVerifyCostUsd(input, 0, target.price))) break;
+    if (index > 0 && target.minIntervalMs > 0) await sleep(target.minIntervalMs);
     try {
-      const response = await client.chat.completions.create(buildVerifierRequestBody(input));
-      const usage = { inputTokens: response.usage?.prompt_tokens ?? 0, outputTokens: response.usage?.completion_tokens ?? 0 };
-      const callCost = tokenCostUsd(usage, verifierPrice());
+      const { verdict, usage } = await callVerifier(target, input);
+      const callCost = tokenCostUsd(usage, target.price);
       cost += callCost;
       tokens += usage.inputTokens + usage.outputTokens;
       options.guard.add(callCost);
-      const verdict = cascadeVerdictSchema.parse(JSON.parse(response.choices[0]?.message?.content ?? "{}"));
-      await applyVerdict(row, verdict, summary);
+      await applyVerdict(row, verdict, summary, target.model);
+      processed += 1;
     } catch (error) {
-      summary.errors += 1;
-      // Provider refused (credits, auth, rate limit): not the candidate's fault; retry next run.
-      if (isProviderOutage(error)) {
-        summary.providerError = error instanceof Error ? error.message : "unknown";
-        console.error(`Verifier provider unavailable: ${summary.providerError}. Pending candidates stay queued.`);
+      const message = error instanceof Error ? error.message : "unknown";
+      if (isRateLimit(error)) {
+        // Free tiers cap requests per minute and per day. Not the candidate's fault.
+        summary.stoppedByQuota = true;
+        console.warn(`Verifier rate limit reached after ${processed} candidate(s): ${message}. The rest stay queued.`);
         break;
       }
-      await handleFailedVerification(row, error instanceof Error ? error.message : "unknown");
+      summary.errors += 1;
+      // Provider refused (credits, auth): not the candidate's fault; retry next run.
+      if (isProviderOutage(error)) {
+        summary.providerError = message;
+        console.error(`Verifier provider unavailable: ${message}. Pending candidates stay queued.`);
+        break;
+      }
+      await handleFailedVerification(row, message);
+      processed += 1;
     }
   }
-  if (cost > 0) await recordSpend({ scope: options.scope, runId: options.runId, provider: "openai", stage: "verify_sync", units: tokens, unitKind: "tokens", costUsd: cost, metadata: { model: env.CASCADE_VERIFIER_MODEL, candidates: rows.length } });
+  summary.remaining = Math.max(0, pendingTotal - processed);
+  if (tokens > 0 || cost > 0) await recordSpend({ scope: options.scope, runId: options.runId, provider: target.provider, stage: "verify_sync", units: tokens, unitKind: "tokens", costUsd: cost, metadata: { model: target.model, candidates: processed } });
   return summary;
 }
 
@@ -181,6 +201,7 @@ export async function submitVerificationBatch(options: { guard: BudgetGuard; sco
 
 async function submitBatch(options: { guard: BudgetGuard; scope: SpendScope; limit?: number }): Promise<BatchSubmitResult> {
   if (!env.OPENAI_API_KEY) return { submitted: 0, batchId: null, estimatedUsd: 0 };
+  if (!verifierTarget()?.supportsBatch) throw new Error("The configured verifier has no Batch API; verify synchronously (shouldVerifySynchronously()).");
   const sql = getDatabase();
   const rows = await loadPending(Math.min(options.limit ?? MAX_BATCH_LINES, MAX_BATCH_LINES));
   const lines: string[] = [];

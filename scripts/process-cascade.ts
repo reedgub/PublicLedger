@@ -7,11 +7,11 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { closeDatabase } from "@/lib/db/postgres";
-import { env } from "@/lib/env";
 import { revalidateLive } from "@/lib/http/revalidate";
 import { runCascade } from "@/lib/pipeline/cascade";
 import { createBudgetGuard, type SpendScope } from "@/lib/pipeline/spend";
 import { submitVerificationBatch, verifyPendingSync } from "@/lib/pipeline/verifyRunner";
+import { shouldVerifySynchronously } from "@/lib/pipeline/verifierTarget";
 
 function arg(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -28,7 +28,7 @@ export async function processCascade(options: { mode?: "live" | "backfill"; maxS
   // A refused provider (no credits, bad key) should turn the workflow red, not pass silently.
   if (cascade.providerError) process.exitCode = 1;
   if (options.skipVerify) return { cascade, verify: null };
-  if (env.VERIFIER_MODE === "sync") {
+  if (shouldVerifySynchronously()) {
     const verify = await verifyPendingSync({ guard, scope, runId });
     console.log(JSON.stringify({ stage: "verify_sync_summary", ...verify }));
     if (verify.providerError) process.exitCode = 1;
