@@ -1,0 +1,64 @@
+name: Verify pending candidates
+
+# Runs only stage 3: collects finished batches, then verifies every pending
+# cascade candidate. No collection, so no X reads are billed. Use it to clear
+# a backlog (e.g. after the OpenAI account was topped up). The same verifier,
+# thresholds, DAILY_BUDGET_USD cap and database guards apply as in the daily job.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "sync = verify now (full price); batch = half price, published by the next daily run"
+        type: choice
+        options: [sync, batch]
+        default: sync
+
+concurrency:
+  group: ingest-daily
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SUBMISSION_HASH_SALT: ${{ secrets.SUBMISSION_HASH_SALT }}
+      NEXT_PUBLIC_SITE_ORIGIN: ${{ secrets.NEXT_PUBLIC_SITE_ORIGIN }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      DAILY_BUDGET_USD: ${{ vars.DAILY_BUDGET_USD }}
+      CASCADE_VERIFIER_MODEL: ${{ vars.CASCADE_VERIFIER_MODEL }}
+      OPENAI_PRICE_INPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_INPUT_PER_MTOK_USD }}
+      OPENAI_PRICE_OUTPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_OUTPUT_PER_MTOK_USD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Collect finished batches
+        run: pnpm verify:collect
+      - name: Verify pending candidates
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          if [ "$MODE" = "batch" ]; then pnpm verify:submit; else pnpm verify:sync; fi
+      - name: Spend report
+        if: always()
+        run: pnpm spend --days 1 || true
+      - name: Tell Slack the run failed
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -sS -X POST -H 'Content-Type: application/json' \
+            --data "{\"text\":\"❌ PublicLedger: ${{ github.workflow }} failed. ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$SLACK_WEBHOOK_URL" || true
