@@ -74,6 +74,7 @@ Start with `.env.example`. The important groups are:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`: database, auth, server-only mutation access, and CLI ingestion.
 - `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_VERIFIER_MODEL`: structured extraction and the independent second pass. Keep extractor and verifier logically independent even if they use the same model family.
 - `X_BEARER_TOKEN`, `X_FULL_ARCHIVE_ENABLED`: official X API access. Full-archive search requires an eligible X API plan.
+- `VERIFIER_API_KEY`, `VERIFIER_BASE_URL`, `VERIFIER_MODEL`, `VERIFIER_PUBLISH`: an optional free verifier on any OpenAI-compatible provider (default endpoint: Google's Gemini API). See "Free verifier" below.
 - `OPEN_MODEL_*`, `TRANSCRIBE_*`, `VERIFIER_MODE`, `CASCADE_VERIFIER_MODEL`: the low-cost cascade (see below). `*_PRICE_*` values drive spend accounting and `--estimate`; set them from your provider dashboards.
 - `DAILY_BUDGET_USD`, `BACKFILL_BUDGET_USD`, `RESOLUTION_DAILY_BUDGET_USD`: hard spend caps.
 - `ADMIN_EMAILS`: comma-separated allowlist for magic-link admin access. The first successful allowlisted login is recorded in `app_admins`.
@@ -143,6 +144,16 @@ Backfill integrity rules:
 - **Provenance.** `sources.discovered_at` and `ingestion_mode`, and `predictions.capture_mode`, are protected by triggers. Backfilled predictions show an "Archive capture" badge and never get market links (no historical snapshots exist).
 - **Speaker attribution.** Feed/sitemap articles whose byline names someone else are skipped. Podcast transcripts have no speaker labels, so candidates from shows where the expert is not the registered host are never published (rejected as speaker-uncertain).
 - **Compliance.** `pnpm refresh:sources` (weekly workflow) re-checks every source behind a visible prediction at most monthly: X through the official API when `X_BEARER_TOKEN` is set (100 ids per request, detects edits) or the free oEmbed endpoint otherwise (detects deletion); web pages are re-fetched and every quote must still be on them; podcast audio must still exist. Gone originals and missing quotes quarantine the prediction; three inconclusive checks in a row make the source unverifiable.
+
+### Free verifier (Gemini free tier or any OpenAI-compatible provider)
+
+Stage 3 can run on a free tier instead of OpenAI:
+
+1. Create a key at aistudio.google.com and add it as the repo secret `VERIFIER_API_KEY`. Set the repo variable `VERIFIER_MODEL` to a model id your key can use on the free tier (check AI Studio; it must differ from the extraction model, which the code enforces).
+2. Run the **Verify pending candidates** workflow in `compare` mode. It re-verifies past candidates (every past approval plus a random sample of rejections) and compares the publish/reject decisions with the stored OpenAI verdicts, writing nothing. The run summary lists every disagreement; the row that matters most is "new verifier publishes, OpenAI rejected".
+3. If you're satisfied, set the repo variable `VERIFIER_PUBLISH=true`. From then on every job verifies with it: synchronously (free tiers have no Batch API), paced `VERIFIER_MIN_INTERVAL_MS` apart, at most `VERIFIER_MAX_PER_RUN` per run. Hitting the tier's limit stops the run gracefully; the rest are verified on the next run.
+
+The 0.9 confidence bar, the verdict format, and the database guards are unchanged, and a malformed verdict is an error, never a publish. Free tiers may use submitted content to improve the provider's products; everything sent is public source text.
 
 Resolution is also cheaper: one web-search proposal per prediction, then every cited excerpt is checked against the live page (`lib/resolution/evidence.ts`) and only confirmed evidence is shown, counted toward auto-resolution, or passed to the verifier (which no longer runs its own web search).
 

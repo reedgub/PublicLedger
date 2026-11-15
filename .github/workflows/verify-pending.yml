@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "sync = verify now (full price); batch = half price, published by the next daily run"
+        description: "sync = verify now; batch = half price on OpenAI, published by the next daily run; compare = dry run of the configured verifier against past OpenAI verdicts (writes nothing)"
         type: choice
-        options: [sync, batch]
+        options: [sync, batch, compare]
         default: sync
 
 concurrency:
@@ -34,6 +34,12 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       DAILY_BUDGET_USD: ${{ vars.DAILY_BUDGET_USD }}
       CASCADE_VERIFIER_MODEL: ${{ vars.CASCADE_VERIFIER_MODEL }}
+      VERIFIER_API_KEY: ${{ secrets.VERIFIER_API_KEY }}
+      VERIFIER_PUBLISH: ${{ vars.VERIFIER_PUBLISH }}
+      VERIFIER_BASE_URL: ${{ vars.VERIFIER_BASE_URL }}
+      VERIFIER_MODEL: ${{ vars.VERIFIER_MODEL }}
+      VERIFIER_MIN_INTERVAL_MS: ${{ vars.VERIFIER_MIN_INTERVAL_MS }}
+      VERIFIER_MAX_PER_RUN: ${{ vars.VERIFIER_MAX_PER_RUN }}
       OPENAI_PRICE_INPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_INPUT_PER_MTOK_USD }}
       OPENAI_PRICE_OUTPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_OUTPUT_PER_MTOK_USD }}
     steps:
@@ -47,12 +53,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Collect finished batches
+        if: inputs.mode != 'compare'
         run: pnpm verify:collect
       - name: Verify pending candidates
         env:
           MODE: ${{ inputs.mode }}
         run: |
-          if [ "$MODE" = "batch" ]; then pnpm verify:submit; else pnpm verify:sync; fi
+          case "$MODE" in
+            compare) pnpm verify:compare ;;
+            batch) pnpm verify:submit ;;
+            *) pnpm verify:sync ;;
+          esac
       - name: Spend report
         if: always()
         run: pnpm spend --days 1 || true

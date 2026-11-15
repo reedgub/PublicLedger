@@ -75,4 +75,10 @@ describe("slack run reports", () => {
     expect(body(message)).toContain("❌");
     expect(body(message)).toContain("Scoring blocked");
   });
+
+  it("treats a free-tier limit as a pause, not a failure", () => {
+    const message = dailyMessage(report({ verifierQuotaStop: true, candidatesWaiting: 12 }), snapshot(), null);
+    expect(body(message)).toContain("12 candidates wait for the next run");
+    expect(body(message)).not.toContain("❌");
+  });
 });

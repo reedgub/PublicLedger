@@ -36,6 +36,7 @@
     "verify:collect": "tsx scripts/verify-batch.ts collect",
     "verify:submit": "tsx scripts/verify-batch.ts submit",
     "verify:sync": "tsx scripts/verify-batch.ts sync",
+    "verify:compare": "tsx scripts/verify-compare.ts",
     "sources:add": "tsx scripts/expert-sources.ts add",
     "sources:list": "tsx scripts/expert-sources.ts list",
     "sources:disable": "tsx scripts/expert-sources.ts disable",

@@ -17,6 +17,7 @@ import { CASCADE_EXTRACTION_VERSION } from "@/lib/pipeline/extract";
 import { createBudgetGuard, recordSpend, xReadCostUsd } from "@/lib/pipeline/spend";
 import { contentHash, storeSourceRecords } from "@/lib/pipeline/store";
 import { submitVerificationBatch, verifyPendingSync } from "@/lib/pipeline/verifyRunner";
+import { shouldVerifySynchronously } from "@/lib/pipeline/verifierTarget";
 import { env } from "@/lib/env";
 import { fetchXOembed, XOembedNotFoundError } from "@/lib/x/oembed";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
@@ -232,7 +233,7 @@ async function main() {
   const tally = outcomes.reduce<Record<string, number>>((acc, item) => { const key = item.result.split(":")[0]; acc[key] = (acc[key] ?? 0) + 1; return acc; }, {});
   console.log(JSON.stringify({ stage: "manual_import_summary", rows: rows.length + invalid.length, unique: outcomes.length, invalid: invalid.length, ...tally }));
 
-  if (process.argv.includes("--batch")) {
+  if (process.argv.includes("--batch") && !shouldVerifySynchronously()) {
     // Half price: the daily ingestion job collects the batch and publishes or rejects.
     const guard = await createBudgetGuard("daily");
     const batch = await submitVerificationBatch({ guard, scope: "daily" });

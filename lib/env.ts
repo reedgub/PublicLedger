@@ -54,6 +54,22 @@ const envSchema = z.object({
   // for small volumes or local debugging.
   VERIFIER_MODE: z.enum(["batch", "sync"]).default("batch"),
   CASCADE_VERIFIER_MODEL: z.string().default("gpt-5-mini"),
+  // Optional: run stage 3 on any OpenAI-compatible provider instead of OpenAI
+  // (e.g. Google's free Gemini tier). When VERIFIER_API_KEY is set, the
+  // verifier uses VERIFIER_BASE_URL + VERIFIER_MODEL, verifies synchronously
+  // (no Batch API), and paces calls VERIFIER_MIN_INTERVAL_MS apart to stay
+  // under free-tier rate limits. VERIFIER_MODEL is required: pick it from the
+  // provider's console, never a guess.
+  VERIFIER_API_KEY: z.string().optional(),
+  // Publishing with the alternative verifier is opt-in: run `pnpm verify:compare`
+  // (or the workflow's compare mode) first, then set VERIFIER_PUBLISH=true.
+  VERIFIER_PUBLISH: z.enum(["true", "false"]).default("false"),
+  VERIFIER_BASE_URL: z.string().url().default("https://generativelanguage.googleapis.com/v1beta/openai/"),
+  VERIFIER_MODEL: z.string().optional(),
+  VERIFIER_MIN_INTERVAL_MS: z.coerce.number().int().min(0).default(7000),
+  VERIFIER_MAX_PER_RUN: z.coerce.number().int().min(1).default(40),
+  VERIFIER_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0),
+  VERIFIER_PRICE_OUTPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0),
   OPENAI_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.25),
   OPENAI_PRICE_OUTPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(2),
   OPENAI_BATCH_DISCOUNT: z.coerce.number().min(0).max(1).default(0.5),
@@ -130,6 +146,14 @@ export const env = envSchema.parse({
   OPEN_MODEL_CONCURRENCY: raw(process.env.OPEN_MODEL_CONCURRENCY),
   VERIFIER_MODE: raw(process.env.VERIFIER_MODE),
   CASCADE_VERIFIER_MODEL: raw(process.env.CASCADE_VERIFIER_MODEL),
+  VERIFIER_API_KEY: raw(process.env.VERIFIER_API_KEY),
+  VERIFIER_PUBLISH: raw(process.env.VERIFIER_PUBLISH),
+  VERIFIER_BASE_URL: raw(process.env.VERIFIER_BASE_URL),
+  VERIFIER_MODEL: raw(process.env.VERIFIER_MODEL),
+  VERIFIER_MIN_INTERVAL_MS: raw(process.env.VERIFIER_MIN_INTERVAL_MS),
+  VERIFIER_MAX_PER_RUN: raw(process.env.VERIFIER_MAX_PER_RUN),
+  VERIFIER_PRICE_INPUT_PER_MTOK_USD: raw(process.env.VERIFIER_PRICE_INPUT_PER_MTOK_USD),
+  VERIFIER_PRICE_OUTPUT_PER_MTOK_USD: raw(process.env.VERIFIER_PRICE_OUTPUT_PER_MTOK_USD),
   OPENAI_PRICE_INPUT_PER_MTOK_USD: raw(process.env.OPENAI_PRICE_INPUT_PER_MTOK_USD),
   OPENAI_PRICE_OUTPUT_PER_MTOK_USD: raw(process.env.OPENAI_PRICE_OUTPUT_PER_MTOK_USD),
   OPENAI_BATCH_DISCOUNT: raw(process.env.OPENAI_BATCH_DISCOUNT),

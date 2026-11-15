@@ -8,6 +8,7 @@ import { closeDatabase } from "@/lib/db/postgres";
 import { revalidateLive } from "@/lib/http/revalidate";
 import { createBudgetGuard } from "@/lib/pipeline/spend";
 import { collectVerificationBatches, submitVerificationBatch, verifyPendingSync } from "@/lib/pipeline/verifyRunner";
+import { shouldVerifySynchronously } from "@/lib/pipeline/verifierTarget";
 
 async function main() {
   const command = process.argv[2] ?? "collect";
@@ -19,6 +20,14 @@ async function main() {
     return;
   }
   const guard = await createBudgetGuard(scope);
+  // A verifier without a Batch API (e.g. a free OpenAI-compatible tier) always verifies synchronously.
+  if (command === "submit" && shouldVerifySynchronously()) {
+    const result = await verifyPendingSync({ guard, scope });
+    console.log(JSON.stringify({ stage: "verify_sync_summary", note: "verifier has no Batch API; verified synchronously", ...result }));
+    if (result.providerError) process.exitCode = 1;
+    if (result.published > 0) await revalidateLive(["/", "/leaderboard"]);
+    return;
+  }
   if (command === "submit") {
     const result = await submitVerificationBatch({ guard, scope });
     console.log(JSON.stringify({ stage: "verify_batch_submitted", ...result }));

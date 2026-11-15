@@ -209,6 +209,10 @@ async function main(report: DailyReport) {
       report.verified.published += verify.published;
       report.verified.rejected += verify.rejected;
     } else if (verify) report.batchSubmitted = verify.submitted;
+    if (verify && "stoppedByQuota" in verify && verify.stoppedByQuota) {
+      report.verifierQuotaStop = true;
+      report.candidatesWaiting = verify.remaining ?? 0;
+    }
     if (verify?.providerError) {
       report.verifierError = verify.providerError;
       const [{ count }] = await getDatabase()<{ count: number }[]>`select count(*)::int as count from public.prediction_candidates where status = 'pending' and pipeline = 'cascade'`;

@@ -27,6 +27,8 @@ export type DailyReport = {
   /** The verifier provider refused (no credits, billing cap, auth); nothing was verified. */
   verifierError?: string | null;
   candidatesWaiting?: number;
+  /** A free verifier tier hit its rate or daily limit; the rest wait for the next run (expected, not an outage). */
+  verifierQuotaStop?: boolean;
 };
 
 export type ResolveReport = {
@@ -76,6 +78,7 @@ export function dailyMessage(report: DailyReport, snapshot: SiteSnapshot, origin
   const warnings: string[] = [];
   if (report.error) warnings.push(`Run crashed: \`${clip(report.error, 300)}\``);
   if (report.cascade?.providerError) warnings.push(`Model provider refused: ${escapeSlack(clip(report.cascade.providerError, 200))}`);
+  if (report.verifierQuotaStop && !report.verifierError) warnings.push(`Verifier reached its free-tier limit; ${plural(report.candidatesWaiting ?? 0, "candidate")} wait for the next run.`);
   if (report.verifierError) warnings.push(`Verifier blocked, nothing was published: ${escapeSlack(clip(report.verifierError, 200))}. ${plural(report.candidatesWaiting ?? 0, "candidate")} waiting; they stay queued until the OpenAI account can pay.`);
   if (report.x?.stoppedByBudget || report.podcasts?.stoppedByBudget || (report.cascade?.deferredByBudget ?? 0) > 0) warnings.push("Hit the daily budget cap; the rest carries over to tomorrow.");
   if (report.x && report.x.errors > 0) warnings.push(`X search failed for ${plural(report.x.errors, "expert")}.`);
