@@ -48,8 +48,16 @@ export type CascadeSummary = {
   providerError?: string;
 };
 
+/** The account can't pay for the call: OpenAI returns this as a 400 ("Billing hard limit has been reached") or a 429 ("no credits remaining"). */
+export function isBillingError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String((error as { message?: string } | null)?.message ?? "");
+  const code = String((error as { code?: string } | null)?.code ?? "");
+  return /billing|insufficient_quota|no credits|quota/i.test(`${code} ${message}`);
+}
+
 /** Errors that say nothing about the source itself: retry next run rather than marking the source failed. */
 export function isProviderOutage(error: unknown): boolean {
+  if (isBillingError(error)) return true;
   const status = (error as { status?: number } | null)?.status;
   if (typeof status === "number") return status === 401 || status === 402 || status === 403 || status === 408 || status === 429 || status >= 500;
   const name = (error as { name?: string } | null)?.name ?? "";

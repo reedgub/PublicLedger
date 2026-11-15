@@ -24,6 +24,9 @@ export type DailyReport = {
   runCostUsd: number;
   durationS: number;
   error?: string | null;
+  /** The verifier provider refused (no credits, billing cap, auth); nothing was verified. */
+  verifierError?: string | null;
+  candidatesWaiting?: number;
 };
 
 export type ResolveReport = {
@@ -33,6 +36,8 @@ export type ResolveReport = {
   errors: number;
   costUsd: number;
   stoppedByBudget: boolean;
+  /** The model provider refused (no credits, billing cap); nothing was scored. */
+  providerError?: string;
 };
 
 const MAX_LISTED = 8;
@@ -71,13 +76,14 @@ export function dailyMessage(report: DailyReport, snapshot: SiteSnapshot, origin
   const warnings: string[] = [];
   if (report.error) warnings.push(`Run crashed: \`${clip(report.error, 300)}\``);
   if (report.cascade?.providerError) warnings.push(`Model provider refused: ${escapeSlack(clip(report.cascade.providerError, 200))}`);
+  if (report.verifierError) warnings.push(`Verifier blocked, nothing was published: ${escapeSlack(clip(report.verifierError, 200))}. ${plural(report.candidatesWaiting ?? 0, "candidate")} waiting; they stay queued until the OpenAI account can pay.`);
   if (report.x?.stoppedByBudget || report.podcasts?.stoppedByBudget || (report.cascade?.deferredByBudget ?? 0) > 0) warnings.push("Hit the daily budget cap; the rest carries over to tomorrow.");
   if (report.x && report.x.errors > 0) warnings.push(`X search failed for ${plural(report.x.errors, "expert")}.`);
   if (report.feeds && report.feeds.errors > 0) warnings.push(`${plural(report.feeds.errors, "feed")} could not be read.`);
   if (report.x && report.x.experts === 0 && report.x.errors > 0) warnings.push("Every X lookup failed. Check the X API key and credits.");
 
   const live = snapshot.newlyPublishedCount;
-  const icon = report.error || report.cascade?.providerError ? "❌" : warnings.length ? "⚠️" : live > 0 ? "🚀" : "🌙";
+  const icon = report.error || report.cascade?.providerError || report.verifierError ? "❌" : warnings.length ? "⚠️" : live > 0 ? "🚀" : "🌙";
   const headline = live > 0 ? `${plural(live, "new prediction")} live` : "no new predictions today";
 
   const collected = [
@@ -116,7 +122,7 @@ const outcomeIcon: Record<string, string> = { correct: "✅", incorrect: "❌", 
 export function resolveMessage(report: ResolveReport, origin: string | null): SlackMessage {
   const scored = report.verdicts.length;
   const headline = scored > 0 ? `${plural(scored, "new verdict")}` : "no new verdicts";
-  const icon = report.errors > 0 ? "⚠️" : scored > 0 ? "⚖️" : "🌙";
+  const icon = report.providerError ? "❌" : report.errors > 0 ? "⚠️" : scored > 0 ? "⚖️" : "🌙";
   const blocks: unknown[] = [
     { type: "header", text: { type: "plain_text", text: `${icon} PublicLedger scoring: ${headline}`, emoji: true } },
     {
@@ -129,6 +135,9 @@ export function resolveMessage(report: ResolveReport, origin: string | null): Sl
       ],
     },
   ];
+  if (report.providerError) {
+    blocks.push({ type: "section", text: { type: "mrkdwn", text: `*Needs attention*\n• Scoring blocked, nothing was resolved: ${escapeSlack(clip(report.providerError, 200))}. Predictions stay due until the OpenAI account can pay.` } });
+  }
   if (scored > 0) {
     const rows = report.verdicts.slice(0, MAX_LISTED).map((item) =>
       `${outcomeIcon[item.outcome] ?? "•"} *${escapeSlack(item.outcome)}*: ${link(origin, `/predictions/${item.id}`, clip(item.claim))}`);

@@ -29,9 +29,12 @@ echo "✓ integrity guards"
 
 psql_q -d "$SETUP" -f supabase/setup.sql >/dev/null 2>&1 || { psql_q -d "$SETUP" -f supabase/setup.sql; exit 1; }
 psql_q -d "$SETUP" -f supabase/setup.sql >/dev/null 2>&1 || { echo "setup.sql is not re-runnable"; exit 1; }
-dump() { pg_dump -d "$1" --schema-only --schema=public | grep -v -e '^--' -e '^\\restrict' -e '^\\unrestrict' | sed '/^$/d'; }
+# Lines that differ between any two databases regardless of schema: comments,
+# pg_dump's per-run \restrict tokens, and per-database column version stamps
+# (pg_attver) that some pg_dump builds emit.
+dump() { pg_dump -d "$1" --schema-only --schema=public | grep -v -e '^--' -e '^\\restrict' -e '^\\unrestrict' -e 'pg_attver=' | sed '/^$/d'; }
 if ! diff <(dump "$MIG") <(dump "$SETUP") >/dev/null; then
-  echo "supabase/setup.sql does not match the migrations:"; diff <(dump "$MIG") <(dump "$SETUP") | head -40; exit 1
+  echo "supabase/setup.sql does not match the migrations:"; diff <(dump "$MIG") <(dump "$SETUP") | head -40 || true; exit 1
 fi
 echo "✓ setup.sql matches the migrations and is re-runnable"
 

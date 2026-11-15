@@ -195,6 +195,9 @@ describe("dedupe and budget", () => {
     expect(isProviderOutage(Object.assign(new Error("bad key"), { status: 401 }))).toBe(true);
     expect(isProviderOutage(Object.assign(new Error("boom"), { status: 503 }))).toBe(true);
     expect(isProviderOutage(Object.assign(new Error("bad request"), { status: 400 }))).toBe(false);
+    // OpenAI reports an exhausted billing cap as a 400; it must never count against the candidate.
+    expect(isProviderOutage(Object.assign(new Error("400 Billing hard limit has been reached"), { status: 400 }))).toBe(true);
+    expect(isProviderOutage(Object.assign(new Error("You exceeded your current quota"), { status: 400, code: "insufficient_quota" }))).toBe(true);
     expect(isProviderOutage(new Error("Model did not return valid JSON"))).toBe(false);
   });
 

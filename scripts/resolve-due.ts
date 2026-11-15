@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { isProviderOutage } from "@/lib/pipeline/cascade";
 import pLimit from "p-limit";
 import { getDatabase, closeDatabase } from "@/lib/db/postgres";
 import { env } from "@/lib/env";
@@ -11,7 +12,7 @@ import { postSlack, resolveMessage, type ResolveReport } from "@/lib/notify/slac
 
 type DueRow = { id: string; normalized_claim: string; prediction_date: string; resolution_date: string | null; resolution_criteria: string };
 
-type ResolveResult = { due: number; proposed: number; approved: number; errors: number; skipped: boolean; costUsd: number; stoppedByBudget: boolean; verdicts: ResolveReport["verdicts"] };
+type ResolveResult = { due: number; proposed: number; approved: number; errors: number; skipped: boolean; costUsd: number; stoppedByBudget: boolean; verdicts: ResolveReport["verdicts"]; providerError?: string };
 
 export async function resolveDue(): Promise<ResolveResult> {
   const sql = getDatabase();
@@ -35,6 +36,7 @@ export async function resolveDue(): Promise<ResolveResult> {
   for (const prediction of due) await sql`update public.predictions set status = 'resolution_pending' where id = ${prediction.id} and status in ('open','due')`;
   if (!env.OPENAI_API_KEY) return { due: due.length, proposed: 0, approved: 0, errors: 0, skipped: true, costUsd: 0, stoppedByBudget: false, verdicts: [] };
   let proposed = 0; let approved = 0; let errors = 0; let costUsd = 0; let stoppedByBudget = false;
+  let providerError: string | undefined;
   const verdicts: ResolveResult["verdicts"] = [];
   const guard = await createBudgetGuard("resolution");
   const price = { input: env.OPENAI_PRICE_INPUT_PER_MTOK_USD, output: env.OPENAI_PRICE_OUTPUT_PER_MTOK_USD };
@@ -44,6 +46,8 @@ export async function resolveDue(): Promise<ResolveResult> {
   const limit = pLimit(env.SEED_CONCURRENCY);
   await Promise.all(due.map((prediction) => limit(async () => {
     if (!guard.canSpend(perResolutionEstimate)) { stoppedByBudget = true; return; }
+    // Once the provider has refused (no credits, billing cap), every further call would too.
+    if (providerError) return;
     // Reserve the estimate while the call is in flight so concurrent workers respect the cap.
     guard.add(perResolutionEstimate);
     let spent = 0;
@@ -88,7 +92,11 @@ export async function resolveDue(): Promise<ResolveResult> {
         approved += 1;
         verdicts.push({ id: prediction.id, claim: prediction.normalized_claim, outcome: proposal.proposed_outcome });
       }
-    } catch (error) { errors += 1; console.error(`Resolution failed for ${prediction.id}:`, error instanceof Error ? error.message : "unknown"); }
+    } catch (error) {
+      errors += 1;
+      if (isProviderOutage(error)) providerError ??= error instanceof Error ? error.message : "unknown";
+      console.error(`Resolution failed for ${prediction.id}:`, error instanceof Error ? error.message : "unknown");
+    }
     finally {
       // Swap the reservation for the actual cost.
       guard.release(perResolutionEstimate);
@@ -100,7 +108,7 @@ export async function resolveDue(): Promise<ResolveResult> {
   if (approved > 0) {
     await revalidateLive(["/", "/leaderboard"]);
   }
-  return { due: due.length, proposed, approved, errors, skipped: false, costUsd, stoppedByBudget, verdicts };
+  return { due: due.length, proposed, approved, errors, skipped: false, costUsd, stoppedByBudget, verdicts, providerError };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -109,8 +117,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       console.log(`Due: ${result.due}\nProposed: ${result.proposed}\nApproved: ${result.approved}\nErrors: ${result.errors}${result.skipped ? "\nOpenAI not configured; proposal phase skipped." : ""}`);
       // Quiet days (nothing past its deadline) send nothing.
       if (result.due > 0 && !result.skipped) {
-        await postSlack(resolveMessage({ due: result.due, verdicts: result.verdicts, heldBack: result.proposed - result.approved, errors: result.errors, costUsd: result.costUsd, stoppedByBudget: result.stoppedByBudget }, env.NEXT_PUBLIC_SITE_ORIGIN ?? null));
+        await postSlack(resolveMessage({ due: result.due, verdicts: result.verdicts, heldBack: result.proposed - result.approved, errors: result.errors, costUsd: result.costUsd, stoppedByBudget: result.stoppedByBudget, providerError: result.providerError }, env.NEXT_PUBLIC_SITE_ORIGIN ?? null));
       }
+      // A refused provider, or a run where every attempt failed, is an outage: turn the workflow red.
+      if (result.providerError || (result.errors > 0 && result.proposed === 0)) process.exitCode = 1;
     })
     .finally(closeDatabase);
 }

@@ -76,7 +76,8 @@ async function loadPending(limit: number): Promise<PendingRow[]> {
   `;
 }
 
-export type ApplySummary = { published: number; rejected: number; duplicates: number; errors: number };
+/** providerError: the verifier provider refused (no credits, billing cap, auth); candidates stay pending. */
+export type ApplySummary = { published: number; rejected: number; duplicates: number; errors: number; providerError?: string };
 
 export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, summary: ApplySummary): Promise<void> {
   const sql = getDatabase();
@@ -151,7 +152,8 @@ export async function verifyPendingSync(options: { guard: BudgetGuard; scope: Sp
       summary.errors += 1;
       // Provider refused (credits, auth, rate limit): not the candidate's fault; retry next run.
       if (isProviderOutage(error)) {
-        console.error(`Verifier provider unavailable: ${error instanceof Error ? error.message : "unknown"}. Pending candidates stay queued.`);
+        summary.providerError = error instanceof Error ? error.message : "unknown";
+        console.error(`Verifier provider unavailable: ${summary.providerError}. Pending candidates stay queued.`);
         break;
       }
       await handleFailedVerification(row, error instanceof Error ? error.message : "unknown");
@@ -163,7 +165,21 @@ export async function verifyPendingSync(options: { guard: BudgetGuard; scope: Sp
 
 // ---- Batch submit ----------------------------------------------------------------
 
-export async function submitVerificationBatch(options: { guard: BudgetGuard; scope: SpendScope; limit?: number }): Promise<{ submitted: number; batchId: string | null; estimatedUsd: number }> {
+export type BatchSubmitResult = { submitted: number; batchId: string | null; estimatedUsd: number; providerError?: string };
+
+/** Submit pending candidates as one batch. A refused provider is reported, never thrown: nothing is claimed, so they stay pending. */
+export async function submitVerificationBatch(options: { guard: BudgetGuard; scope: SpendScope; limit?: number }): Promise<BatchSubmitResult> {
+  try {
+    return await submitBatch(options);
+  } catch (error) {
+    if (!isProviderOutage(error)) throw error;
+    const providerError = error instanceof Error ? error.message : "unknown";
+    console.error(`Verifier provider unavailable: ${providerError}. Pending candidates stay queued.`);
+    return { submitted: 0, batchId: null, estimatedUsd: 0, providerError };
+  }
+}
+
+async function submitBatch(options: { guard: BudgetGuard; scope: SpendScope; limit?: number }): Promise<BatchSubmitResult> {
   if (!env.OPENAI_API_KEY) return { submitted: 0, batchId: null, estimatedUsd: 0 };
   const sql = getDatabase();
   const rows = await loadPending(Math.min(options.limit ?? MAX_BATCH_LINES, MAX_BATCH_LINES));
@@ -180,6 +196,8 @@ export async function submitVerificationBatch(options: { guard: BudgetGuard; sco
   }
   if (lines.length === 0) return { submitted: 0, batchId: null, estimatedUsd: 0 };
   const client = getOpenAIClient();
+  // Nothing is claimed yet: if the provider refuses (no credits, billing cap),
+  // the candidates simply stay pending for the next run.
   const file = await client.files.create({ file: await toFile(Buffer.from(lines.join("\n"), "utf8"), "publicledger-verify.jsonl"), purpose: "batch" });
   // Record the batch and claim its candidates BEFORE creating it remotely, so
   // a crash can never leave a paid batch that nothing will collect.
