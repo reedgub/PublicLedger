@@ -2,7 +2,7 @@
 
 PublicLedger is a public, source-backed database of falsifiable predictions. It preserves the original statement, freezes a clear interpretation and resolution criteria, records the deadline, and later resolves the prediction against cited evidence. The product is intentionally strict: when evidence or attribution is weak, the item stays out of public scoring.
 
-This repository is a from-scratch MVP implementation of the supplied product and technical brief. It does **not** include fabricated public-figure predictions. Without credentials, the app shows the real expert roster, public Polymarket context, and honest empty states. Verified predictions appear only after the ingestion and review pipeline has real source data.
+This repository is a from-scratch MVP implementation of the supplied product and technical brief. It does **not** include fabricated public-figure predictions. Without credentials, the app shows the real expert roster, public Polymarket context, and honest empty states. Verified predictions appear only after the ingestion and verification pipeline has real source data.
 
 ## Architecture
 
@@ -16,6 +16,18 @@ This repository is a from-scratch MVP implementation of the supplied product and
 - Locked design system (dark canvas, Inter display type, Geist Mono labels, Motion-based scroll animation). See [`DESIGN.md`](DESIGN.md) before building UI
 
 The public read path is in `lib/data/public.ts`. Privileged reads and writes are separated into `lib/data/admin.ts`, `lib/auth/admin.ts`, server actions, and authenticated route handlers. Published prediction fields are frozen by a database trigger; later source and resolution events are captured separately in the audit log.
+
+## Integrity guards
+
+The product rules are enforced by the database itself (`supabase/migrations/202611150001_integrity_guards.sql`), so no script, admin action, or ad-hoc service-role SQL can bypass them:
+
+- A prediction can be published only if its quote is an exact substring of its source's stored text, the source isn't deleted, the prediction date is the source's own timestamp, the source belongs to the attributed expert, the deadline isn't before the statement, and any probability is stated in the quote as a probability ("70% chance").
+- Once published, a prediction's substance, publication time, and verification mode are frozen, and it can't be deleted. Quarantine (`status = 'source_unavailable'`) is the only way out of public view, and a quarantined prediction can't return while its quote is gone.
+- A source's text can't be changed or removed while a visible prediction depends on it; the prediction must be quarantined first, in the same transaction (`lib/predictions/quarantine.ts`).
+- `audit_log` is append-only. Removed source text is not kept in it, only its hash.
+- `prediction_integrity_violations` lists visible rows that predate these guards and break a rule; `pnpm readiness` fails while it is non-empty.
+
+There is exactly one automated publish path, `publishCandidate` in `lib/pipeline/publish.ts`. It runs in one transaction, serialises publishes per expert, re-validates against the source as it is at that moment, and writes the prediction, candidate status, and audit entry together. `pnpm test:db` (and the CI `database` job) builds a disposable Postgres from the migrations, runs the guard tests in `supabase/tests/`, checks that `setup.sql` produces the identical schema, and runs the publish/quarantine integration tests in `tests/db/`.
 
 ## Run locally
 
@@ -48,7 +60,7 @@ pnpm dlx supabase link --project-ref YOUR_PROJECT_REF
 pnpm dlx supabase db push
 ```
 
-Or, if you don't have the Supabase CLI installed and just want a one-shot bootstrap, paste `supabase/setup.sql` into the Supabase Dashboard SQL Editor. That file combines every migration, the categories seed, the 65-expert roster, and their category links into a single idempotent script — safe to re-run against any state.
+Or, if you don't have the Supabase CLI installed and just want a one-shot bootstrap, paste `supabase/setup.sql` into the Supabase Dashboard SQL Editor. It is generated from `supabase/migrations/` and `seed/experts.ts` by `pnpm db:setup-sql` (`pnpm test` fails if it is stale). Each migration is applied once and recorded in `supabase_migrations.schema_migrations`, the same history the Supabase CLI keeps, so re-running it is safe and `supabase db push` works afterwards. A database created by the old hand-written setup.sql has no history; the script refuses to run on it and tells you to record the applied migrations with `supabase migration repair` and use `supabase db push` instead.
 
 In Supabase Auth, add `http://localhost:3000/auth/callback` locally and the deployed `/auth/callback` URL in production. Never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser.
 
@@ -78,12 +90,12 @@ Apply migrations first, then seed in stages:
 pnpm seed:experts
 pnpm seed:polymarket
 pnpm seed:x -- --recent --all
-pnpm tsx scripts/process-sources.ts
+pnpm tsx scripts/process-sources.ts   # runs the cascade + verifier
 pnpm seed:resolve
 pnpm readiness
 ```
 
-`seed:experts` adds the PRD roster but keeps X identities unverified until the official API resolves each handle. `seed:polymarket` imports active and recently closed public markets, normalizes topics, and stores snapshots. `seed:x` stores exact official-source text with content hashes and provenance. `process-sources` applies the cheap deterministic filter, structured extraction, literal-quote validation, independent verification, duplicate detection, and conservative auto-publication thresholds.
+`seed:experts` adds the PRD roster but keeps X identities unverified until the official API resolves each handle. `seed:polymarket` imports active and recently closed public markets, normalizes topics, and stores snapshots. `seed:x` stores exact official-source text with content hashes and provenance. `process-sources` runs the same cascade and verifier as the daily job (there is no second publish path).
 
 To run the complete orchestration and receive a final ingestion summary:
 
@@ -129,7 +141,7 @@ Backfill integrity rules:
 - **No human review queue.** The verifier publishes only `faithful` approvals at ≥ 0.9 confidence with a resolution date; everything else is rejected with its reason kept in `prediction_candidates`. Resolutions that miss the auto thresholds stay unresolved and are retried every 30 days.
 - **Provenance.** `sources.discovered_at` and `ingestion_mode`, and `predictions.capture_mode`, are protected by triggers. Backfilled predictions show an "Archive capture" badge and never get market links (no historical snapshots exist).
 - **Speaker attribution.** Feed/sitemap articles whose byline names someone else are skipped. Podcast transcripts have no speaker labels, so candidates from shows where the expert is not the registered host are never published (rejected as speaker-uncertain).
-- **Compliance.** `pnpm refresh:x` (weekly workflow) re-checks posts behind published predictions 100 ids per request and quarantines deleted or edited ones.
+- **Compliance.** `pnpm refresh:sources` (weekly workflow) re-checks every source behind a visible prediction at most monthly: X through the official API when `X_BEARER_TOKEN` is set (100 ids per request, detects edits) or the free oEmbed endpoint otherwise (detects deletion); web pages are re-fetched and every quote must still be on them; podcast audio must still exist. Gone originals and missing quotes quarantine the prediction; three inconclusive checks in a row make the source unverifiable.
 
 Resolution is also cheaper: one web-search proposal per prediction, then every cited excerpt is checked against the live page (`lib/resolution/evidence.ts`) and only confirmed evidence is shown, counted toward auto-resolution, or passed to the verifier (which no longer runs its own web search).
 
@@ -137,9 +149,11 @@ Workflows: `ingest-daily.yml` (daily), `backfill.yml` (manual, `estimate` defaul
 
 Run reports: add the repo secret `SLACK_WEBHOOK_URL` (a Slack Incoming Webhook) and every daily ingestion posts a summary — what went live in the last 24 hours with links, what was collected, verifier publish/reject counts, spend (run, 24h, 7 days), the site total, and anything needing attention (provider refusals, budget cap, failed X lookups or feeds). The scoring job posts new verdicts whenever predictions are past their deadline, and any scheduled workflow that fails posts a link to the run. Without the secret, nothing is sent. `CRON_SECRET` (same value as in Vercel) plus `NEXT_PUBLIC_SITE_ORIGIN` let the jobs refresh the live pages the moment something publishes.
 
-### Manual prediction lists
+### Prediction leads (Grok Bot, hand-curated lists)
 
-Hand-curated lists go in `seed/manual/*.json` (same row shape as `import:seed-predictions`) and are imported with the **Import manual predictions** workflow or `pnpm import:manual <file>`. Rows are treated as leads, not facts: X posts are re-read through the official API and must come from the expert's own account; web pages are fetched live (robots.txt respected) and only an excerpt around the quote is stored. The quote must appear verbatim in that fetched source, dates come from the source, and probabilities are kept only when the quote states them. Surviving rows then go through the same cascade verifier as everything else, which publishes or rejects them. For third-party articles, only the expert's own quoted words can pass.
+Lead files go in `seed/manual/*.json`. Pushing a new or changed file to `main` imports it automatically via the **Import manual predictions** workflow, or run `pnpm import:manual <file> [--batch | --no-verify]`. The row format, every rejection reason, and costs are in [`seed/manual/README.md`](seed/manual/README.md); the older `seed/hand-curated/*.json` files use the same shape.
+
+Rows are leads, not facts: X posts are re-read through the official API (or the free oEmbed endpoint when no X token is configured) and must come from the expert's own account; web pages are fetched live (robots.txt respected) and only an excerpt around the quote is stored. The quote must appear verbatim in that fetched source, dates come from the source, and probabilities are kept only when the quote states them as probabilities. On third-party pages only words inside quotation marks count; the expert's own pages (registered feeds/sitemaps, or their byline) count whole. Surviving rows go through the same cascade verifier as everything else, by default via the half-price Batch API collected by the next daily run.
 
 ### X discovery via xAI (legacy, manual)
 
@@ -177,7 +191,7 @@ POST /api/cron/polymarket
 Authorization: Bearer <CRON_SECRET>
 ```
 
-Suggested cadence: Polymarket hourly, recent X sync every few hours, source availability refresh daily, and due-prediction resolution daily. The CLI commands `pnpm sync:polymarket`, `pnpm sync:x`, `pnpm refresh:x`, and `pnpm seed:resolve` are suitable scheduler entry points when run in a trusted environment.
+Suggested cadence: Polymarket hourly, recent X sync every few hours, source availability refresh daily, and due-prediction resolution daily. The CLI commands `pnpm sync:polymarket`, `pnpm sync:x`, `pnpm refresh:sources`, and `pnpm seed:resolve` are suitable scheduler entry points when run in a trusted environment.
 
 ## Quality gates
 
@@ -188,6 +202,7 @@ pnpm test
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
+pnpm test:db      # needs a disposable Postgres (PGHOST/PGPORT/PGUSER)
 ```
 
 `pnpm readiness` checks the launch volume targets and fails on key integrity violations such as scoring resolutions without evidence. Volume shortfalls are warnings because the system must never weaken verification rules merely to hit a target.

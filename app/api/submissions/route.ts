@@ -1,19 +1,12 @@
 import { createHash } from "node:crypto";
 import { after } from "next/server";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { EXTRACTION_SCHEMA_VERSION, VERIFIER_SCHEMA_VERSION } from "@/lib/constants";
 import { env, integrations } from "@/lib/env";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { parseSafePublicUrl, parseXPostUrl } from "@/lib/security/urls";
 import { requestIpHash } from "@/lib/security/rate-limit";
 import { fetchXPostById } from "@/lib/sources/x";
-import { scorePredictionHeuristic } from "@/lib/predictions/heuristics";
-import { extractPredictions } from "@/lib/ai/extractPrediction";
-import { verifyPrediction } from "@/lib/ai/verifyPrediction";
-import { validateExtractedPrediction } from "@/lib/predictions/validation";
-import { canAutoPublish } from "@/lib/predictions/promotion";
-import { predictionFingerprint } from "@/lib/predictions/fingerprint";
+import { captureModeFor } from "@/lib/sources/manualImport";
 
 const predictionSubmission = z.object({
   type: z.literal("prediction"),
@@ -78,10 +71,8 @@ export async function POST(request: Request) {
   }).select("id").single();
   if (insertError) return Response.json({ error: "Could not store this submission." }, { status: 500 });
 
-  // The X-fetch → extraction → verification → auto-publish path takes tens of
-  // seconds when everything is warm and much longer when OpenAI or X is
-  // sluggish. Return 201 immediately and let the pipeline run in the
-  // post-response phase so the submitter never sees a timeout.
+  // Reading the post from X can be slow; return 201 immediately and store the
+  // lead after the response so the submitter never sees a timeout.
   if (xPost && integrations.x) {
     after(async () => {
       try {
@@ -95,86 +86,38 @@ export async function POST(request: Request) {
   return Response.json({ ok: true }, { status: 201 });
 }
 
+/**
+ * A submitted X post is only a lead. It is read through the official API and
+ * stored as a source for its expert; the daily cascade then extracts and
+ * verifies it under the spend caps, through the same single publish path as
+ * every other source. Nothing is extracted, verified or published here.
+ */
 async function processSubmittedXPost(input: {
   submissionId: string;
   xPost: { postId: string; handle: string };
 }) {
   const admin = createAdminSupabaseClient();
   const record = await fetchXPostById(input.xPost.postId, input.xPost.handle);
-  if (!record?.exactText) return;
-  const contentHash = createHash("sha256").update(record.exactText).digest("hex");
-  const sourcePayload = {
-    source_type: "x", external_id: record.externalId, canonical_path: record.canonicalPath,
-    author_external_id: record.authorExternalId, author_handle: record.authorHandle,
-    published_at: record.publishedAt.toISOString(), exact_text: record.exactText,
-    content_hash: contentHash, metadata: record.metadata, fetched_at: new Date().toISOString(),
-    last_verified_at: new Date().toISOString(), deleted_at: null,
-  };
+  if (!record?.exactText || !record.authorHandle) return;
   const { data: existingSource, error: lookupError } = await admin.from("sources")
     .select("id")
     .eq("source_type", "x")
     .eq("external_id", record.externalId)
     .maybeSingle();
   if (lookupError) throw lookupError;
-  const sourceResult = existingSource
-    ? await admin.from("sources").update(sourcePayload).eq("id", existingSource.id).select("id").single()
-    : await admin.from("sources").insert(sourcePayload).select("id").single();
-  const { data: source, error: sourceError } = sourceResult;
-  if (sourceError) throw sourceError;
-  const { data: expert } = await admin.from("experts").select("id, display_name, x_handle").ilike("x_handle", record.authorHandle ?? input.xPost.handle).maybeSingle();
-  if (!expert || !integrations.openai) return;
-  if (!scorePredictionHeuristic(record.exactText).shouldExtract) return;
-  const extraction = await extractPredictions({ sourceText: record.exactText, sourceTimestamp: record.publishedAt, authorName: expert.display_name, authorHandle: expert.x_handle });
-  let anyPublished = false;
-  for (const candidate of extraction.result.predictions) {
-    const deterministic = validateExtractedPrediction(record.exactText, record.publishedAt, candidate);
-    const verification = deterministic.valid ? await verifyPrediction({ sourceText: record.exactText, sourceTimestamp: record.publishedAt, authorName: expert.display_name, candidate }) : null;
-    const publish = deterministic.valid && canAutoPublish({
-      sourceIsUsable: extraction.result.source_is_usable,
-      speakerIsAuthor: extraction.result.speaker_is_author,
-      extractionConfidence: candidate.extraction_confidence,
-      sourceFidelityScore: candidate.source_fidelity_score,
-      falsifiabilityScore: candidate.falsifiability_score,
-      verifierVerdict: verification?.result.verdict ?? null,
-      verifierConfidence: verification?.result.confidence ?? null,
-      sourceQuoteLiteral: deterministic.valid,
-      hasResolutionCriteria: Boolean(candidate.resolution_criteria),
-      hasResolutionDate: Boolean(candidate.resolution_date),
-    });
-    const { data: storedCandidate, error: candidateError } = await admin.from("prediction_candidates").insert({
-      source_id: source.id, expert_id: expert.id, normalized_claim: candidate.normalized_claim,
-      source_quote: candidate.source_quote, resolution_date: candidate.resolution_date,
-      resolution_criteria: candidate.resolution_criteria, explicit_probability: candidate.explicit_probability,
-      confidence_language: candidate.confidence_language, category_slug: candidate.category,
-      extraction_confidence: candidate.extraction_confidence, falsifiability_score: candidate.falsifiability_score,
-      source_fidelity_score: candidate.source_fidelity_score, verifier_verdict: verification?.result.verdict,
-      verifier_confidence: verification?.result.confidence, status: publish ? "auto_verified" : "review",
-      reason_rejected: deterministic.errors.join(", ") || verification?.result.reason || null,
-      model_name: extraction.model,
-      raw_extraction: { extraction: extraction.result, verifier: verification?.result, extraction_schema_version: EXTRACTION_SCHEMA_VERSION, verifier_schema_version: VERIFIER_SCHEMA_VERSION, submission_id: input.submissionId },
-    }).select("id").single();
-    if (candidateError) throw candidateError;
-    if (publish && candidate.resolution_date) {
-      const fingerprint = predictionFingerprint({ expertId: expert.id, sourceId: source.id, normalizedClaim: candidate.normalized_claim, predictionDate: record.publishedAt, resolutionDate: candidate.resolution_date, resolutionCriteria: candidate.resolution_criteria, explicitProbability: candidate.explicit_probability });
-      const publishedAt = new Date().toISOString();
-      const { data: prediction, error: predictionError } = await admin.from("predictions").upsert({
-        expert_id: expert.id, source_id: source.id, category_slug: candidate.category,
-        normalized_claim: candidate.normalized_claim, source_quote: candidate.source_quote,
-        prediction_date: record.publishedAt.toISOString(), resolution_date: candidate.resolution_date,
-        resolution_criteria: candidate.resolution_criteria, explicit_probability: candidate.explicit_probability,
-        confidence_language: candidate.confidence_language, falsifiability_score: candidate.falsifiability_score,
-        verification_mode: "auto", status: new Date(candidate.resolution_date) <= new Date() ? "due" : "open",
-        fingerprint_sha256: fingerprint, published_at: publishedAt, frozen_at: publishedAt,
-      }, { onConflict: "fingerprint_sha256", ignoreDuplicates: true }).select("id").maybeSingle();
-      if (predictionError) throw predictionError;
-      if (prediction) {
-        anyPublished = true;
-        await admin.from("audit_log").insert({ entity_type: "prediction", entity_id: prediction.id, action: "prediction_auto_verified", actor_type: "system", after: { candidate_id: storedCandidate.id, fingerprint }, reason: "Passed deterministic and independent verifier thresholds." });
-      }
-    }
-  }
-  if (anyPublished) {
-    revalidatePath("/");
-    revalidatePath("/leaderboard");
-  }
+  if (existingSource) return;
+  const handle = record.authorHandle.toLowerCase();
+  const { data: candidates } = await admin.from("experts").select("id, x_handle, x_user_id").eq("is_active", true).not("x_handle", "is", null);
+  const expert = (candidates ?? []).find((row) => (row.x_user_id && row.x_user_id === record.authorExternalId) || row.x_handle?.toLowerCase() === handle);
+  if (!expert) return;
+  const { error: insertError } = await admin.from("sources").insert({
+    source_type: "x", external_id: record.externalId, canonical_path: record.canonicalPath,
+    author_external_id: record.authorExternalId, author_handle: record.authorHandle,
+    published_at: record.publishedAt.toISOString(), exact_text: record.exactText,
+    content_hash: createHash("sha256").update(record.exactText).digest("hex"), metadata: { ...record.metadata, submission_id: input.submissionId },
+    fetched_at: new Date().toISOString(), last_verified_at: new Date().toISOString(),
+    expert_id: expert.id, ingestion_mode: captureModeFor(record.publishedAt), source_verification_level: "x_api",
+  });
+  // A concurrent collector may have stored the same post first.
+  if (insertError && insertError.code !== "23505") throw insertError;
 }

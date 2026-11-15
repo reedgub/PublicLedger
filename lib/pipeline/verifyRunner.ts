@@ -8,7 +8,6 @@ import { env } from "@/lib/env";
 import { getDatabase } from "@/lib/db/postgres";
 import { getOpenAIClient } from "@/lib/ai/client";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
-import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
 import { publishCandidate } from "@/lib/pipeline/publish";
 import { isProviderOutage } from "@/lib/pipeline/cascade";
 import { recordSpend, tokenCostUsd, type BudgetGuard, type SpendScope } from "@/lib/pipeline/spend";
@@ -77,7 +76,8 @@ async function loadPending(limit: number): Promise<PendingRow[]> {
   `;
 }
 
-export type ApplySummary = { published: number; rejected: number; duplicates: number; errors: number };
+/** providerError: the verifier provider refused (no credits, billing cap, auth); candidates stay pending. */
+export type ApplySummary = { published: number; rejected: number; duplicates: number; errors: number; providerError?: string };
 
 export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, summary: ApplySummary): Promise<void> {
   const sql = getDatabase();
@@ -98,23 +98,12 @@ export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, sum
     summary.rejected += 1;
     return;
   }
-  // Last-moment duplicate check: another candidate may have published since extraction.
-  const published = await sql<{ normalized_claim: string; resolution_date: string | null }[]>`
-    select normalized_claim, resolution_date::text from public.predictions where expert_id = ${row.expert_id}
-  `;
-  if (published.some((item) => isLikelyDuplicate(
-    { expertId: row.expert_id, claim: candidate.normalized_claim, resolutionDate: candidate.resolution_date },
-    { expertId: row.expert_id, claim: item.normalized_claim, resolutionDate: item.resolution_date },
-  ))) {
-    await sql`update public.prediction_candidates set status = 'duplicate', reason_rejected = 'semantic_duplicate' where id = ${row.id}`;
-    summary.duplicates += 1;
-    return;
-  }
-  await publishCandidate({
+  // Re-validation against the live source, duplicate checks and the
+  // audit trail all happen inside publishCandidate's transaction.
+  const result = await publishCandidate({
     candidateId: row.id,
     expertId: row.expert_id,
     sourceId: row.source_id,
-    predictionDate: row.published_at,
     candidate,
     verificationMode: action.verificationMode,
     captureMode: row.ingestion_mode,
@@ -122,7 +111,9 @@ export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, sum
     auditReason: "Passed open-model extraction, deterministic validation, and the cascade frontier verifier.",
     auditAfter: { verifier_confidence: verdict.confidence },
   });
-  summary.published += 1;
+  if (result.kind === "published") summary.published += 1;
+  else if (result.kind === "duplicate") summary.duplicates += 1;
+  else if (result.kind === "rejected") summary.rejected += 1;
 }
 
 async function handleFailedVerification(row: PendingRow, reason: string) {
@@ -161,7 +152,8 @@ export async function verifyPendingSync(options: { guard: BudgetGuard; scope: Sp
       summary.errors += 1;
       // Provider refused (credits, auth, rate limit): not the candidate's fault; retry next run.
       if (isProviderOutage(error)) {
-        console.error(`Verifier provider unavailable: ${error instanceof Error ? error.message : "unknown"}. Pending candidates stay queued.`);
+        summary.providerError = error instanceof Error ? error.message : "unknown";
+        console.error(`Verifier provider unavailable: ${summary.providerError}. Pending candidates stay queued.`);
         break;
       }
       await handleFailedVerification(row, error instanceof Error ? error.message : "unknown");
@@ -173,7 +165,21 @@ export async function verifyPendingSync(options: { guard: BudgetGuard; scope: Sp
 
 // ---- Batch submit ----------------------------------------------------------------
 
-export async function submitVerificationBatch(options: { guard: BudgetGuard; scope: SpendScope; limit?: number }): Promise<{ submitted: number; batchId: string | null; estimatedUsd: number }> {
+export type BatchSubmitResult = { submitted: number; batchId: string | null; estimatedUsd: number; providerError?: string };
+
+/** Submit pending candidates as one batch. A refused provider is reported, never thrown: nothing is claimed, so they stay pending. */
+export async function submitVerificationBatch(options: { guard: BudgetGuard; scope: SpendScope; limit?: number }): Promise<BatchSubmitResult> {
+  try {
+    return await submitBatch(options);
+  } catch (error) {
+    if (!isProviderOutage(error)) throw error;
+    const providerError = error instanceof Error ? error.message : "unknown";
+    console.error(`Verifier provider unavailable: ${providerError}. Pending candidates stay queued.`);
+    return { submitted: 0, batchId: null, estimatedUsd: 0, providerError };
+  }
+}
+
+async function submitBatch(options: { guard: BudgetGuard; scope: SpendScope; limit?: number }): Promise<BatchSubmitResult> {
   if (!env.OPENAI_API_KEY) return { submitted: 0, batchId: null, estimatedUsd: 0 };
   const sql = getDatabase();
   const rows = await loadPending(Math.min(options.limit ?? MAX_BATCH_LINES, MAX_BATCH_LINES));
@@ -190,6 +196,8 @@ export async function submitVerificationBatch(options: { guard: BudgetGuard; sco
   }
   if (lines.length === 0) return { submitted: 0, batchId: null, estimatedUsd: 0 };
   const client = getOpenAIClient();
+  // Nothing is claimed yet: if the provider refuses (no credits, billing cap),
+  // the candidates simply stay pending for the next run.
   const file = await client.files.create({ file: await toFile(Buffer.from(lines.join("\n"), "utf8"), "publicledger-verify.jsonl"), purpose: "batch" });
   // Record the batch and claim its candidates BEFORE creating it remotely, so
   // a crash can never leave a paid batch that nothing will collect.
@@ -252,6 +260,7 @@ export async function collectVerificationBatches(options: { scope: SpendScope })
       join public.sources s on s.id = pc.source_id
       join public.experts e on e.id = pc.expert_id
       where pc.verification_batch_id = ${batch.id} and pc.status = 'pending'
+      -- Deleted or edited sources are caught by publishCandidate, which rejects them.
     `;
     const byId = new Map(rows.map((row) => [row.id, row]));
     const usage = { inputTokens: 0, outputTokens: 0 };

@@ -35,8 +35,13 @@ export async function seedX(argv = process.argv.slice(2)): Promise<{ rawPosts: n
           insert into public.sources (source_type, external_id, canonical_path, author_external_id, author_handle, published_at, exact_text, content_hash, metadata, fetched_at, last_verified_at)
           values ('x', ${record.externalId ?? null}, ${record.canonicalPath ?? null}, ${record.authorExternalId ?? null}, ${record.authorHandle ?? null}, ${record.publishedAt}, ${record.exactText ?? null}, ${hash}, ${sql.json(record.metadata as never)}, now(), now())
           on conflict (source_type, external_id) where external_id is not null do update set canonical_path = excluded.canonical_path,
-            author_external_id = excluded.author_external_id, author_handle = excluded.author_handle, published_at = excluded.published_at,
-            exact_text = excluded.exact_text, content_hash = excluded.content_hash, metadata = excluded.metadata, fetched_at = now(), last_verified_at = now(), deleted_at = null
+            author_external_id = excluded.author_external_id, author_handle = excluded.author_handle,
+            -- Text under an existing prediction is never replaced here; the
+            -- compliance refresh owns edits (it quarantines and audits).
+            exact_text = case when exists (select 1 from public.predictions p where p.source_id = public.sources.id) then public.sources.exact_text else excluded.exact_text end,
+            content_hash = case when exists (select 1 from public.predictions p where p.source_id = public.sources.id) then public.sources.content_hash else excluded.content_hash end,
+            metadata = public.sources.metadata || excluded.metadata, fetched_at = now(), last_verified_at = now()
+          where public.sources.deleted_at is null
         `;
       }
       rawPosts += unique.length;

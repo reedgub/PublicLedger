@@ -9,7 +9,7 @@ import type { SourceRecord } from "@/lib/sources/types";
 export type StoreOptions = {
   expertId: string;
   mode: "live" | "backfill";
-  verificationLevel?: "x_api" | null;
+  verificationLevel?: "x_api" | "xai_oembed" | null;
 };
 
 export function contentHash(text: string): string {

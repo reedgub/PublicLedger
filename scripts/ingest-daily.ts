@@ -209,6 +209,11 @@ async function main(report: DailyReport) {
       report.verified.published += verify.published;
       report.verified.rejected += verify.rejected;
     } else if (verify) report.batchSubmitted = verify.submitted;
+    if (verify?.providerError) {
+      report.verifierError = verify.providerError;
+      const [{ count }] = await getDatabase()<{ count: number }[]>`select count(*)::int as count from public.prediction_candidates where status = 'pending' and pipeline = 'cascade'`;
+      report.candidatesWaiting = count;
+    }
   }
   console.log(JSON.stringify({ stage: "daily_done", run_id: runId, duration_s: Math.round((Date.now() - startedAt.getTime()) / 1000) }));
 

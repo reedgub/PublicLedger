@@ -1,6 +1,6 @@
 // Import a hand-curated list of predictions as cascade candidates.
 //
-//   pnpm import:manual seed/manual/2026-10-05.json [--no-verify]
+//   pnpm import:manual seed/manual/2026-10-05.json [--batch | --no-verify]
 //
 // Rows are leads, not facts (see lib/sources/manualImport.ts): each one is
 // re-checked against its live source, stored with the source's own text and
@@ -16,17 +16,19 @@ import { revalidateLive } from "@/lib/http/revalidate";
 import { CASCADE_EXTRACTION_VERSION } from "@/lib/pipeline/extract";
 import { createBudgetGuard, recordSpend, xReadCostUsd } from "@/lib/pipeline/spend";
 import { contentHash, storeSourceRecords } from "@/lib/pipeline/store";
-import { verifyPendingSync } from "@/lib/pipeline/verifyRunner";
+import { submitVerificationBatch, verifyPendingSync } from "@/lib/pipeline/verifyRunner";
+import { env } from "@/lib/env";
+import { fetchXOembed, XOembedNotFoundError } from "@/lib/x/oembed";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
 import { isIsoDate, validateExtractedPrediction } from "@/lib/predictions/validation";
 import { pageTextFromHtml } from "@/lib/resolution/evidence";
 import { allowedToFetch, FEED_USER_AGENT, parseArticle } from "@/lib/sources/feed";
-import { captureModeFor, dedupeRows, locateQuote, manualRowSchema, parseXStatusUrl, statedProbability, type ManualRow } from "@/lib/sources/manualImport";
+import { captureModeFor, dedupeRows, isDirectQuote, isExpertsOwnPage, locateQuote, manualRowSchema, parseXStatusUrl, statedProbability, xPostTimestamp, type ManualRow } from "@/lib/sources/manualImport";
 import type { SourceRecord } from "@/lib/sources/types";
 import { fetchXPostById } from "@/lib/sources/x";
 
-type Expert = { id: string; slug: string; x_handle: string | null; x_user_id: string | null };
-type Fetched = { record: SourceRecord; text: string; verificationLevel: "x_api" | null };
+type Expert = { id: string; slug: string; display_name: string; x_handle: string | null; x_user_id: string | null; own_urls: string[] };
+type Fetched = { record: SourceRecord; text: string; verificationLevel: "x_api" | "xai_oembed" | null };
 type Outcome = { expert: string; source: string; quote: string; result: string };
 
 const xCache = new Map<string, SourceRecord | null>();
@@ -46,6 +48,8 @@ async function fetchXSource(id: string, expert: Expert, guard: Awaited<ReturnTyp
       verificationLevel: "x_api",
     };
   }
+  // No X API token: verify through the free, official oEmbed endpoint.
+  if (!env.X_BEARER_TOKEN) return fetchXSourceViaOembed(id, expert);
   if (!xCache.has(id)) {
     if (!guard.canSpend(xReadCostUsd(1, 1))) return "budget_exhausted";
     const record = await fetchXPostById(id).catch(() => null);
@@ -63,7 +67,27 @@ async function fetchXSource(id: string, expert: Expert, guard: Awaited<ReturnTyp
   return { record, text: record.exactText, verificationLevel: "x_api" };
 }
 
-async function fetchWebSource(url: string, quote: string): Promise<Fetched | string> {
+async function fetchXSourceViaOembed(id: string, expert: Expert): Promise<Fetched | string> {
+  if (!expert.x_handle) return "expert_has_no_x_handle";
+  let post: Awaited<ReturnType<typeof fetchXOembed>>;
+  try {
+    post = await fetchXOembed(`https://x.com/${expert.x_handle}/status/${id}`);
+  } catch (error) {
+    return error instanceof XOembedNotFoundError ? "x_post_unavailable" : "x_oembed_unreachable";
+  }
+  // The author comes from X, not from the lead: a post by anyone else is rejected.
+  if (!post.authorHandle || post.authorHandle.toLowerCase() !== expert.x_handle.toLowerCase()) return "not_expert_account";
+  const publishedAt = xPostTimestamp(id);
+  if (!publishedAt) return "source_date_unknown";
+  if (!post.bodyText) return "x_post_unavailable";
+  return {
+    record: { sourceType: "x", externalId: id, authorHandle: post.authorHandle, publishedAt, exactText: post.bodyText, canonicalPath: `/${post.authorHandle}/status/${id}`, metadata: { verified_via: "oembed", imported_via: "import-manual" } },
+    text: post.bodyText,
+    verificationLevel: "xai_oembed",
+  };
+}
+
+async function fetchWebSource(url: string, quote: string, expert: Expert): Promise<Fetched | string> {
   if (!pageCache.has(url)) {
     try {
       if (!(await allowedToFetch(url))) {
@@ -82,9 +106,17 @@ async function fetchWebSource(url: string, quote: string): Promise<Fetched | str
   if (!article.publishedAt) return "source_date_unknown";
   const $ = load(page.html);
   const summary = $("meta[name='description'], meta[property='og:description']").map((_, node) => $(node).attr("content") ?? "").get().join("\n");
+  // Third-party pages count only for words the writer puts in quotation
+  // marks; the expert's own pages (registered feeds, or their byline) count whole.
+  const ownPage = isExpertsOwnPage({ url: article.canonicalUrl, byline: article.author }, { name: expert.display_name, ownUrls: expert.own_urls });
+  let foundUnquoted = false;
   for (const text of [article.text, pageTextFromHtml(page.html), summary]) {
     const located = text ? locateQuote(text, quote) : null;
     if (!located) continue;
+    if (!ownPage && !isDirectQuote(located.excerpt, located.quote)) {
+      foundUnquoted = true;
+      continue;
+    }
     return {
       record: {
         sourceType: "web",
@@ -93,13 +125,13 @@ async function fetchWebSource(url: string, quote: string): Promise<Fetched | str
         publishedAt: article.publishedAt,
         exactText: located.excerpt,
         canonicalPath: article.canonicalUrl,
-        metadata: { title: article.title, byline: article.author, excerpt_of_page: true, imported_via: "import-manual" },
+        metadata: { title: article.title, byline: article.author, excerpt_of_page: true, imported_via: "import-manual", attribution: ownPage ? "experts_own_page" : "direct_quote" },
       },
       text: located.excerpt,
       verificationLevel: null,
     };
   }
-  return "quote_not_found_in_source";
+  return foundUnquoted ? "not_a_direct_quote" : "quote_not_found_in_source";
 }
 
 export async function importManual(rows: ManualRow[]): Promise<Outcome[]> {
@@ -111,14 +143,18 @@ export async function importManual(rows: ManualRow[]): Promise<Outcome[]> {
     const outcome: Outcome = { expert: row.expertSlug, source: row.sourcePath, quote: row.sourceQuote.slice(0, 80), result: "" };
     outcomes.push(outcome);
     if (!experts.has(row.expertSlug)) {
-      const [expert] = await sql<Expert[]>`select id, slug, x_handle, x_user_id from public.experts where slug = ${row.expertSlug} and is_active`;
+      const [expert] = await sql<Expert[]>`
+        select e.id, e.slug, e.display_name, e.x_handle, e.x_user_id,
+          coalesce(array_agg(es.url) filter (where es.url is not null and es.kind in ('feed', 'sitemap')), '{}') as own_urls
+        from public.experts e left join public.expert_sources es on es.expert_id = e.id and es.is_active
+        where e.slug = ${row.expertSlug} and e.is_active group by e.id`;
       if (expert) experts.set(row.expertSlug, expert);
     }
     const expert = experts.get(row.expertSlug);
     if (!expert) { outcome.result = "skipped: expert_not_found"; continue; }
 
     const x = parseXStatusUrl(row.sourcePath);
-    const fetched = x ? await fetchXSource(x.id, expert, guard) : await fetchWebSource(row.sourcePath, row.sourceQuote);
+    const fetched = x ? await fetchXSource(x.id, expert, guard) : await fetchWebSource(row.sourcePath, row.sourceQuote, expert);
     if (typeof fetched === "string") { outcome.result = `skipped: ${fetched}`; continue; }
     const located = locateQuote(fetched.text, row.sourceQuote);
     if (!located) { outcome.result = "skipped: quote_not_found_in_source"; continue; }
@@ -196,7 +232,12 @@ async function main() {
   const tally = outcomes.reduce<Record<string, number>>((acc, item) => { const key = item.result.split(":")[0]; acc[key] = (acc[key] ?? 0) + 1; return acc; }, {});
   console.log(JSON.stringify({ stage: "manual_import_summary", rows: rows.length + invalid.length, unique: outcomes.length, invalid: invalid.length, ...tally }));
 
-  if (!process.argv.includes("--no-verify")) {
+  if (process.argv.includes("--batch")) {
+    // Half price: the daily ingestion job collects the batch and publishes or rejects.
+    const guard = await createBudgetGuard("daily");
+    const batch = await submitVerificationBatch({ guard, scope: "daily" });
+    console.log(JSON.stringify({ stage: "verify_batch_submitted", ...batch }));
+  } else if (!process.argv.includes("--no-verify")) {
     const guard = await createBudgetGuard("daily");
     const verified = await verifyPendingSync({ guard, scope: "daily" });
     console.log(JSON.stringify({ stage: "verify_sync_summary", ...verified }));

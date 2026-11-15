@@ -13,6 +13,7 @@
 import { z } from "zod";
 import { CATEGORY_SLUGS } from "@/lib/constants";
 import { repairSourceQuote } from "@/lib/predictions/validation";
+import { bylineMatches } from "@/lib/sources/feed";
 
 export const manualRowSchema = z.object({
   expertSlug: z.string().min(1),
@@ -74,9 +75,57 @@ export function captureModeFor(publishedAt: Date, now = new Date()): "live" | "b
   return now.getTime() - publishedAt.getTime() > 7 * 86_400_000 ? "backfill" : "live";
 }
 
-/** Keep a probability only when the quote states it (e.g. "50%"); never infer one. */
-export function statedProbability(quote: string, probability: number | null | undefined): number | null {
-  if (probability === null || probability === undefined) return null;
-  const percent = Math.round(probability * 100);
-  return new RegExp(`(^|[^0-9.])${percent}\\s?(%|percent)`, "i").test(quote) ? probability : null;
+export { statedProbability } from "@/lib/predictions/validation";
+
+/**
+ * True when `quote` sits inside quotation marks in its paragraph of `text`.
+ *
+ * On a third-party page (news, interview write-up) only words the writer
+ * puts in quotation marks are the expert's own; everything else is the
+ * writer's paraphrase ("Hayes expects ETH to hit $10K"), which can never be
+ * attributed. Ambiguous cases (single quotes, which double as apostrophes)
+ * fail closed.
+ */
+export function isDirectQuote(text: string, quote: string): boolean {
+  const index = text.indexOf(quote);
+  if (index < 0 || !quote.trim()) return false;
+  const trimmed = quote.trim();
+  if (/^[“"]/.test(trimmed) && /[”"][.,!?;:]?$/.test(trimmed)) return true;
+  const paragraphStart = Math.max(text.lastIndexOf("\n", index - 1) + 1, index - 2000);
+  const nextBreak = text.indexOf("\n", index + quote.length);
+  const paragraphEnd = Math.min(nextBreak < 0 ? text.length : nextBreak, index + quote.length + 2000);
+  const before = text.slice(paragraphStart, index);
+  const after = text.slice(index + quote.length, paragraphEnd);
+  const count = (value: string, mark: string) => value.split(mark).length - 1;
+  if (count(quote, "”") > count(quote, "“") || count(quote, '"') % 2 === 1) return false;
+  const curlyOpen = count(before, "“") > count(before, "”") && after.includes("”");
+  const straightOpen = count(before, '"') % 2 === 1 && after.includes('"');
+  return curlyOpen || straightOpen;
+}
+
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether a page is the expert's own writing: its host is one of the
+ * expert's registered feeds/sitemaps, or it carries the expert's byline.
+ * A page with no byline is never assumed to be theirs.
+ */
+export function isExpertsOwnPage(page: { url: string; byline: string | null }, expert: { name: string; ownUrls: string[] }): boolean {
+  const host = hostOf(page.url);
+  if (host && expert.ownUrls.some((url) => hostOf(url) === host)) return true;
+  return Boolean(page.byline) && bylineMatches(page.byline, expert.name);
+}
+
+/** Posting time encoded in an X post id (snowflake), or null for pre-2010 ids. */
+export function xPostTimestamp(id: string): Date | null {
+  if (!/^\d{5,25}$/.test(id)) return null;
+  const ms = (BigInt(id) >> BigInt(22)) + BigInt(1288834974657);
+  const date = new Date(Number(ms));
+  return date.getTime() > Date.UTC(2010, 10, 4) && date.getTime() <= Date.now() + 86_400_000 ? date : null;
 }

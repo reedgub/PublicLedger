@@ -35,15 +35,7 @@ export const CATEGORIES: ReadonlyArray<{
 ];
 
 export const EXTRACTION_SCHEMA_VERSION = "2026-09-08.4-named-source-and-dedupe";
-export const VERIFIER_SCHEMA_VERSION = "2026-08-27.1";
 export const RESOLUTION_SCHEMA_VERSION = "2026-08-27.1";
-
-export const AUTO_PUBLICATION_THRESHOLDS = {
-  extractionConfidence: 0.92,
-  sourceFidelity: 0.97,
-  falsifiability: 0.85,
-  verifierConfidence: 0.95,
-} as const;
 
 export const SITE_NAME = "PublicLedger";
 export const SITE_TAGLINE = "The public record of what pundits actually said.";

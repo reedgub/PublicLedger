@@ -9,6 +9,8 @@ import { verifyMarketMatch } from "@/lib/ai/matchMarket";
 import { canCreateMarketLink } from "@/lib/matching/markets";
 import { predictionFingerprint } from "@/lib/predictions/fingerprint";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
+import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
+import { validateExtractedPrediction } from "@/lib/predictions/validation";
 
 export async function linkPublishedPrediction(
   predictionId: string,
@@ -55,7 +57,6 @@ export type PublishInput = {
   candidateId: string;
   expertId: string;
   sourceId: string;
-  predictionDate: string;
   candidate: ExtractedPrediction;
   verificationMode: "auto" | "auto_low_confidence" | "admin";
   captureMode: "live" | "backfill";
@@ -64,32 +65,93 @@ export type PublishInput = {
   auditAfter?: Record<string, unknown>;
 };
 
-export async function publishCandidate(input: PublishInput, sql: Sql = getDatabase()): Promise<string> {
+export type PublishResult =
+  | { kind: "published"; predictionId: string }
+  | { kind: "duplicate"; reason: string }
+  | { kind: "rejected"; reason: string }
+  | { kind: "skipped"; reason: string };
+
+const OPEN_CANDIDATE_STATUSES = ["pending", "review", "auto_verified"];
+
+/**
+ * The one publish path for pipeline candidates. Runs in a single transaction:
+ *
+ *   - serialises publishes per expert (advisory lock) so two runs can't
+ *     publish the same claim twice;
+ *   - re-reads the candidate (must still be open) and the source as it is NOW
+ *     (must not be deleted) and re-runs deterministic validation against the
+ *     current text, so nothing that changed since extraction or verification
+ *     slips through;
+ *   - uses the source's own timestamp as the prediction date;
+ *   - writes the prediction, the candidate status and the audit entry together,
+ *     so a crash can never leave a published prediction without its audit row.
+ *
+ * The database enforces the same rules again (guard_prediction_insert), so a
+ * bug here fails loudly instead of publishing. Topic and market links are
+ * added after commit: they are informational and may call a model.
+ */
+export async function publishCandidate(input: PublishInput, sql: Sql = getDatabase()): Promise<PublishResult> {
   const { candidate } = input;
-  if (!candidate.resolution_date) throw new Error("Cannot publish a candidate without a resolution date.");
   const recordType = candidate.record_type ?? "prediction";
-  const fingerprint = predictionFingerprint({
-    expertId: input.expertId,
-    sourceId: input.sourceId,
-    normalizedClaim: candidate.normalized_claim,
-    predictionDate: input.predictionDate,
-    resolutionDate: candidate.resolution_date,
-    resolutionCriteria: candidate.resolution_criteria,
-    explicitProbability: candidate.explicit_probability,
+  const outcome = await sql.begin(async (tx): Promise<PublishResult & { predictionDate?: string }> => {
+    await tx`select pg_advisory_xact_lock(hashtext(${`publish:${input.expertId}`}))`;
+    const [current] = await tx<{ status: string }[]>`select status from public.prediction_candidates where id = ${input.candidateId} for update`;
+    if (!current) return { kind: "skipped", reason: "candidate_missing" };
+    if (!OPEN_CANDIDATE_STATUSES.includes(current.status)) return { kind: "skipped", reason: `candidate_${current.status}` };
+
+    const reject = async (status: "rejected" | "duplicate", reason: string): Promise<PublishResult> => {
+      await tx`update public.prediction_candidates set status = ${status}, reason_rejected = ${reason.slice(0, 500)} where id = ${input.candidateId}`;
+      await tx`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason)
+        values ('prediction_candidate', ${input.candidateId}, ${status === "duplicate" ? "duplicate_merged" : "prediction_rejected"}, 'system', ${tx.json({ status } as never)}, ${`Publish-time check: ${reason}`.slice(0, 1000)})`;
+      return { kind: status, reason };
+    };
+
+    const [source] = await tx<{ exact_text: string | null; published_at: string; deleted_at: string | null }[]>`
+      select exact_text, published_at::text, deleted_at::text from public.sources where id = ${input.sourceId} for share
+    `;
+    if (!source || source.deleted_at || !source.exact_text) return reject("rejected", "source_unavailable_at_publish");
+    if (!candidate.resolution_date) return reject("rejected", "resolution_date_missing");
+    const validation = validateExtractedPrediction(source.exact_text, source.published_at, candidate);
+    if (!validation.valid) return reject("rejected", validation.errors.join(","));
+
+    const published = await tx<{ normalized_claim: string; resolution_date: string | null }[]>`
+      select normalized_claim, resolution_date::text from public.predictions where expert_id = ${input.expertId} and published_at is not null
+    `;
+    if (published.some((item) => isLikelyDuplicate(
+      { expertId: input.expertId, claim: candidate.normalized_claim, resolutionDate: candidate.resolution_date },
+      { expertId: input.expertId, claim: item.normalized_claim, resolutionDate: item.resolution_date },
+    ))) return reject("duplicate", "semantic_duplicate");
+
+    const fingerprint = predictionFingerprint({
+      expertId: input.expertId,
+      sourceId: input.sourceId,
+      normalizedClaim: candidate.normalized_claim,
+      predictionDate: source.published_at,
+      resolutionDate: candidate.resolution_date,
+      resolutionCriteria: candidate.resolution_criteria,
+      explicitProbability: candidate.explicit_probability,
+    });
+    // prediction_date is copied in SQL: passing it through the driver would
+    // round it to milliseconds.
+    const [prediction] = await tx<{ id: string }[]>`
+      insert into public.predictions (expert_id, source_id, category_slug, normalized_claim, source_quote, prediction_date,
+        resolution_date, resolution_criteria, explicit_probability, confidence_language, falsifiability_score, verification_mode,
+        status, fingerprint_sha256, published_at, frozen_at, record_type, imputation_note, capture_mode)
+      values (${input.expertId}, ${input.sourceId}, ${candidate.category}, ${candidate.normalized_claim}, ${candidate.source_quote}, (select published_at from public.sources where id = ${input.sourceId}),
+        ${candidate.resolution_date}, ${candidate.resolution_criteria}, ${candidate.explicit_probability}, ${candidate.confidence_language}, ${candidate.falsifiability_score}, ${input.verificationMode},
+        ${new Date(candidate.resolution_date) <= new Date() ? "due" : "open"}, ${fingerprint}, now(), now(),
+        ${recordType}, ${recordType === "take" ? candidate.imputation_note ?? null : null}, ${input.captureMode})
+      on conflict (fingerprint_sha256) do nothing
+      returning id
+    `;
+    if (!prediction) return reject("duplicate", "identical_prediction_exists");
+    await tx`update public.prediction_candidates set status = 'approved', reason_rejected = null where id = ${input.candidateId}`;
+    await tx`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, ${input.auditAction}, 'system', ${tx.json({ candidate_id: input.candidateId, fingerprint, record_type: recordType, capture_mode: input.captureMode, ...(input.auditAfter ?? {}) } as never)}, ${input.auditReason})`;
+    return { kind: "published", predictionId: prediction.id, predictionDate: source.published_at };
   });
-  const [prediction] = await sql<{ id: string }[]>`
-    insert into public.predictions (expert_id, source_id, category_slug, normalized_claim, source_quote, prediction_date,
-      resolution_date, resolution_criteria, explicit_probability, confidence_language, falsifiability_score, verification_mode,
-      status, fingerprint_sha256, published_at, frozen_at, record_type, imputation_note, capture_mode)
-    values (${input.expertId}, ${input.sourceId}, ${candidate.category}, ${candidate.normalized_claim}, ${candidate.source_quote}, ${input.predictionDate},
-      ${candidate.resolution_date}, ${candidate.resolution_criteria}, ${candidate.explicit_probability}, ${candidate.confidence_language}, ${candidate.falsifiability_score}, ${input.verificationMode},
-      ${new Date(candidate.resolution_date) <= new Date() ? "due" : "open"}, ${fingerprint}, now(), now(),
-      ${recordType}, ${recordType === "take" ? candidate.imputation_note ?? null : null}, ${input.captureMode})
-    on conflict (fingerprint_sha256) do update set updated_at = public.predictions.updated_at
-    returning id
-  `;
-  await sql`update public.prediction_candidates set status = 'approved' where id = ${input.candidateId}`;
-  await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, ${input.auditAction}, 'system', ${sql.json({ candidate_id: input.candidateId, fingerprint, record_type: recordType, capture_mode: input.captureMode, ...(input.auditAfter ?? {}) } as never)}, ${input.auditReason})`;
-  await linkPublishedPrediction(prediction.id, candidate.normalized_claim, candidate.resolution_criteria, candidate.category, candidate.resolution_date, input.predictionDate, { linkMarkets: input.captureMode === "live" });
-  return prediction.id;
+  if (outcome.kind === "published") {
+    await linkPublishedPrediction(outcome.predictionId, candidate.normalized_claim, candidate.resolution_criteria, candidate.category, candidate.resolution_date, outcome.predictionDate!, { linkMarkets: input.captureMode === "live" });
+    return { kind: "published", predictionId: outcome.predictionId };
+  }
+  return outcome;
 }

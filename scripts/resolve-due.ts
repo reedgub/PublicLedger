@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { isProviderOutage } from "@/lib/pipeline/cascade";
 import pLimit from "p-limit";
 import { getDatabase, closeDatabase } from "@/lib/db/postgres";
 import { env } from "@/lib/env";
@@ -11,7 +12,7 @@ import { postSlack, resolveMessage, type ResolveReport } from "@/lib/notify/slac
 
 type DueRow = { id: string; normalized_claim: string; prediction_date: string; resolution_date: string | null; resolution_criteria: string };
 
-type ResolveResult = { due: number; proposed: number; approved: number; errors: number; skipped: boolean; costUsd: number; stoppedByBudget: boolean; verdicts: ResolveReport["verdicts"] };
+type ResolveResult = { due: number; proposed: number; approved: number; errors: number; skipped: boolean; costUsd: number; stoppedByBudget: boolean; verdicts: ResolveReport["verdicts"]; providerError?: string };
 
 export async function resolveDue(): Promise<ResolveResult> {
   const sql = getDatabase();
@@ -35,6 +36,7 @@ export async function resolveDue(): Promise<ResolveResult> {
   for (const prediction of due) await sql`update public.predictions set status = 'resolution_pending' where id = ${prediction.id} and status in ('open','due')`;
   if (!env.OPENAI_API_KEY) return { due: due.length, proposed: 0, approved: 0, errors: 0, skipped: true, costUsd: 0, stoppedByBudget: false, verdicts: [] };
   let proposed = 0; let approved = 0; let errors = 0; let costUsd = 0; let stoppedByBudget = false;
+  let providerError: string | undefined;
   const verdicts: ResolveResult["verdicts"] = [];
   const guard = await createBudgetGuard("resolution");
   const price = { input: env.OPENAI_PRICE_INPUT_PER_MTOK_USD, output: env.OPENAI_PRICE_OUTPUT_PER_MTOK_USD };
@@ -44,6 +46,8 @@ export async function resolveDue(): Promise<ResolveResult> {
   const limit = pLimit(env.SEED_CONCURRENCY);
   await Promise.all(due.map((prediction) => limit(async () => {
     if (!guard.canSpend(perResolutionEstimate)) { stoppedByBudget = true; return; }
+    // Once the provider has refused (no credits, billing cap), every further call would too.
+    if (providerError) return;
     // Reserve the estimate while the call is in flight so concurrent workers respect the cap.
     guard.add(perResolutionEstimate);
     let spent = 0;
@@ -55,29 +59,44 @@ export async function resolveDue(): Promise<ResolveResult> {
       const { usage: verifierUsage, ...verifier } = await verifyResolution({ normalizedClaim: prediction.normalized_claim, resolutionCriteria: prediction.resolution_criteria, resolutionDate: prediction.resolution_date, proposal, checkedEvidence: checked });
       spent += costOf(verifierUsage);
       const auto = canAutoResolve(proposal, verifier, confirmed);
-      const [resolution] = await sql<{ id: string }[]>`
-        insert into public.resolutions (prediction_id, outcome, explanation, resolution_confidence, resolution_method, scoring_eligible, resolved_at, approved_at)
-        values (${prediction.id}, ${proposal.proposed_outcome}, ${proposal.explanation}, ${proposal.confidence}, 'openai_web', ${proposal.scoring_eligible && ["correct", "incorrect"].includes(proposal.proposed_outcome)}, now(), ${auto ? new Date() : null})
-        on conflict (prediction_id) do update set outcome = excluded.outcome, explanation = excluded.explanation,
-          resolution_confidence = excluded.resolution_confidence, resolution_method = excluded.resolution_method,
-          scoring_eligible = excluded.scoring_eligible, resolved_at = excluded.resolved_at, approved_at = excluded.approved_at
-        returning id
-      `;
-      await sql`delete from public.resolution_evidence where resolution_id = ${resolution.id}`;
-      // Only evidence whose excerpt was found on the live page is stored and shown.
-      for (const item of confirmed) await sql`
-        insert into public.resolution_evidence (resolution_id, source_type, source_title, source_path, publisher, excerpt, is_primary_source)
-        values (${resolution.id}, 'web', ${item.title}, ${item.source_path}, ${item.publisher}, ${item.excerpt}, ${item.is_primary_source})
-      `;
-      const evidenceCheck = checked.map((item) => ({ url: item.source_path, confirmed: item.confirmed, error: item.checkError }));
-      await sql`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, ${auto ? "resolution_approved" : "resolution_proposed"}, 'system', ${sql.json({ proposal, verifier, evidence_check: evidenceCheck, resolution_schema_version: RESOLUTION_SCHEMA_VERSION } as never)}, ${auto ? "Passed resolution and evidence thresholds." : "Below auto-resolution thresholds; retried in 30 days."})`;
+      // One transaction: a resolution, its evidence, the audit entry and the
+      // status change land together or not at all. An approved resolution is
+      // never overwritten, and a prediction quarantined meanwhile is skipped.
+      const written = await sql.begin(async (tx) => {
+        const [current] = await tx<{ status: string }[]>`select status from public.predictions where id = ${prediction.id} for update`;
+        if (!current || !["open", "due", "resolution_pending"].includes(current.status)) return false;
+        const [resolution] = await tx<{ id: string }[]>`
+          insert into public.resolutions (prediction_id, outcome, explanation, resolution_confidence, resolution_method, scoring_eligible, resolved_at, approved_at)
+          values (${prediction.id}, ${proposal.proposed_outcome}, ${proposal.explanation}, ${proposal.confidence}, 'openai_web', ${proposal.scoring_eligible && ["correct", "incorrect"].includes(proposal.proposed_outcome)}, now(), ${auto ? new Date() : null})
+          on conflict (prediction_id) do update set outcome = excluded.outcome, explanation = excluded.explanation,
+            resolution_confidence = excluded.resolution_confidence, resolution_method = excluded.resolution_method,
+            scoring_eligible = excluded.scoring_eligible, resolved_at = excluded.resolved_at, approved_at = excluded.approved_at
+          where public.resolutions.approved_at is null
+          returning id
+        `;
+        if (!resolution) return false;
+        await tx`delete from public.resolution_evidence where resolution_id = ${resolution.id}`;
+        // Only evidence whose excerpt was found on the live page is stored and shown.
+        for (const item of confirmed) await tx`
+          insert into public.resolution_evidence (resolution_id, source_type, source_title, source_path, publisher, excerpt, is_primary_source)
+          values (${resolution.id}, 'web', ${item.title}, ${item.source_path}, ${item.publisher}, ${item.excerpt}, ${item.is_primary_source})
+        `;
+        const evidenceCheck = checked.map((item) => ({ url: item.source_path, confirmed: item.confirmed, error: item.checkError }));
+        await tx`insert into public.audit_log (entity_type, entity_id, action, actor_type, after, reason) values ('prediction', ${prediction.id}, ${auto ? "resolution_approved" : "resolution_proposed"}, 'system', ${tx.json({ proposal, verifier, evidence_check: evidenceCheck, resolution_schema_version: RESOLUTION_SCHEMA_VERSION } as never)}, ${auto ? "Passed resolution and evidence thresholds." : "Below auto-resolution thresholds; retried in 30 days."})`;
+        if (auto) await tx`update public.predictions set status = ${proposal.proposed_outcome === "ambiguous" ? "ambiguous" : proposal.proposed_outcome === "void" ? "void" : "resolved"} where id = ${prediction.id}`;
+        return true;
+      });
+      if (!written) return;
       proposed += 1;
       if (auto) {
-        await sql`update public.predictions set status = ${proposal.proposed_outcome === "ambiguous" ? "ambiguous" : proposal.proposed_outcome === "void" ? "void" : "resolved"} where id = ${prediction.id}`;
         approved += 1;
         verdicts.push({ id: prediction.id, claim: prediction.normalized_claim, outcome: proposal.proposed_outcome });
       }
-    } catch (error) { errors += 1; console.error(`Resolution failed for ${prediction.id}:`, error instanceof Error ? error.message : "unknown"); }
+    } catch (error) {
+      errors += 1;
+      if (isProviderOutage(error)) providerError ??= error instanceof Error ? error.message : "unknown";
+      console.error(`Resolution failed for ${prediction.id}:`, error instanceof Error ? error.message : "unknown");
+    }
     finally {
       // Swap the reservation for the actual cost.
       guard.release(perResolutionEstimate);
@@ -89,7 +108,7 @@ export async function resolveDue(): Promise<ResolveResult> {
   if (approved > 0) {
     await revalidateLive(["/", "/leaderboard"]);
   }
-  return { due: due.length, proposed, approved, errors, skipped: false, costUsd, stoppedByBudget, verdicts };
+  return { due: due.length, proposed, approved, errors, skipped: false, costUsd, stoppedByBudget, verdicts, providerError };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -98,8 +117,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       console.log(`Due: ${result.due}\nProposed: ${result.proposed}\nApproved: ${result.approved}\nErrors: ${result.errors}${result.skipped ? "\nOpenAI not configured; proposal phase skipped." : ""}`);
       // Quiet days (nothing past its deadline) send nothing.
       if (result.due > 0 && !result.skipped) {
-        await postSlack(resolveMessage({ due: result.due, verdicts: result.verdicts, heldBack: result.proposed - result.approved, errors: result.errors, costUsd: result.costUsd, stoppedByBudget: result.stoppedByBudget }, env.NEXT_PUBLIC_SITE_ORIGIN ?? null));
+        await postSlack(resolveMessage({ due: result.due, verdicts: result.verdicts, heldBack: result.proposed - result.approved, errors: result.errors, costUsd: result.costUsd, stoppedByBudget: result.stoppedByBudget, providerError: result.providerError }, env.NEXT_PUBLIC_SITE_ORIGIN ?? null));
       }
+      // A refused provider, or a run where every attempt failed, is an outage: turn the workflow red.
+      if (result.providerError || (result.errors > 0 && result.proposed === 0)) process.exitCode = 1;
     })
     .finally(closeDatabase);
 }

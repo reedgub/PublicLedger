@@ -1,15 +1,25 @@
 name: Import manual predictions
 
-# Hand-curated prediction lists committed under seed/manual/. Each row is
-# re-checked against its live source (official X API or the web page), then
-# the cascade verifier publishes or rejects it. Safe to re-run.
+# Prediction LEADS committed under seed/manual/ (e.g. the daily Grok Bot
+# file, or a hand-curated list). Each row is re-checked against its live
+# source (X via the official API, or free oEmbed without a token; web pages
+# fetched live), then the cascade verifier publishes or rejects it. Pushing a
+# new or changed file to main imports it automatically. Safe to re-run.
 
 on:
+  push:
+    branches: [main]
+    paths: ["seed/manual/**.json"]
   workflow_dispatch:
     inputs:
       file:
         description: "JSON file(s) under seed/manual/ (space-separated)"
         required: true
+      verify:
+        description: "sync = verify now; batch = half price, published by the next daily ingestion"
+        type: choice
+        options: [batch, sync]
+        default: batch
 
 concurrency:
   group: import-manual
@@ -37,6 +47,8 @@ jobs:
       OPENAI_PRICE_OUTPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_OUTPUT_PER_MTOK_USD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: pnpm/action-setup@v4
         with:
           version: 11.19.0
@@ -48,11 +60,17 @@ jobs:
       - name: Import and verify
         env:
           IN_FILE: ${{ inputs.file }}
+          VERIFY: ${{ inputs.verify || 'batch' }}
+          BEFORE: ${{ github.event.before }}
         run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            IN_FILE=$(git diff --name-only --diff-filter=AM "$BEFORE" HEAD -- 'seed/manual/*.json' 2>/dev/null || git diff --name-only --diff-filter=AM HEAD~1 HEAD -- 'seed/manual/*.json')
+          fi
+          if [ -z "$IN_FILE" ]; then echo "No new or changed lead files."; exit 0; fi
           for f in $IN_FILE; do
             case "$f" in seed/manual/*.json) ;; *) echo "Only seed/manual/*.json files are allowed: $f"; exit 1 ;; esac
           done
-          pnpm import:manual $IN_FILE
+          if [ "$VERIFY" = "sync" ]; then pnpm import:manual $IN_FILE; else pnpm import:manual $IN_FILE --batch; fi
       - name: Tell Slack the run failed
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         run: |

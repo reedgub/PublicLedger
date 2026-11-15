@@ -5,7 +5,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/reedgub/receipts.git"
+    "url": "https://github.com/reedgub/PublicLedger.git"
   },
   "scripts": {
     "dev": "next dev",
@@ -25,10 +25,9 @@
     "sync:polymarket": "tsx scripts/seed-polymarket.ts",
     "ingest:x:weekly": "tsx scripts/ingest-x-weekly.ts",
     "ingest:x:backfill": "tsx scripts/backfill-x-predictions.ts",
-    "auto-approve:backlog": "tsx scripts/auto-approve-backlog.ts",
-    "refresh:x": "tsx scripts/refresh-x-sources.ts",
+    "refresh:sources": "tsx scripts/refresh-sources.ts",
+    "refresh:x": "tsx scripts/refresh-sources.ts",
     "readiness": "tsx scripts/launch-readiness.ts",
-    "import:seed-predictions": "tsx scripts/import-seed-predictions.ts",
     "import:manual": "tsx scripts/import-manual.ts",
     "seed:substack": "tsx scripts/seed-substack.ts",
     "ingest:daily": "tsx scripts/ingest-daily.ts",
@@ -42,7 +41,9 @@
     "sources:disable": "tsx scripts/expert-sources.ts disable",
     "spend": "tsx scripts/spend-report.ts",
     "export:training": "tsx scripts/export-training-data.ts",
-    "discover:experts": "tsx scripts/discover-experts.ts"
+    "discover:experts": "tsx scripts/discover-experts.ts",
+    "db:setup-sql": "tsx scripts/build-setup-sql.ts",
+    "test:db": "bash supabase/tests/run.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

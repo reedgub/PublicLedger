@@ -12,7 +12,7 @@ import { getDatabase } from "@/lib/db/postgres";
 import { EXTRACTION_SCHEMA_VERSION } from "@/lib/constants";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
-import { isIsoDate, repairSourceQuote, validateExtractedPrediction } from "@/lib/predictions/validation";
+import { isIsoDate, repairSourceQuote, statedProbability, validateExtractedPrediction } from "@/lib/predictions/validation";
 import { selectUnits, type TextUnit } from "@/lib/pipeline/chunk";
 import { screenItems, SCREEN_PROMPT_VERSION, type ScreenItem } from "@/lib/pipeline/screen";
 import { CASCADE_EXTRACTION_VERSION, estimateExtractionCostUsd, extractionTarget, extractUnit } from "@/lib/pipeline/extract";
@@ -48,8 +48,16 @@ export type CascadeSummary = {
   providerError?: string;
 };
 
+/** The account can't pay for the call: OpenAI returns this as a 400 ("Billing hard limit has been reached") or a 429 ("no credits remaining"). */
+export function isBillingError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String((error as { message?: string } | null)?.message ?? "");
+  const code = String((error as { code?: string } | null)?.code ?? "");
+  return /billing|insufficient_quota|no credits|quota/i.test(`${code} ${message}`);
+}
+
 /** Errors that say nothing about the source itself: retry next run rather than marking the source failed. */
 export function isProviderOutage(error: unknown): boolean {
+  if (isBillingError(error)) return true;
   const status = (error as { status?: number } | null)?.status;
   if (typeof status === "number") return status === 401 || status === 402 || status === 403 || status === 408 || status === 429 || status >= 500;
   const name = (error as { name?: string } | null)?.name ?? "";
@@ -250,7 +258,9 @@ export async function runCascade(options: {
     for (const extracted of dedupeWithinSource(source.expert_id, collected)) {
       // Replace a typographically drifted quote with the exact source passage.
       const repaired = repairSourceQuote(source.exact_text, extracted.source_quote);
-      const candidate = repaired && repaired !== extracted.source_quote ? { ...extracted, source_quote: repaired } : extracted;
+      const quote = repaired ?? extracted.source_quote;
+      // A probability the quote does not state is dropped, never kept or inferred.
+      const candidate = { ...extracted, source_quote: quote, explicit_probability: statedProbability(quote, extracted.explicit_probability) };
       const deterministic = validateExtractedPrediction(source.exact_text, source.published_at, candidate);
       const duplicate = deterministic.valid && existing.some((item) => isLikelyDuplicate(
         { expertId: source.expert_id, claim: candidate.normalized_claim, resolutionDate: candidate.resolution_date },

@@ -11,7 +11,7 @@ PublicLedger (formerly "Project Lighthouse" and, before that, "Receipts") is a s
 3. Run `supabase start`, copy `.env.example` to `.env`, and fill the local values printed by Supabase.
 4. Run `pnpm seed:experts` and `pnpm seed:polymarket` for the credential-free dataset.
 5. Add official X and OpenAI credentials only in the ignored `.env`, then run `pnpm seed` for real prediction extraction.
-6. Before handing off changes, run `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, and `pnpm test:e2e`.
+6. Before handing off changes, run `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`, `pnpm test:e2e`, and `pnpm test:db` (against a disposable Postgres; CI runs it).
 
 ## Non-negotiable product rules
 
@@ -23,6 +23,9 @@ PublicLedger (formerly "Project Lighthouse" and, before that, "Receipts") is a s
 - Deleted or unverifiable source text must not remain publicly displayed or scored.
 - Ambiguous and void outcomes are not binary wins or losses.
 - Market context is informational and must not be presented as an attributed expert prediction.
+- The database enforces these rules (`supabase/migrations/202611150001_integrity_guards.sql`). Never disable, bypass or weaken a guard to make a script work; fix the script. New schema changes go in a new migration, then `pnpm db:setup-sql`.
+- There is one automated publish path: `publishCandidate` (`lib/pipeline/publish.ts`). Don't add another. Leads from Grok or anywhere else go through `seed/manual/` and `pnpm import:manual`, never straight into `predictions`.
+- Quarantine (`lib/predictions/quarantine.ts`) is the only way a published prediction leaves public view; it never clears `published_at`.
 
 ## Design system (locked)
 
@@ -45,10 +48,12 @@ The visual design is final and documented in `DESIGN.md`. Read it before buildin
 - Low-cost cascade (screen → extract → batch verify), spend caps, coverage, backfill estimates: `lib/pipeline/`, `lib/llm/`
 - OpenAI extraction and independent verification: `lib/ai/`
 - Deterministic validation, deduplication, and promotion: `lib/predictions/`
-- Ingestion and resolution commands: `scripts/` (`ingest-daily.ts`, `backfill.ts`, `process-cascade.ts`, `verify-batch.ts` are the default path; `ingest-x-weekly.ts` is the legacy xAI path)
+- Ingestion and resolution commands: `scripts/` (`ingest-daily.ts`, `backfill.ts`, `process-cascade.ts`, `verify-batch.ts` are the default path; `import-manual.ts` takes Grok/hand-curated leads; `refresh-sources.ts` is the compliance re-check; `ingest-x-weekly.ts` is the legacy xAI path)
+- Single publish path and quarantine: `lib/pipeline/publish.ts`, `lib/predictions/quarantine.ts`, `lib/sources/liveCheck.ts`
+- Generated one-paste bootstrap: `supabase/setup.sql` (from `scripts/build-setup-sql.ts`; never edit by hand)
 - Real expert discovery roster: `seed/experts.ts`
-- Unit and browser coverage: `**/*.test.ts`, `tests/e2e/`
+- Unit and browser coverage: `**/*.test.ts`, `tests/e2e/`; database guards and integration: `supabase/tests/`, `tests/db/`
 
 ## Handoff status
 
-The repository contains a complete, tested MVP. A credential-free local seed produces 65 experts, 199 topics, 200 real Polymarket markets, and 200 market snapshots. It intentionally produces zero public predictions until an official X bearer token and OpenAI API key are configured and the resulting candidates pass verification or admin review.
+The repository contains a complete, tested MVP. A credential-free local seed produces the expert roster in `seed/experts.ts`, real Polymarket markets, and market snapshots, and zero public predictions. Predictions are published only by the cascade verifier (or an allowlisted admin in `/admin`), from sources collected by the daily job (X, feeds, podcasts) or from leads in `seed/manual/` (the daily Grok Bot file, hand-curated lists) that pass live re-verification. Production rows published before the database guards existed are listed by `prediction_integrity_violations` and reported by `pnpm readiness`.

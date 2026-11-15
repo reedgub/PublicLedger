@@ -62,4 +62,17 @@ describe("slack run reports", () => {
     expect(body(message)).toContain("Fed hikes in September");
     expect(body(message)).toContain("2 below the confidence bar");
   });
+
+  it("says the verifier is blocked and how many candidates are waiting", () => {
+    const message = dailyMessage(report({ verified: { published: 0, rejected: 0 }, batchSubmitted: 0, verifierError: "400 Billing hard limit has been reached", candidatesWaiting: 47 }), snapshot({ newlyPublished: [], newlyPublishedCount: 0 }), null);
+    expect(body(message)).toContain("❌");
+    expect(body(message)).toContain("Verifier blocked");
+    expect(body(message)).toContain("47 candidates waiting");
+  });
+
+  it("flags a scoring run blocked by the provider", () => {
+    const message = resolveMessage({ due: 8, verdicts: [], heldBack: 0, errors: 8, costUsd: 0, stoppedByBudget: false, providerError: "429 You have no credits remaining" }, null);
+    expect(body(message)).toContain("❌");
+    expect(body(message)).toContain("Scoring blocked");
+  });
 });

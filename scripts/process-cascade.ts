@@ -31,11 +31,13 @@ export async function processCascade(options: { mode?: "live" | "backfill"; maxS
   if (env.VERIFIER_MODE === "sync") {
     const verify = await verifyPendingSync({ guard, scope, runId });
     console.log(JSON.stringify({ stage: "verify_sync_summary", ...verify }));
+    if (verify.providerError) process.exitCode = 1;
     if (verify.published > 0) await revalidateLive(["/", "/leaderboard"]);
     return { cascade, verify };
   }
   const batch = await submitVerificationBatch({ guard, scope });
   console.log(JSON.stringify({ stage: "verify_batch_submitted", ...batch }));
+  if (batch.providerError) process.exitCode = 1;
   return { cascade, verify: batch };
 }
 
