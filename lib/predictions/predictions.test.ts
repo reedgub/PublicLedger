@@ -103,6 +103,8 @@ describe("probabilities are never inferred", () => {
     expect(probabilityIsStated("Republicans have an 84-in-100 chance of taking control", 0.84)).toBe(true);
     expect(probabilityIsStated("about 30 out of 100 odds", 0.3)).toBe(true);
     expect(probabilityIsStated("72% D probability of House majority", 0.72)).toBe(true);
+    expect(probabilityIsStated("Kamala Harris won in 40,012 (50.015%) cases. She did not win in 39,988 simulations (49.985%).", 0.50015)).toBe(true);
+    expect(probabilityIsStated("Democrats win the House in 72% of our simulations", 0.72)).toBe(true);
     expect(probabilityIsStated("anything", null)).toBe(true);
   });
 
@@ -119,6 +121,8 @@ describe("probabilities are never inferred", () => {
     // A threshold followed by an unrelated word and then a probability word elsewhere still doesn't count.
     expect(probabilityIsStated("rates fall below 3% by 2027, likely", 0.03)).toBe(false);
     expect(probabilityIsStated("inflation falls below 3% very likely", 0.03)).toBe(false);
+    // The other side's share in the same sentence is not the stated probability of this outcome's value.
+    expect(probabilityIsStated("Kamala Harris won in 40,012 (50.015%) cases.", 0.6)).toBe(false);
   });
 
   it("rejects a candidate whose probability the quote does not state", () => {

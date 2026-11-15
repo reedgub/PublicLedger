@@ -1634,7 +1634,8 @@ do $apply$ begin
 --
 -- 1. probability_is_stated() also accepts "84-in-100 chance" / "84 out of 100
 --    chance", and a short uppercase label between the number and the
---    probability word ("72% D probability"). Mirrors probabilityIsStated() in
+--    probability word ("72% D probability"), and a model's simulation share
+--    ("won in 40,012 (50.015%) cases", "in 72% of simulations"). Mirrors probabilityIsStated() in
 --    lib/predictions/validation.ts.
 -- 2. correct_prediction() is the only way to fix a published prediction's
 --    probability or confidence language. Published rows are immutable, so it
@@ -1661,6 +1662,10 @@ returns boolean language sql immutable as $$
       -- "odds of 60%", "probability is about 25%"
       select m[1] from regexp_matches(coalesce(quote, ''),
         '(?:chance|probability|odds|likelihood)\s+(?:of\s+|is\s+|at\s+|are\s+)?(?:about\s+|around\s+|roughly\s+|~\s*)?([0-9]{1,3}(?:\.[0-9]+)?)\s?(?:%|percent|per cent)', 'gi') as m
+      union all
+      -- A model's simulation share: "won in 40,012 (50.015%) cases", "in 72% of simulations"
+      select m[1] from regexp_matches(coalesce(quote, ''),
+        '(?:^|[^0-9.])([0-9]{1,3}(?:\.[0-9]+)?)\s?(?:%|percent|per cent)\)?\s*(?:of\s+(?:the\s+|our\s+|all\s+)?)?(?:simulations|scenarios|model runs|runs|cases)\M', 'gi') as m
       union all
       -- "an 84-in-100 chance", "84 out of 100 odds"
       select m[1] from regexp_matches(coalesce(quote, ''),

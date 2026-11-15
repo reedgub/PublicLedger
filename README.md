@@ -21,7 +21,7 @@ The public read path is in `lib/data/public.ts`. Privileged reads and writes are
 
 The product rules are enforced by the database itself (`supabase/migrations/202611150001_integrity_guards.sql`), so no script, admin action, or ad-hoc service-role SQL can bypass them:
 
-- A prediction can be published only if its quote is an exact substring of its source's stored text, the source isn't deleted, the prediction date is the source's own timestamp, the source belongs to the attributed expert, the deadline isn't before the statement, and any probability is stated in the quote as a probability ("70% chance", "84-in-100 chance", "72% D probability"; never "more likely than not").
+- A prediction can be published only if its quote is an exact substring of its source's stored text, the source isn't deleted, the prediction date is the source's own timestamp, the source belongs to the attributed expert, the deadline isn't before the statement, and any probability is stated in the quote as a probability ("70% chance", "84-in-100 chance", "72% D probability", "won in 50.015% of simulations"; never "more likely than not").
 - Once published, a prediction's substance, publication time, and verification mode are frozen, and it can't be deleted. Quarantine (`status = 'source_unavailable'`) is the only way out of public view, and a quarantined prediction can't return while its quote is gone.
 - A source's text can't be changed or removed while a visible prediction depends on it; the prediction must be quarantined first, in the same transaction (`lib/predictions/quarantine.ts`).
 - `audit_log` is append-only. Removed source text is not kept in it, only its hash.

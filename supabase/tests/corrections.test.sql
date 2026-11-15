@@ -22,6 +22,8 @@ do $$ begin
   if not public.probability_is_stated('Republicans have an 84-in-100 chance of taking control', 0.84) then raise exception 'N-in-100'; end if;
   if not public.probability_is_stated('about 30 out of 100 odds', 0.3) then raise exception 'out of 100'; end if;
   if not public.probability_is_stated('72% D probability of House majority', 0.72) then raise exception 'label between'; end if;
+  if not public.probability_is_stated('Kamala Harris won in 40,012 (50.015%) cases. She did not win in 39,988 simulations (49.985%).', 0.50015) then raise exception 'simulation share'; end if;
+  if not public.probability_is_stated('Democrats win the House in 72% of our simulations', 0.72) then raise exception 'of simulations'; end if;
   if public.probability_is_stated('inflation falls below 3% very likely', 0.03) then raise exception 'lowercase word must not count'; end if;
   if public.probability_is_stated('more likely than not', 0.5) then raise exception 'qualitative'; end if;
   if public.probability_is_stated('Biden 6535, approaching 7030.', 0.65) then raise exception 'odds shorthand'; end if;
