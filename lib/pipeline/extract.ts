@@ -40,7 +40,7 @@ Reply with ONLY a JSON object of this exact shape:
       "resolution_date": "YYYY-MM-DD" | null,
       "resolution_criteria": string,
       "explicit_probability": number | null,   // 0-1, only if the author stated one
-      "confidence_language": string | null,
+      "confidence_language": string | null,   // the author's own hedge or certainty words, copied verbatim from source_quote ("I am in the 25 bps camp", "very likely"); null if none. Never a description ("categorical") or a paraphrase.
       "category": one of ${CATEGORY_SLUGS.map((slug) => `"${slug}"`).join(", ")},
       "extraction_confidence": number,   // 0-1
       "falsifiability_score": number,    // 0-1

@@ -3,6 +3,7 @@
 //   pnpm correct:prediction <prediction-id> --drop-probability --reason "..."
 //   pnpm correct:prediction <id> --probability 0.7 --reason "..."
 //   pnpm correct:prediction <id> --drop-probability --confidence-language "more likely than not" --reason "..."
+//   pnpm correct:prediction <id> --resolution-date 2026-12-10 --reason "..."
 //
 // Published predictions are immutable. public.correct_prediction() publishes a
 // corrected copy (same source, quote, dates, criteria, resolution and
@@ -32,9 +33,11 @@ async function main() {
       : current.explicit_probability === null ? null : Number(current.explicit_probability);
   if (probability !== null && !(probability >= 0 && probability <= 1)) throw new Error("--probability must be between 0 and 1.");
   const confidence = process.argv.includes("--confidence-language") ? arg("--confidence-language") ?? null : current.confidence_language;
+  const deadline = arg("--resolution-date") ?? null;
+  if (deadline !== null && !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) throw new Error("--resolution-date must be YYYY-MM-DD.");
   const [{ id: newId }] = await sql<{ id: string }[]>`
-    select public.correct_prediction(${id}, ${probability}, ${confidence}, ${reason}, 'admin', ${process.env.CORRECTION_ACTOR ?? null}) as id`;
-  console.log(JSON.stringify({ corrected: id, replacement: newId, explicit_probability: probability, confidence_language: confidence }));
+    select public.correct_prediction(${id}, ${probability}, ${confidence}, ${reason}, 'admin', ${process.env.CORRECTION_ACTOR ?? null}, ${deadline}::timestamptz) as id`;
+  console.log(JSON.stringify({ corrected: id, replacement: newId, explicit_probability: probability, confidence_language: confidence, resolution_date: deadline }));
 }
 
 main().catch((error) => { console.error(error instanceof Error ? error.message : error); process.exitCode = 1; }).finally(closeDatabase);

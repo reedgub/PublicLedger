@@ -98,6 +98,41 @@ begin
   if exists (select 1 from public.prediction_history where prediction_id = o.id) then raise exception 'original history should be hidden'; end if;
 end $$;
 
+-- A deadline correction: a later date reopens a prediction that was only due
+-- because of the wrong date; a deadline before the statement is still refused.
+insert into public.sources (id, source_type, external_id, author_handle, expert_id, published_at, exact_text) values
+  ('00000000-0000-0000-0000-00000000025a', 'x', 'test-c2', null, '00000000-0000-0000-0000-0000000001a1', '2026-11-13 10:00:00+00',
+   'I am in the 25 bps camp regarding what the Fed will ultimately do.');
+insert into public.predictions (id, expert_id, source_id, category_slug, normalized_claim, source_quote, prediction_date,
+  resolution_date, resolution_criteria, verification_mode, status, fingerprint_sha256, published_at, capture_mode)
+values ('00000000-0000-0000-0000-0000000002f1', '00000000-0000-0000-0000-0000000001a1', '00000000-0000-0000-0000-00000000025a',
+  'economy-rates', 'The Fed raises rates by 25 bp at its next meeting.', 'I am in the 25 bps camp regarding what the Fed will ultimately do.',
+  '2026-11-13 10:00:00+00', '2026-11-14', 'FOMC statement after the December meeting.', 'auto', 'due', 'fp-c2', now(), 'live');
+select pg_temp.expect_error($$select public.correct_prediction('00000000-0000-0000-0000-0000000002f1', null, null, 'Deadline before the statement is refused.', 'admin', null, '2026-11-01')$$, 'resolution_before_prediction');
+do $$
+declare new_id uuid;
+begin
+  new_id := public.correct_prediction('00000000-0000-0000-0000-0000000002f1', null, 'I am in the 25 bps camp',
+    'Deadline was set before the December FOMC meeting (Dec 8-9) the claim refers to; corrected to the day after.', 'admin', null, '2099-12-10');
+  if (select resolution_date::date from public.predictions where id = new_id) <> '2099-12-10' then raise exception 'deadline not corrected'; end if;
+  if (select status from public.predictions where id = new_id) <> 'open' then raise exception 'later deadline should reopen a due prediction'; end if;
+  if (select confidence_language from public.predictions where id = new_id) <> 'I am in the 25 bps camp' then raise exception 'confidence not corrected'; end if;
+  if (select (after->'changes'->'resolution_date'->>'before') from public.audit_log where entity_id = new_id and action = 'correction_applied') is null then raise exception 'deadline change not audited'; end if;
+end $$;
+
+-- Confidence language must be the author's own words when a prediction goes public.
+insert into public.predictions (id, expert_id, source_id, category_slug, normalized_claim, source_quote, prediction_date,
+  resolution_date, resolution_criteria, confidence_language, verification_mode, status, fingerprint_sha256, published_at, capture_mode)
+values ('00000000-0000-0000-0000-0000000003f1', '00000000-0000-0000-0000-0000000001a1', '00000000-0000-0000-0000-00000000025a',
+  'economy-rates', 'Draft with paraphrased confidence.', 'I am in the 25 bps camp regarding what the Fed will ultimately do.',
+  '2026-11-13 10:00:00+00', '2099-12-10', 'FOMC statement.', 'firmly', 'auto', 'open', 'fp-c3', null, 'live');
+select pg_temp.expect_error($$update public.predictions set published_at = now() where id = '00000000-0000-0000-0000-0000000003f1'$$, 'confidence_not_in_quote');
+select pg_temp.expect_error($$insert into public.predictions (expert_id, source_id, category_slug, normalized_claim, source_quote, prediction_date,
+  resolution_date, resolution_criteria, confidence_language, verification_mode, status, fingerprint_sha256, published_at, capture_mode)
+  values ('00000000-0000-0000-0000-0000000001a1', '00000000-0000-0000-0000-00000000025a', 'economy-rates', 'x', 'I am in the 25 bps camp',
+  '2026-11-13 10:00:00+00', '2099-12-10', 'x', 'I am in the...', 'auto', 'open', 'fp-c4', now(), 'live')$$, 'confidence_not_in_quote');
+update public.predictions set confidence_language = 'in the 25 bps camp', published_at = now() where id = '00000000-0000-0000-0000-0000000003f1';
+
 -- A superseded prediction can't be re-linked, revived or corrected again.
 select pg_temp.expect_error($$update public.predictions set superseded_by = null where id = '00000000-0000-0000-0000-0000000001f1'$$, 'immutable');
 select pg_temp.expect_error($$update public.predictions set status = 'resolved' where id = '00000000-0000-0000-0000-0000000001f1'$$, 'superseded prediction stays out');
@@ -105,8 +140,8 @@ select pg_temp.expect_error($$select public.correct_prediction('00000000-0000-00
 
 -- Only the service role may call it.
 do $$ begin
-  if has_function_privilege('anon', 'public.correct_prediction(uuid, numeric, text, text, text, text)', 'execute') then raise exception 'anon can correct'; end if;
-  if has_function_privilege('authenticated', 'public.correct_prediction(uuid, numeric, text, text, text, text)', 'execute') then raise exception 'authenticated can correct'; end if;
+  if has_function_privilege('anon', 'public.correct_prediction(uuid, numeric, text, text, text, text, timestamptz)', 'execute') then raise exception 'anon can correct'; end if;
+  if has_function_privilege('authenticated', 'public.correct_prediction(uuid, numeric, text, text, text, text, timestamptz)', 'execute') then raise exception 'authenticated can correct'; end if;
 end $$;
 
 rollback;

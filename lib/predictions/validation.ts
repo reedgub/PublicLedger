@@ -60,6 +60,18 @@ export function statedProbability(quote: string, probability: number | null | un
   return probabilityIsStated(quote, probability) ? probability : null;
 }
 
+/**
+ * The confidence language if it is the author's own words (a substring of the
+ * quote), otherwise null. Models paraphrase it ("categorical ('is not going
+ * to')"), truncate it ("I am in the..."), or invent it ("will be" for a quote
+ * without those words); none of that is attributable. Mirrors the
+ * confidence_not_in_quote guard in the database.
+ */
+export function statedConfidence(quote: string, confidence: string | null | undefined): string | null {
+  const value = confidence?.trim();
+  return value && quote.includes(value) ? value : null;
+}
+
 /** Calendar date (UTC) of a timestamp, as YYYY-MM-DD. */
 function utcDate(value: string | Date): string | null {
   const date = value instanceof Date ? value : new Date(value);
