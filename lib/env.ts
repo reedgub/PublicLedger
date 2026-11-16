@@ -71,6 +71,14 @@ const envSchema = z.object({
   // Per-call timeout and a whole-run time budget, so a slow or stuck provider
   // can never eat a job's timeout: the run stops early and still reports.
   VERIFIER_TIMEOUT_MS: z.coerce.number().int().min(5_000).default(45_000),
+  // The free verifier never publishes alone: a second, independent model must
+  // also approve. It runs first (a reject saves the free tier's daily quota)
+  // and defaults to the open-model provider the cascade already uses.
+  VERIFIER_SECONDARY_API_KEY: z.string().optional(),
+  VERIFIER_SECONDARY_BASE_URL: z.string().url().optional(),
+  VERIFIER_SECONDARY_MODEL: z.string().default("meta-llama/Llama-3.3-70B-Instruct"),
+  VERIFIER_SECONDARY_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.23),
+  VERIFIER_SECONDARY_PRICE_OUTPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.4),
   VERIFIER_RUN_BUDGET_MS: z.coerce.number().int().min(60_000).default(15 * 60_000),
   VERIFIER_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0),
   VERIFIER_PRICE_OUTPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0),
@@ -157,6 +165,11 @@ export const env = envSchema.parse({
   VERIFIER_MIN_INTERVAL_MS: raw(process.env.VERIFIER_MIN_INTERVAL_MS),
   VERIFIER_MAX_PER_RUN: raw(process.env.VERIFIER_MAX_PER_RUN),
   VERIFIER_TIMEOUT_MS: raw(process.env.VERIFIER_TIMEOUT_MS),
+  VERIFIER_SECONDARY_API_KEY: raw(process.env.VERIFIER_SECONDARY_API_KEY),
+  VERIFIER_SECONDARY_BASE_URL: raw(process.env.VERIFIER_SECONDARY_BASE_URL),
+  VERIFIER_SECONDARY_MODEL: raw(process.env.VERIFIER_SECONDARY_MODEL),
+  VERIFIER_SECONDARY_PRICE_INPUT_PER_MTOK_USD: raw(process.env.VERIFIER_SECONDARY_PRICE_INPUT_PER_MTOK_USD),
+  VERIFIER_SECONDARY_PRICE_OUTPUT_PER_MTOK_USD: raw(process.env.VERIFIER_SECONDARY_PRICE_OUTPUT_PER_MTOK_USD),
   VERIFIER_RUN_BUDGET_MS: raw(process.env.VERIFIER_RUN_BUDGET_MS),
   VERIFIER_PRICE_INPUT_PER_MTOK_USD: raw(process.env.VERIFIER_PRICE_INPUT_PER_MTOK_USD),
   VERIFIER_PRICE_OUTPUT_PER_MTOK_USD: raw(process.env.VERIFIER_PRICE_OUTPUT_PER_MTOK_USD),

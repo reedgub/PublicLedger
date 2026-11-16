@@ -10,7 +10,7 @@ import { getOpenAIClient } from "@/lib/ai/client";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 import { publishCandidate } from "@/lib/pipeline/publish";
 import { isBillingError, isProviderOutage } from "@/lib/pipeline/cascade";
-import { callVerifier, sleep, verifierTarget } from "@/lib/pipeline/verifierTarget";
+import { runPanel, verifierPanel, verifierTarget } from "@/lib/pipeline/verifierTarget";
 import { recordSpend, tokenCostUsd, type BudgetGuard, type SpendScope } from "@/lib/pipeline/spend";
 import {
   buildBatchLine,
@@ -81,12 +81,18 @@ async function loadPending(limit: number): Promise<PendingRow[]> {
  */
 export type ApplySummary = { published: number; rejected: number; duplicates: number; errors: number; providerError?: string; stoppedByQuota?: boolean; remaining?: number };
 
-export async function applyVerdict(row: PendingRow, verdict: CascadeVerdict, summary: ApplySummary, verifierModel: string = env.CASCADE_VERIFIER_MODEL): Promise<void> {
+export async function applyVerdict(
+  row: PendingRow,
+  verdict: CascadeVerdict,
+  summary: ApplySummary,
+  verifierModel: string = env.CASCADE_VERIFIER_MODEL,
+  panel: Array<{ model: string; verdict: CascadeVerdict }> | null = null,
+): Promise<void> {
   const sql = getDatabase();
   const candidate = row.raw_extraction.candidate;
   await sql`
     update public.prediction_candidates set verifier_verdict = ${verdict.verdict}, verifier_confidence = ${verdict.confidence},
-      raw_extraction = raw_extraction || ${sql.json({ verifier: verdict, verifier_version: CASCADE_VERIFIER_VERSION, verifier_model: verifierModel } as never)}
+      raw_extraction = raw_extraction || ${sql.json({ verifier: verdict, verifier_version: CASCADE_VERIFIER_VERSION, verifier_model: verifierModel, ...(panel ? { verifier_panel: panel } : {}) } as never)}
     where id = ${row.id}
   `;
   const action = decideCandidate(verdict, {
@@ -138,34 +144,37 @@ function isRateLimit(error: unknown): boolean {
 
 export async function verifyPendingSync(options: { guard: BudgetGuard; scope: SpendScope; limit?: number; runId?: string }): Promise<ApplySummary> {
   const summary: ApplySummary = { published: 0, rejected: 0, duplicates: 0, errors: 0 };
-  const target = verifierTarget();
-  if (!target) return summary;
-  const limit = Math.min(options.limit ?? 500, target.maxPerRun ?? Number.POSITIVE_INFINITY);
+  const panel = verifierPanel();
+  if (!panel) return summary;
+  const limit = Math.min(options.limit ?? 500, panel.maxPerRun ?? Number.POSITIVE_INFINITY);
   const rows = await loadPending(limit);
   const [{ count: pendingTotal }] = await getDatabase()<{ count: number }[]>`
     select count(*)::int as count from public.prediction_candidates where status = 'pending' and pipeline = 'cascade' and verification_batch_id is null`;
-  let cost = 0;
-  let tokens = 0;
+  // Spend is booked per provider: a panel can span two.
+  const spend = new Map<string, { cost: number; tokens: number; model: string }>();
   let processed = 0;
   const startedAt = Date.now();
-  for (const [index, row] of rows.entries()) {
+  for (const row of rows) {
     const input = toVerifierInput(row);
-    if (!options.guard.canSpend(estimateVerifyCostUsd(input, 0, target.price))) break;
-    if (target.runBudgetMs !== null && Date.now() - startedAt > target.runBudgetMs) {
+    const estimate = panel.members.reduce((sum, member) => sum + estimateVerifyCostUsd(input, 0, member.price), 0);
+    if (!options.guard.canSpend(estimate)) break;
+    if (panel.runBudgetMs !== null && Date.now() - startedAt > panel.runBudgetMs) {
       summary.stoppedByQuota = true;
       console.warn(`Verifier run budget reached after ${processed} candidate(s); the rest stay queued.`);
       break;
     }
-    if (index > 0 && target.minIntervalMs > 0) await sleep(target.minIntervalMs);
     try {
-      const { verdict, usage } = await callVerifier(target, input);
-      const callCost = tokenCostUsd(usage, target.price);
-      cost += callCost;
-      tokens += usage.inputTokens + usage.outputTokens;
-      options.guard.add(callCost);
-      await applyVerdict(row, verdict, summary, target.model);
+      const { verdict, members } = await runPanel(panel, input);
+      for (const member of members) {
+        const entry = spend.get(member.provider) ?? { cost: 0, tokens: 0, model: member.model };
+        entry.cost += member.costUsd;
+        entry.tokens += member.usage.inputTokens + member.usage.outputTokens;
+        spend.set(member.provider, entry);
+        options.guard.add(member.costUsd);
+      }
+      await applyVerdict(row, verdict, summary, panel.label, members.map((member) => ({ model: member.model, verdict: member.verdict })));
       processed += 1;
-      console.log(JSON.stringify({ stage: "verified", n: processed, candidate: row.id, verdict: verdict.verdict, decision: verdict.decision, confidence: verdict.confidence }));
+      console.log(JSON.stringify({ stage: "verified", n: processed, candidate: row.id, decision: verdict.decision, confidence: verdict.confidence, members: members.map((member) => `${member.model}:${member.verdict.decision}/${member.verdict.verdict}/${member.verdict.confidence}`) }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown";
       if (isRateLimit(error)) {
@@ -175,7 +184,7 @@ export async function verifyPendingSync(options: { guard: BudgetGuard; scope: Sp
         break;
       }
       summary.errors += 1;
-      // Provider refused (credits, auth): not the candidate's fault; retry next run.
+      // Provider refused (credits, auth) or is down: not the candidate's fault; retry next run.
       if (isProviderOutage(error)) {
         summary.providerError = message;
         console.error(`Verifier provider unavailable: ${message}. Pending candidates stay queued.`);
@@ -186,7 +195,9 @@ export async function verifyPendingSync(options: { guard: BudgetGuard; scope: Sp
     }
   }
   summary.remaining = Math.max(0, pendingTotal - processed);
-  if (tokens > 0 || cost > 0) await recordSpend({ scope: options.scope, runId: options.runId, provider: target.provider, stage: "verify_sync", units: tokens, unitKind: "tokens", costUsd: cost, metadata: { model: target.model, candidates: processed } });
+  for (const [provider, entry] of spend) {
+    if (entry.tokens > 0 || entry.cost > 0) await recordSpend({ scope: options.scope, runId: options.runId, provider, stage: "verify_sync", units: entry.tokens, unitKind: "tokens", costUsd: entry.cost, metadata: { model: entry.model, candidates: processed } });
+  }
   return summary;
 }
 

@@ -17,7 +17,7 @@ import { appendFileSync } from "node:fs";
 import { closeDatabase, getDatabase } from "@/lib/db/postgres";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 import { decideCandidate, type CascadeVerdict } from "@/lib/pipeline/verify";
-import { callVerifier, sleep, verifierTarget } from "@/lib/pipeline/verifierTarget";
+import { runPanel, verifierPanel } from "@/lib/pipeline/verifierTarget";
 
 type Row = {
   id: string;
@@ -41,10 +41,10 @@ const decision = (verdict: CascadeVerdict, row: Row) => decideCandidate(verdict,
 }).action;
 
 async function main() {
-  const target = verifierTarget("compare");
-  if (!target) throw new Error("No verifier configured.");
-  if (target.provider === "openai") throw new Error("Set VERIFIER_API_KEY and VERIFIER_MODEL to compare an alternative verifier against the stored OpenAI verdicts.");
-  const limit = Number(arg("--limit") ?? target.maxPerRun ?? 40);
+  const panel = verifierPanel("compare");
+  if (!panel) throw new Error("No verifier configured.");
+  if (panel.members.length === 1 && panel.members[0].provider === "openai") throw new Error("Set VERIFIER_API_KEY and VERIFIER_MODEL to compare an alternative verifier against the stored OpenAI verdicts.");
+  const limit = Number(arg("--limit") ?? panel.maxPerRun ?? 40);
   const sql = getDatabase();
   const base = sql`
     select pc.id, pc.raw_extraction, s.exact_text, s.published_at::text, s.source_type, e.display_name, e.x_handle
@@ -56,22 +56,21 @@ async function main() {
   const approvals = await sql<Row[]>`${base} and pc.raw_extraction->'verifier'->>'decision' = 'approve' order by pc.created_at desc limit ${limit}`;
   const rejections = await sql<Row[]>`${base} and pc.raw_extraction->'verifier'->>'decision' <> 'approve' order by random() limit ${Math.max(0, limit - approvals.length)}`;
   const rows = [...approvals, ...rejections];
-  console.log(JSON.stringify({ stage: "compare_start", verifier: target.model, provider: target.provider, sample: rows.length, past_approvals: approvals.length }));
+  console.log(JSON.stringify({ stage: "compare_start", verifier: panel.label, members: panel.members.map((member) => `${member.model} @ ${member.provider}`), sample: rows.length, past_approvals: approvals.length }));
 
   const tally = { agree_publish: 0, agree_reject: 0, new_publishes_openai_rejected: 0, new_rejects_openai_published: 0, errors: 0 };
   const disagreements: Array<{ id: string; claim: string; openai: string; candidate_verifier: string }> = [];
   let compared = 0;
   let stoppedEarly: string | null = null;
   const startedAt = Date.now();
-  for (const [index, row] of rows.entries()) {
-    if (target.runBudgetMs !== null && Date.now() - startedAt > target.runBudgetMs) {
+  for (const row of rows) {
+    if (panel.runBudgetMs !== null && Date.now() - startedAt > panel.runBudgetMs) {
       stoppedEarly = `time budget reached after ${compared} comparison(s)`;
       break;
     }
-    if (index > 0 && target.minIntervalMs > 0) await sleep(target.minIntervalMs);
     const callStarted = Date.now();
     try {
-      const { verdict } = await callVerifier(target, {
+      const { verdict, members } = await runPanel(panel, {
         authorName: row.display_name, authorHandle: row.x_handle, sourceType: row.source_type,
         sourceTimestamp: new Date(row.published_at).toISOString(), sourceText: row.exact_text, candidate: row.raw_extraction.candidate,
       });
@@ -79,7 +78,8 @@ async function main() {
       const before = decision(row.raw_extraction.verifier, row);
       const after = decision(verdict, row);
       // Streamed as it goes, so a cut-off run still shows what was compared.
-      console.log(JSON.stringify({ stage: "compared", n: compared, of: rows.length, ms: Date.now() - callStarted, openai: before, candidate_verifier: after }));
+      console.log(JSON.stringify({ stage: "compared", n: compared, of: rows.length, ms: Date.now() - callStarted, openai: before, candidate_verifier: after,
+        members: members.map((member) => `${member.model}:${member.verdict.decision}/${member.verdict.verdict}/${member.verdict.confidence}`) }));
       if (before === after) tally[after === "publish" ? "agree_publish" : "agree_reject"] += 1;
       else {
         tally[after === "publish" ? "new_publishes_openai_rejected" : "new_rejects_openai_published"] += 1;
@@ -100,13 +100,13 @@ async function main() {
     }
   }
   const agreement = compared ? (tally.agree_publish + tally.agree_reject) / compared : 0;
-  const summary = { stage: "compare_summary", verifier: target.model, compared, agreement: Number(agreement.toFixed(3)), stopped_early: stoppedEarly, ...tally };
+  const summary = { stage: "compare_summary", verifier: panel.label, compared, agreement: Number(agreement.toFixed(3)), stopped_early: stoppedEarly, ...tally };
   console.log(JSON.stringify(summary));
   for (const item of disagreements) console.log(JSON.stringify({ stage: "disagreement", ...item }));
 
   if (process.env.GITHUB_STEP_SUMMARY) {
     const lines = [
-      `## Verifier comparison: \`${target.model}\` vs stored OpenAI verdicts`,
+      `## Verifier comparison: \`${panel.label}\` vs stored OpenAI verdicts`,
       "",
       `Compared **${compared}** candidates (${approvals.length} past approvals + random rejections). Agreement: **${(agreement * 100).toFixed(1)}%**.${stoppedEarly ? ` Stopped early: ${stoppedEarly}.` : ""}`,
       "",
