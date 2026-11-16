@@ -10,7 +10,7 @@ import { canCreateMarketLink } from "@/lib/matching/markets";
 import { predictionFingerprint } from "@/lib/predictions/fingerprint";
 import type { ExtractedPrediction } from "@/lib/ai/schemas";
 import { isLikelyDuplicate } from "@/lib/predictions/dedupe";
-import { validateExtractedPrediction } from "@/lib/predictions/validation";
+import { statedConfidence, validateExtractedPrediction } from "@/lib/predictions/validation";
 
 export async function linkPublishedPrediction(
   predictionId: string,
@@ -138,7 +138,7 @@ export async function publishCandidate(input: PublishInput, sql: Sql = getDataba
         resolution_date, resolution_criteria, explicit_probability, confidence_language, falsifiability_score, verification_mode,
         status, fingerprint_sha256, published_at, frozen_at, record_type, imputation_note, capture_mode)
       values (${input.expertId}, ${input.sourceId}, ${candidate.category}, ${candidate.normalized_claim}, ${candidate.source_quote}, (select published_at from public.sources where id = ${input.sourceId}),
-        ${candidate.resolution_date}, ${candidate.resolution_criteria}, ${candidate.explicit_probability}, ${candidate.confidence_language}, ${candidate.falsifiability_score}, ${input.verificationMode},
+        ${candidate.resolution_date}, ${candidate.resolution_criteria}, ${candidate.explicit_probability}, ${statedConfidence(candidate.source_quote, candidate.confidence_language)}, ${candidate.falsifiability_score}, ${input.verificationMode},
         ${new Date(candidate.resolution_date) <= new Date() ? "due" : "open"}, ${fingerprint}, now(), now(),
         ${recordType}, ${recordType === "take" ? candidate.imputation_note ?? null : null}, ${input.captureMode})
       on conflict (fingerprint_sha256) do nothing

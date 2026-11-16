@@ -93,6 +93,20 @@ describe("prediction utilities", () => {
   });
 });
 
+describe("confidence language is the author's own words", () => {
+  it("keeps verbatim wording and drops paraphrases, truncations and inventions", async () => {
+    const { statedConfidence } = await import("@/lib/predictions/validation");
+    const quote = "(For what it is worth, I am in the 25 bps camp regarding what the Fed will ultimately do.)";
+    expect(statedConfidence(quote, "I am in the 25 bps camp")).toBe("I am in the 25 bps camp");
+    expect(statedConfidence(quote, " I am in the 25 bps camp ")).toBe("I am in the 25 bps camp");
+    expect(statedConfidence(quote, "For what it is worth, I am in the...")).toBeNull();
+    expect(statedConfidence("No, AI is not going to kill all humans by 2030.", "categorical ('is not going to')")).toBeNull();
+    expect(statedConfidence("A gift to the dems in the midterms, though.", "will be")).toBeNull();
+    expect(statedConfidence(quote, "")).toBeNull();
+    expect(statedConfidence(quote, null)).toBeNull();
+  });
+});
+
 describe("probabilities are never inferred", () => {
   it("accepts percentages phrased as probabilities", async () => {
     const { probabilityIsStated } = await import("@/lib/predictions/validation");
