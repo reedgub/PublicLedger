@@ -37,7 +37,8 @@ jobs:
       VERIFIER_API_KEY: ${{ secrets.VERIFIER_API_KEY }}
       VERIFIER_PUBLISH: ${{ vars.VERIFIER_PUBLISH }}
       VERIFIER_BASE_URL: ${{ vars.VERIFIER_BASE_URL }}
-      VERIFIER_MODEL: ${{ vars.VERIFIER_MODEL }}
+      # Accepted as a variable or a secret: a model name is not sensitive, and saving it as a secret is an easy slip.
+      VERIFIER_MODEL: ${{ vars.VERIFIER_MODEL || secrets.VERIFIER_MODEL }}
       VERIFIER_MIN_INTERVAL_MS: ${{ vars.VERIFIER_MIN_INTERVAL_MS }}
       VERIFIER_MAX_PER_RUN: ${{ vars.VERIFIER_MAX_PER_RUN }}
       OPENAI_PRICE_INPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_INPUT_PER_MTOK_USD }}
