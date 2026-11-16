@@ -28,7 +28,7 @@ describe("callVerifier", () => {
   function fakeTarget(responses: Array<() => unknown>) {
     const calls: Array<Record<string, unknown>> = [];
     const client = { chat: { completions: { create: async (body: Record<string, unknown>) => { calls.push(body); return responses[calls.length - 1](); } } } };
-    return { calls, target: { client, model: "gemini-test", provider: "test", price: { input: 0, output: 0 }, supportsBatch: false, minIntervalMs: 0, maxPerRun: 10 } as never };
+    return { calls, target: { client, model: "gemini-test", provider: "test", price: { input: 0, output: 0 }, supportsBatch: false, minIntervalMs: 0, maxPerRun: 10, runBudgetMs: null } as never };
   }
 
   it("falls back to JSON mode when strict schemas are unsupported, and strips code fences", async () => {

@@ -68,6 +68,10 @@ const envSchema = z.object({
   VERIFIER_MODEL: z.string().optional(),
   VERIFIER_MIN_INTERVAL_MS: z.coerce.number().int().min(0).default(7000),
   VERIFIER_MAX_PER_RUN: z.coerce.number().int().min(1).default(40),
+  // Per-call timeout and a whole-run time budget, so a slow or stuck provider
+  // can never eat a job's timeout: the run stops early and still reports.
+  VERIFIER_TIMEOUT_MS: z.coerce.number().int().min(5_000).default(45_000),
+  VERIFIER_RUN_BUDGET_MS: z.coerce.number().int().min(60_000).default(15 * 60_000),
   VERIFIER_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0),
   VERIFIER_PRICE_OUTPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0),
   OPENAI_PRICE_INPUT_PER_MTOK_USD: z.coerce.number().nonnegative().default(0.25),
@@ -152,6 +156,8 @@ export const env = envSchema.parse({
   VERIFIER_MODEL: raw(process.env.VERIFIER_MODEL),
   VERIFIER_MIN_INTERVAL_MS: raw(process.env.VERIFIER_MIN_INTERVAL_MS),
   VERIFIER_MAX_PER_RUN: raw(process.env.VERIFIER_MAX_PER_RUN),
+  VERIFIER_TIMEOUT_MS: raw(process.env.VERIFIER_TIMEOUT_MS),
+  VERIFIER_RUN_BUDGET_MS: raw(process.env.VERIFIER_RUN_BUDGET_MS),
   VERIFIER_PRICE_INPUT_PER_MTOK_USD: raw(process.env.VERIFIER_PRICE_INPUT_PER_MTOK_USD),
   VERIFIER_PRICE_OUTPUT_PER_MTOK_USD: raw(process.env.VERIFIER_PRICE_OUTPUT_PER_MTOK_USD),
   OPENAI_PRICE_INPUT_PER_MTOK_USD: raw(process.env.OPENAI_PRICE_INPUT_PER_MTOK_USD),

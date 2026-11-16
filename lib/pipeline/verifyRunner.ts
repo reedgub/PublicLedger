@@ -147,9 +147,15 @@ export async function verifyPendingSync(options: { guard: BudgetGuard; scope: Sp
   let cost = 0;
   let tokens = 0;
   let processed = 0;
+  const startedAt = Date.now();
   for (const [index, row] of rows.entries()) {
     const input = toVerifierInput(row);
     if (!options.guard.canSpend(estimateVerifyCostUsd(input, 0, target.price))) break;
+    if (target.runBudgetMs !== null && Date.now() - startedAt > target.runBudgetMs) {
+      summary.stoppedByQuota = true;
+      console.warn(`Verifier run budget reached after ${processed} candidate(s); the rest stay queued.`);
+      break;
+    }
     if (index > 0 && target.minIntervalMs > 0) await sleep(target.minIntervalMs);
     try {
       const { verdict, usage } = await callVerifier(target, input);
@@ -159,6 +165,7 @@ export async function verifyPendingSync(options: { guard: BudgetGuard; scope: Sp
       options.guard.add(callCost);
       await applyVerdict(row, verdict, summary, target.model);
       processed += 1;
+      console.log(JSON.stringify({ stage: "verified", n: processed, candidate: row.id, verdict: verdict.verdict, decision: verdict.decision, confidence: verdict.confidence }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown";
       if (isRateLimit(error)) {
