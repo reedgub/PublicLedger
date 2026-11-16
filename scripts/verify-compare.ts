@@ -61,8 +61,15 @@ async function main() {
   const tally = { agree_publish: 0, agree_reject: 0, new_publishes_openai_rejected: 0, new_rejects_openai_published: 0, errors: 0 };
   const disagreements: Array<{ id: string; claim: string; openai: string; candidate_verifier: string }> = [];
   let compared = 0;
+  let stoppedEarly: string | null = null;
+  const startedAt = Date.now();
   for (const [index, row] of rows.entries()) {
+    if (target.runBudgetMs !== null && Date.now() - startedAt > target.runBudgetMs) {
+      stoppedEarly = `time budget reached after ${compared} comparison(s)`;
+      break;
+    }
     if (index > 0 && target.minIntervalMs > 0) await sleep(target.minIntervalMs);
+    const callStarted = Date.now();
     try {
       const { verdict } = await callVerifier(target, {
         authorName: row.display_name, authorHandle: row.x_handle, sourceType: row.source_type,
@@ -71,6 +78,8 @@ async function main() {
       compared += 1;
       const before = decision(row.raw_extraction.verifier, row);
       const after = decision(verdict, row);
+      // Streamed as it goes, so a cut-off run still shows what was compared.
+      console.log(JSON.stringify({ stage: "compared", n: compared, of: rows.length, ms: Date.now() - callStarted, openai: before, candidate_verifier: after }));
       if (before === after) tally[after === "publish" ? "agree_publish" : "agree_reject"] += 1;
       else {
         tally[after === "publish" ? "new_publishes_openai_rejected" : "new_rejects_openai_published"] += 1;
@@ -83,13 +92,15 @@ async function main() {
       }
     } catch (error) {
       const status = (error as { status?: number }).status;
-      console.warn(`Compare failed for ${row.id}: ${error instanceof Error ? error.message.slice(0, 200) : "unknown"}`);
+      console.warn(`Compare failed for ${row.id} after ${Date.now() - callStarted} ms: ${error instanceof Error ? error.message.slice(0, 200) : "unknown"}`);
       tally.errors += 1;
-      if (status === 429 || status === 401 || status === 403) break;
+      if (status === 429 || status === 401 || status === 403) { stoppedEarly = `provider returned ${status}`; break; }
+      // Repeated failures mean the provider or model id is wrong, not the candidates.
+      if (tally.errors >= 3 && compared === 0) { stoppedEarly = "the first 3 calls all failed"; break; }
     }
   }
   const agreement = compared ? (tally.agree_publish + tally.agree_reject) / compared : 0;
-  const summary = { stage: "compare_summary", verifier: target.model, compared, agreement: Number(agreement.toFixed(3)), ...tally };
+  const summary = { stage: "compare_summary", verifier: target.model, compared, agreement: Number(agreement.toFixed(3)), stopped_early: stoppedEarly, ...tally };
   console.log(JSON.stringify(summary));
   for (const item of disagreements) console.log(JSON.stringify({ stage: "disagreement", ...item }));
 
@@ -97,7 +108,7 @@ async function main() {
     const lines = [
       `## Verifier comparison: \`${target.model}\` vs stored OpenAI verdicts`,
       "",
-      `Compared **${compared}** candidates (${approvals.length} past approvals + random rejections). Agreement: **${(agreement * 100).toFixed(1)}%**.`,
+      `Compared **${compared}** candidates (${approvals.length} past approvals + random rejections). Agreement: **${(agreement * 100).toFixed(1)}%**.${stoppedEarly ? ` Stopped early: ${stoppedEarly}.` : ""}`,
       "",
       "| | Count |", "| --- | --- |",
       `| Both publish | ${tally.agree_publish} |`,

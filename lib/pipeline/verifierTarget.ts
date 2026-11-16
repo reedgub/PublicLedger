@@ -24,6 +24,8 @@ export type VerifierTarget = {
   supportsBatch: boolean;
   minIntervalMs: number;
   maxPerRun: number | null;
+  /** Stop starting new calls after this long; null = no budget. */
+  runBudgetMs: number | null;
 };
 
 let compatibleClient: OpenAI | null = null;
@@ -39,7 +41,9 @@ export function verifierTarget(purpose: "publish" | "compare" = "publish"): Veri
       throw new Error("VERIFIER_API_KEY is set but VERIFIER_MODEL is not. Set it to a model id from the provider's console.");
     }
     assertIndependent(env.VERIFIER_MODEL);
-    compatibleClient ??= new OpenAI({ baseURL: env.VERIFIER_BASE_URL, apiKey: env.VERIFIER_API_KEY, maxRetries: 3, timeout: 120_000 });
+    // One retry and a short timeout: a free tier that is slow or stuck should
+    // stop the run quickly (the rest wait for the next run), not stall it.
+    compatibleClient ??= new OpenAI({ baseURL: env.VERIFIER_BASE_URL, apiKey: env.VERIFIER_API_KEY, maxRetries: 1, timeout: env.VERIFIER_TIMEOUT_MS });
     return {
       client: compatibleClient,
       model: env.VERIFIER_MODEL,
@@ -48,6 +52,7 @@ export function verifierTarget(purpose: "publish" | "compare" = "publish"): Veri
       supportsBatch: false,
       minIntervalMs: env.VERIFIER_MIN_INTERVAL_MS,
       maxPerRun: env.VERIFIER_MAX_PER_RUN,
+      runBudgetMs: env.VERIFIER_RUN_BUDGET_MS,
     };
   }
   if (!env.OPENAI_API_KEY) return null;
@@ -60,6 +65,7 @@ export function verifierTarget(purpose: "publish" | "compare" = "publish"): Veri
     supportsBatch: true,
     minIntervalMs: 0,
     maxPerRun: null,
+    runBudgetMs: null,
   };
 }
 
