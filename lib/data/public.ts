@@ -225,6 +225,33 @@ export type LeaderboardLedgerRow = LedgerRow & { expertSlug: string; expertName:
 
 const LEDGER_OUTCOMES: LedgerOutcome[] = ["correct", "incorrect", "partial", "ambiguous", "void"];
 
+/** Number of active topics, without loading them. */
+export const getActiveTopicCount = cache(async (): Promise<number> => {
+  if (!integrations.supabase) return (await getTopics()).length;
+  const client = await createServerSupabaseClient();
+  const { count, error } = await client!.from("topics").select("id", { count: "exact", head: true }).eq("status", "active");
+  if (error) throw error;
+  return count ?? 0;
+});
+
+/**
+ * The most-traded active markets, for the homepage's market strip. Bounded:
+ * the homepage used to load every topic with every market just to pick six.
+ */
+export const getTopActiveMarkets = cache(async (limit = 60): Promise<Market[]> => {
+  if (!integrations.supabase) return [];
+  const client = await createServerSupabaseClient();
+  const { data, error } = await client!
+    .from("markets")
+    .select(MARKET_LIST_COLUMNS)
+    .eq("active", true)
+    .eq("closed", false)
+    .order("volume", { ascending: false, nullsFirst: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((row) => mapMarket(object(row)));
+});
+
 /** Every published prediction (not takes) with its approved verdict, for the leaderboard ledger strips. */
 export const getLeaderboardLedgerRows = cache(async (): Promise<LeaderboardLedgerRow[]> => {
   if (!integrations.supabase) return [];
@@ -368,10 +395,15 @@ async function liveTopicsFromPolymarket(): Promise<Topic[]> {
   return [...bySlug.values()];
 }
 
+// Market columns for lists. Leaves out description and the raw provider
+// payload, which made the all-topics query sort ~34 MB on disk and blow the
+// public role's 3 s statement timeout (the homepage and sitemap went down).
+const MARKET_LIST_COLUMNS = "id, provider, provider_market_id, provider_slug, topic_id, question, end_at, active, closed, volume, liquidity, yes_probability, no_probability, fetched_at";
+
 export const getTopics = cache(async (): Promise<Topic[]> => {
   if (!integrations.supabase) return liveTopicsFromPolymarket();
   const client = await createServerSupabaseClient();
-  const { data, error } = await client!.from("topics").select("*, markets(*)").eq("status", "active").order("title");
+  const { data, error } = await client!.from("topics").select(`id, slug, title, category_slug, status, markets(${MARKET_LIST_COLUMNS})`).eq("status", "active").order("title");
   if (error) throw error;
   const stored = (data ?? []).map((row) => mapTopic(object(row)));
   return stored.length ? stored : liveTopicsFromPolymarket();
@@ -399,19 +431,17 @@ export const getTopicBySlug = cache(async (slug: string): Promise<{ topic: Topic
 });
 
 export const getHomepageData = cache(async () => {
-  const [scorecards, latest, resolved, open, takes, topics, published] = await Promise.all([
+  const [scorecards, latest, resolved, open, takes, activeMarkets, published, topicCount] = await Promise.all([
     getExpertScorecards(),
     getLatestPredictions({ limit: 6 }),
     getLatestPredictions({ limit: 8, resolved: true }),
     getLatestPredictions({ limit: 4, open: true }),
     getLatestPredictions({ limit: 4, recordType: "take" }),
-    getTopics(),
+    getTopActiveMarkets(60),
     getPublishedPredictionCount(),
+    getActiveTopicCount(),
   ]);
-  const storedMarkets = selectDiverseMarkets(
-    topics.flatMap((topic) => topic.markets ?? []).filter((market) => market.active),
-    6,
-  );
+  const storedMarkets = selectDiverseMarkets(activeMarkets, 6);
   const markets = storedMarkets.length ? storedMarkets : await fallbackMarkets(6);
   // The flagship is the resolved prediction we most want a first-time visitor
   // to open. Prefer the most recent decisive miss (highest visceral payoff),
@@ -427,7 +457,7 @@ export const getHomepageData = cache(async () => {
     resolved: resolved.slice(0, 4),
     open,
     takes,
-    topics,
+    topicCount,
     published,
     flagship,
     rosterPreview: scorecards.slice(0, 12),
