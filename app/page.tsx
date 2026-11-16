@@ -37,7 +37,7 @@ export default async function HomePage() {
   const stats = [
     { value: data.published, label: "Published predictions with a verified source quote." },
     { value: data.expertCount, label: "Public figures on the tracked roster." },
-    { value: data.topics.length, label: "Topics on the record, from elections to AI." },
+    { value: data.topicCount, label: "Topics on the record, from elections to AI." },
     { value: 0, label: "Probabilities inferred from tone of voice." },
   ];
 
