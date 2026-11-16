@@ -43,6 +43,11 @@ jobs:
       VERIFIER_MAX_PER_RUN: ${{ vars.VERIFIER_MAX_PER_RUN }}
       VERIFIER_TIMEOUT_MS: ${{ vars.VERIFIER_TIMEOUT_MS }}
       VERIFIER_RUN_BUDGET_MS: ${{ vars.VERIFIER_RUN_BUDGET_MS }}
+      # The free verifier's second, independent model runs on the open-model provider.
+      OPEN_MODEL_API_KEY: ${{ secrets.OPEN_MODEL_API_KEY }}
+      OPEN_MODEL_BASE_URL: ${{ vars.OPEN_MODEL_BASE_URL }}
+      OPEN_MODEL_EXTRACT_MODEL: ${{ vars.OPEN_MODEL_EXTRACT_MODEL }}
+      VERIFIER_SECONDARY_MODEL: ${{ vars.VERIFIER_SECONDARY_MODEL }}
       OPENAI_PRICE_INPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_INPUT_PER_MTOK_USD }}
       OPENAI_PRICE_OUTPUT_PER_MTOK_USD: ${{ vars.OPENAI_PRICE_OUTPUT_PER_MTOK_USD }}
     steps:

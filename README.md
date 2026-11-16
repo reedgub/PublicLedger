@@ -147,7 +147,7 @@ Backfill integrity rules:
 
 ### Free verifier (Gemini free tier or any OpenAI-compatible provider)
 
-Stage 3 can run on a free tier instead of OpenAI:
+Stage 3 can run on a free tier instead of OpenAI. The free model never publishes alone: it sits in a two-model panel with a second, independent model on the open-model provider (`VERIFIER_SECONDARY_MODEL`, default `meta-llama/Llama-3.3-70B-Instruct` on DeepInfra). The second model checks first, so its rejections don't spend the free tier's daily quota. A candidate is published only when both approve, and the lower of their two confidences must clear 0.9. A comparison showed `gemini-3.5-flash-lite` alone approving non-predictions (a hedged "may consider" and a remark about sentiment) at 0.95 confidence, with every verdict at 0.95 or higher.
 
 1. Create a key at aistudio.google.com and add it as the repo secret `VERIFIER_API_KEY`. Set the repo variable `VERIFIER_MODEL` to a model id your key can use on the free tier (check AI Studio; it must differ from the extraction model, which the code enforces).
 2. Run the **Verify pending candidates** workflow in `compare` mode. It re-verifies past candidates (every past approval plus a random sample of rejections) and compares the publish/reject decisions with the stored OpenAI verdicts, writing nothing. The run summary lists every disagreement; the row that matters most is "new verifier publishes, OpenAI rejected".

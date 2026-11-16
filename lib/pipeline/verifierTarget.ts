@@ -9,6 +9,13 @@
 // The verifier must be independent of the extractor: a different model
 // checking the first model's work. Using the extraction model as the
 // verifier is refused.
+//
+// The free path is a two-model panel (verifierPanel): a second, independent
+// model on the open-model provider checks first, and the free tier is asked
+// only if that one approves. A candidate is published only when both approve,
+// with the lower of the two confidences counting against the 0.9 bar. A
+// comparison against past OpenAI verdicts showed the free model alone
+// approving non-predictions with uniformly high confidence.
 
 import OpenAI from "openai";
 import { env } from "@/lib/env";
@@ -67,6 +74,111 @@ export function verifierTarget(purpose: "publish" | "compare" = "publish"): Veri
     maxPerRun: null,
     runBudgetMs: null,
   };
+}
+
+let secondaryClient: OpenAI | null = null;
+
+/** The second, independent verifier for the free panel, or null if it can't be configured. */
+function secondaryTarget(): VerifierTarget | null {
+  const apiKey = env.VERIFIER_SECONDARY_API_KEY ?? env.OPEN_MODEL_API_KEY;
+  if (!apiKey) return null;
+  const baseURL = env.VERIFIER_SECONDARY_BASE_URL ?? env.OPEN_MODEL_BASE_URL;
+  assertIndependent(env.VERIFIER_SECONDARY_MODEL);
+  secondaryClient ??= new OpenAI({ baseURL, apiKey, maxRetries: 1, timeout: env.VERIFIER_TIMEOUT_MS });
+  return {
+    client: secondaryClient,
+    model: env.VERIFIER_SECONDARY_MODEL,
+    provider: new URL(baseURL).hostname,
+    price: { input: env.VERIFIER_SECONDARY_PRICE_INPUT_PER_MTOK_USD, output: env.VERIFIER_SECONDARY_PRICE_OUTPUT_PER_MTOK_USD },
+    supportsBatch: false,
+    minIntervalMs: 0,
+    maxPerRun: null,
+    runBudgetMs: null,
+  };
+}
+
+export type VerifierPanel = {
+  /** Called in order; later members are asked only if every earlier one approved. */
+  members: VerifierTarget[];
+  label: string;
+  supportsBatch: boolean;
+  maxPerRun: number | null;
+  runBudgetMs: number | null;
+};
+
+/**
+ * The verifiers a candidate must pass. OpenAI is a panel of one. The free
+ * verifier is always paired with a second, independent model and never
+ * publishes alone; without that second model it is refused.
+ */
+export function verifierPanel(purpose: "publish" | "compare" = "publish"): VerifierPanel | null {
+  const primary = verifierTarget(purpose);
+  if (!primary) return null;
+  if (primary.provider === "openai") {
+    return { members: [primary], label: primary.model, supportsBatch: true, maxPerRun: null, runBudgetMs: null };
+  }
+  const secondary = secondaryTarget();
+  if (!secondary) {
+    throw new Error("The free verifier needs a second, independent model: set OPEN_MODEL_API_KEY (or VERIFIER_SECONDARY_API_KEY) so both must approve.");
+  }
+  if (sameModel(secondary.model, primary.model)) {
+    throw new Error(`The two verifiers must be different models (both are ${primary.model}).`);
+  }
+  return {
+    members: [secondary, primary],
+    label: `${secondary.model} + ${primary.model}`,
+    supportsBatch: false,
+    maxPerRun: primary.maxPerRun,
+    runBudgetMs: primary.runBudgetMs,
+  };
+}
+
+const PANEL_CONFIDENCE_BAR = 0.9;
+
+/** Whether one member's verdict lets the candidate go on to the next member. */
+export function memberApproves(verdict: CascadeVerdict): boolean {
+  return verdict.decision === "approve" && verdict.verdict === "faithful" && verdict.confidence >= PANEL_CONFIDENCE_BAR;
+}
+
+/**
+ * One verdict for the panel: approve only if every member approved, at the
+ * lowest member confidence; otherwise the first non-approving member's verdict.
+ */
+export function combineVerdicts(results: Array<{ model: string; verdict: CascadeVerdict }>): CascadeVerdict {
+  const blocking = results.find((result) => !memberApproves(result.verdict));
+  if (blocking) return { ...blocking.verdict, reason: `[${blocking.model}] ${blocking.verdict.reason}` };
+  return {
+    verdict: "faithful",
+    decision: "approve",
+    confidence: Math.min(...results.map((result) => result.verdict.confidence)),
+    reason: results.map((result) => `[${result.model}] ${result.verdict.reason}`).join(" "),
+  };
+}
+
+const lastCallAt = new WeakMap<VerifierTarget, number>();
+
+/**
+ * Run a candidate past the panel, pacing each member, stopping at the first
+ * member that does not approve. Errors (rate limits, outages) propagate.
+ */
+export async function runPanel(panel: VerifierPanel, input: VerifierInput): Promise<{
+  verdict: CascadeVerdict;
+  members: Array<{ model: string; provider: string; verdict: CascadeVerdict; usage: { inputTokens: number; outputTokens: number }; costUsd: number }>;
+}> {
+  const members: Awaited<ReturnType<typeof runPanel>>["members"] = [];
+  for (const target of panel.members) {
+    const last = lastCallAt.get(target);
+    if (last !== undefined && target.minIntervalMs > 0) {
+      const wait = target.minIntervalMs - (Date.now() - last);
+      if (wait > 0) await sleep(wait);
+    }
+    lastCallAt.set(target, Date.now());
+    const { verdict, usage } = await callVerifier(target, input);
+    const costUsd = (usage.inputTokens * target.price.input + usage.outputTokens * target.price.output) / 1_000_000;
+    members.push({ model: target.model, provider: target.provider, verdict, usage, costUsd });
+    if (!memberApproves(verdict)) break;
+  }
+  return { verdict: combineVerdicts(members), members };
 }
 
 /** Model ids compared without provider prefixes and case: "Qwen/Qwen3-32B" ~ "qwen3-32b". */
@@ -128,7 +240,7 @@ export async function callVerifier(target: VerifierTarget, input: VerifierInput)
 
 /** Verify synchronously when asked to, or when the configured verifier has no Batch API. */
 export function shouldVerifySynchronously(): boolean {
-  return env.VERIFIER_MODE === "sync" || !(verifierTarget()?.supportsBatch ?? false);
+  return env.VERIFIER_MODE === "sync" || !(verifierPanel()?.supportsBatch ?? false);
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

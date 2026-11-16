@@ -55,3 +55,55 @@ describe("callVerifier", () => {
     expect(calls).toHaveLength(1);
   });
 });
+
+describe("two-model panel", () => {
+  const approve = (confidence: number, reason = "ok") => ({ verdict: "faithful" as const, decision: "approve" as const, confidence, reason });
+  const input = {
+    authorName: "Test Expert", authorHandle: "test", sourceType: "x", sourceTimestamp: "2026-01-01T00:00:00.000Z",
+    sourceText: "Rates will be below 3% by the end of 2027.",
+    candidate: {
+      normalized_claim: "Rates below 3% by end of 2027.", source_quote: "Rates will be below 3% by the end of 2027.", resolution_date: "2027-12-31",
+      resolution_criteria: "Fed funds upper bound below 3%.", explicit_probability: null, confidence_language: null, category: "economy-rates",
+      extraction_confidence: 0.9, falsifiability_score: 0.9, source_fidelity_score: 0.9, record_type: "prediction", imputation_note: null,
+    },
+  } as never;
+
+  function member(model: string, verdicts: unknown[]) {
+    let i = 0;
+    const calls = { count: 0 };
+    const client = { chat: { completions: { create: async () => { calls.count += 1; return { choices: [{ message: { content: JSON.stringify(verdicts[i++]) } }], usage: { prompt_tokens: 100, completion_tokens: 10 } }; } } } };
+    return { calls, target: { client, model, provider: model, price: { input: 0, output: 0 }, supportsBatch: false, minIntervalMs: 0, maxPerRun: null, runBudgetMs: null } };
+  }
+
+  it("publishes only when every member approves, at the lowest confidence", async () => {
+    const { combineVerdicts } = await import("@/lib/pipeline/verifierTarget");
+    const both = combineVerdicts([{ model: "a", verdict: approve(0.93) }, { model: "b", verdict: approve(0.99) }]);
+    expect(both.decision).toBe("approve");
+    expect(both.confidence).toBe(0.93);
+    const oneLow = combineVerdicts([{ model: "a", verdict: approve(0.85, "unsure") }, { model: "b", verdict: approve(0.99) }]);
+    expect(oneLow.confidence).toBe(0.85);
+    expect(oneLow.reason).toContain("[a] unsure");
+    const oneRejects = combineVerdicts([{ model: "a", verdict: approve(0.95) }, { model: "b", verdict: { verdict: "not_prediction", decision: "reject", confidence: 1, reason: "hedge" } }]);
+    expect(oneRejects.decision).toBe("reject");
+    expect(oneRejects.reason).toBe("[b] hedge");
+  });
+
+  it("never asks the free tier when the first model rejects", async () => {
+    const { runPanel } = await import("@/lib/pipeline/verifierTarget");
+    const first = member("llama", [{ verdict: "overstated", decision: "reject", confidence: 0.9, reason: "hedged" }]);
+    const second = member("gemini", [approve(1)]);
+    const result = await runPanel({ members: [first.target, second.target], label: "llama + gemini", supportsBatch: false, maxPerRun: null, runBudgetMs: null } as never, input);
+    expect(result.verdict.decision).toBe("reject");
+    expect(second.calls.count).toBe(0);
+    expect(result.members).toHaveLength(1);
+  });
+
+  it("asks the second model when the first approves, and combines both", async () => {
+    const { runPanel } = await import("@/lib/pipeline/verifierTarget");
+    const first = member("llama", [approve(0.92)]);
+    const second = member("gemini", [approve(1)]);
+    const result = await runPanel({ members: [first.target, second.target], label: "llama + gemini", supportsBatch: false, maxPerRun: null, runBudgetMs: null } as never, input);
+    expect(second.calls.count).toBe(1);
+    expect(result.verdict).toMatchObject({ decision: "approve", confidence: 0.92 });
+  });
+});
