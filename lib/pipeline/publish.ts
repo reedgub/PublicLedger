@@ -150,7 +150,15 @@ export async function publishCandidate(input: PublishInput, sql: Sql = getDataba
     return { kind: "published", predictionId: prediction.id, predictionDate: source.published_at };
   });
   if (outcome.kind === "published") {
-    await linkPublishedPrediction(outcome.predictionId, candidate.normalized_claim, candidate.resolution_criteria, candidate.category, candidate.resolution_date, outcome.predictionDate!, { linkMarkets: input.captureMode === "live" });
+    // Topic and market links are informational context, added after the
+    // publish has committed. A failure here (e.g. the market matcher's
+    // provider is out of credits) must never fail the publish or stop a
+    // verification run: the prediction is already live and correct without them.
+    try {
+      await linkPublishedPrediction(outcome.predictionId, candidate.normalized_claim, candidate.resolution_criteria, candidate.category, candidate.resolution_date, outcome.predictionDate!, { linkMarkets: input.captureMode === "live" });
+    } catch (error) {
+      console.warn(`Published ${outcome.predictionId}, but linking topics/markets failed: ${error instanceof Error ? error.message.slice(0, 200) : "unknown"}`);
+    }
     return { kind: "published", predictionId: outcome.predictionId };
   }
   return outcome;
